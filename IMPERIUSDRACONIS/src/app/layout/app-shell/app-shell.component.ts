@@ -64,13 +64,13 @@ export class AppShellComponent {
   readonly preferencesService = inject(PreferencesService);
   readonly runtimeConfig = inject(RuntimeConfigService);
   readonly themes = [
-    { value: 'imperius', label: 'Imperius', asset: '/theme-assets/imperius-logo.png' },
-    { value: 'gryffindor', label: 'Gryffindor', asset: '/theme-assets/gryffindor-shield.png' },
-    { value: 'hufflepuff', label: 'Hufflepuff', asset: '/theme-assets/hufflepuff-shield.png' },
-    { value: 'ravenclaw', label: 'Ravenclaw', asset: '/theme-assets/ravenclaw-shield.png' },
-    { value: 'slytherin', label: 'Slytherin', asset: '/theme-assets/slytherin-shield.png' },
-    { value: 'dark', label: 'Oscuro', asset: '/theme-assets/imperius-logo.png' },
-    { value: 'corporate', label: 'Corporativo', asset: '/theme-assets/imperius-logo.png' }
+    { value: 'imperius', label: 'Imperius', asset: '/theme-assets/imperius-logo.webp' },
+    { value: 'gryffindor', label: 'Gryffindor', asset: '/theme-assets/gryffindor-shield.webp' },
+    { value: 'hufflepuff', label: 'Hufflepuff', asset: '/theme-assets/hufflepuff-shield.webp' },
+    { value: 'ravenclaw', label: 'Ravenclaw', asset: '/theme-assets/ravenclaw-shield.webp' },
+    { value: 'slytherin', label: 'Slytherin', asset: '/theme-assets/slytherin-shield.webp' },
+    { value: 'dark', label: 'Oscuro', asset: '/theme-assets/imperius-logo.webp' },
+    { value: 'corporate', label: 'Corporativo', asset: '/theme-assets/imperius-logo.webp' }
   ] as const;
   theme = 'imperius';
   readonly menu = [
