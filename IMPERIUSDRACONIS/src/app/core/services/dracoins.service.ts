@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { API_BASE_URL } from '../constants/api.constants';
+import { RuntimeConfigService } from './runtime-config.service';
 import { PagedResult } from '../models/alumnos.models';
 import {
   DracoinAdministrativePayment,
@@ -20,20 +20,21 @@ import {
 @Injectable({ providedIn: 'root' })
 export class DracoinsService {
   private readonly http = inject(HttpClient);
+  private readonly runtimeConfig = inject(RuntimeConfigService);
 
   getSummary(): Observable<DracoinSummary> {
-    return this.http.get<DracoinSummary>(`${API_BASE_URL}/dracoins/resumen`);
+    return this.http.get<DracoinSummary>(`${this.runtimeConfig.apiUrl}/dracoins/resumen`);
   }
 
   getTransferHistory(page = 1, pageSize = 10): Observable<PagedResult<DracoinTransfer>> {
     const params = new HttpParams().set('pagina', page).set('registrosPorPagina', pageSize);
-    return this.http.get<PagedResult<DracoinTransfer>>(`${API_BASE_URL}/dracoins/transferencias`, {
+    return this.http.get<PagedResult<DracoinTransfer>>(`${this.runtimeConfig.apiUrl}/dracoins/transferencias`, {
       params
     });
   }
 
   createTransfer(payload: SaveDracoinTransferRequest): Observable<DracoinTransfer> {
-    return this.http.post<DracoinTransfer>(`${API_BASE_URL}/dracoins/transferencias`, payload);
+    return this.http.post<DracoinTransfer>(`${this.runtimeConfig.apiUrl}/dracoins/transferencias`, payload);
   }
 
   getAdministrativePayments(
@@ -42,7 +43,7 @@ export class DracoinsService {
   ): Observable<PagedResult<DracoinAdministrativePayment>> {
     const params = new HttpParams().set('pagina', page).set('registrosPorPagina', pageSize);
     return this.http.get<PagedResult<DracoinAdministrativePayment>>(
-      `${API_BASE_URL}/dracoins/historial-pagos`,
+      `${this.runtimeConfig.apiUrl}/dracoins/historial-pagos`,
       { params }
     );
   }
@@ -83,28 +84,28 @@ export class DracoinsService {
     }
 
     return this.http.get<PagedResult<DracoinGeneralMovement>>(
-      `${API_BASE_URL}/dracoins/historial-general`,
+      `${this.runtimeConfig.apiUrl}/dracoins/historial-general`,
       { params }
     );
   }
 
   getSalaryCatalog(): Observable<DracoinSalaryByCargo[]> {
-    return this.http.get<DracoinSalaryByCargo[]>(`${API_BASE_URL}/dracoins/sueldos-por-cargo`);
+    return this.http.get<DracoinSalaryByCargo[]>(`${this.runtimeConfig.apiUrl}/dracoins/sueldos-por-cargo`);
   }
 
   updateSalaryCatalog(
     payload: UpdateDracoinSalaryCatalogRequest
   ): Observable<DracoinSalaryByCargo[]> {
-    return this.http.put<DracoinSalaryByCargo[]>(`${API_BASE_URL}/dracoins/sueldos-por-cargo`, payload);
+    return this.http.put<DracoinSalaryByCargo[]>(`${this.runtimeConfig.apiUrl}/dracoins/sueldos-por-cargo`, payload);
   }
 
   getManualPaymentCandidates(): Observable<DracoinManualPaymentCandidate[]> {
-    return this.http.get<DracoinManualPaymentCandidate[]>(`${API_BASE_URL}/dracoins/pagos-manuales`);
+    return this.http.get<DracoinManualPaymentCandidate[]>(`${this.runtimeConfig.apiUrl}/dracoins/pagos-manuales`);
   }
 
   createManualPayments(
     payload: CreateDracoinManualPaymentsRequest
   ): Observable<DracoinManualPaymentsResult> {
-    return this.http.post<DracoinManualPaymentsResult>(`${API_BASE_URL}/dracoins/pagos-manuales`, payload);
+    return this.http.post<DracoinManualPaymentsResult>(`${this.runtimeConfig.apiUrl}/dracoins/pagos-manuales`, payload);
   }
 }

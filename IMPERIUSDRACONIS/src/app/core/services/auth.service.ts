@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, Observable, of, tap } from 'rxjs';
-import { API_BASE_URL } from '../constants/api.constants';
+import { RuntimeConfigService } from './runtime-config.service';
 import {
   AuthenticatedUser,
   AuthSession,
@@ -16,6 +16,7 @@ const STORAGE_KEY = 'imperiusdraconis.session';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private readonly runtimeConfig = inject(RuntimeConfigService);
   private readonly router = inject(Router);
   private readonly sessionState = signal<AuthSession | null>(this.readSession());
 
@@ -26,13 +27,13 @@ export class AuthService {
   readonly permissions = computed(() => this.user()?.permisos ?? []);
 
   login(payload: LoginRequest): Observable<AuthSession> {
-    return this.http.post<AuthSession>(`${API_BASE_URL}/auth/login`, payload).pipe(
+    return this.http.post<AuthSession>(`${this.runtimeConfig.apiUrl}/auth/login`, payload).pipe(
       tap((session) => this.persistSession(session))
     );
   }
 
   recoverPassword(payload: RecoverPasswordRequest): Observable<RecoverPasswordResponse> {
-    return this.http.post<RecoverPasswordResponse>(`${API_BASE_URL}/auth/recuperar-contrasena`, payload);
+    return this.http.post<RecoverPasswordResponse>(`${this.runtimeConfig.apiUrl}/auth/recuperar-contrasena`, payload);
   }
 
   hydrateSession(): Observable<AuthenticatedUser | null> {
@@ -40,7 +41,7 @@ export class AuthService {
       return of(null);
     }
 
-    return this.http.get<AuthenticatedUser>(`${API_BASE_URL}/auth/me`).pipe(
+    return this.http.get<AuthenticatedUser>(`${this.runtimeConfig.apiUrl}/auth/me`).pipe(
       tap((user) => {
         const current = this.sessionState();
         if (!current) {

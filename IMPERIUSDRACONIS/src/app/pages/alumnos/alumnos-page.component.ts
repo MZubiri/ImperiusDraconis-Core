@@ -15,6 +15,7 @@ import {
 import { resolveProfileAvatarUrl } from '../../core/constants/profile.constants';
 import { AuthService } from '../../core/services/auth.service';
 import { AlumnosService } from '../../core/services/alumnos.service';
+import { RuntimeConfigService } from '../../core/services/runtime-config.service';
 import { ImageFallbackDirective } from '../../shared/directives/image-fallback.directive';
 
 type FormMode = 'create' | 'edit';
@@ -67,6 +68,7 @@ export class AlumnosPageComponent {
 
   readonly auth = inject(AuthService);
   readonly alumnosService = inject(AlumnosService);
+  readonly runtimeConfig = inject(RuntimeConfigService);
 
   readonly casas = signal<CatalogItem[]>([]);
   readonly cargos = signal<CatalogItem[]>([]);
@@ -220,7 +222,7 @@ export class AlumnosPageComponent {
   }
 
   avatarUrl(path?: string | null): string {
-    return resolveProfileAvatarUrl(path);
+    return resolveProfileAvatarUrl(path, this.runtimeConfig);
   }
 
   openAlumno(idAlumno: number): void {

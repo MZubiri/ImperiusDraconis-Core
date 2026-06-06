@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { API_BASE_URL } from '../constants/api.constants';
+import { RuntimeConfigService } from './runtime-config.service';
 import {
   ChangeMascotaStateRequest,
   MascotaAssignment,
@@ -19,9 +19,10 @@ import {
 @Injectable({ providedIn: 'root' })
 export class MascotasService {
   private readonly http = inject(HttpClient);
+  private readonly runtimeConfig = inject(RuntimeConfigService);
 
   getSummary(): Observable<MascotaSummary> {
-    return this.http.get<MascotaSummary>(`${API_BASE_URL}/mascotas/resumen`);
+    return this.http.get<MascotaSummary>(`${this.runtimeConfig.apiUrl}/mascotas/resumen`);
   }
 
   getCatalog(activo?: boolean | null): Observable<MascotaCatalogItem[]> {
@@ -31,11 +32,11 @@ export class MascotasService {
       params = params.set('activo', activo);
     }
 
-    return this.http.get<MascotaCatalogItem[]>(`${API_BASE_URL}/mascotas/catalogo`, { params });
+    return this.http.get<MascotaCatalogItem[]>(`${this.runtimeConfig.apiUrl}/mascotas/catalogo`, { params });
   }
 
   getFormCatalogs(): Observable<MascotaFormCatalogs> {
-    return this.http.get<MascotaFormCatalogs>(`${API_BASE_URL}/mascotas/catalogos-formulario`);
+    return this.http.get<MascotaFormCatalogs>(`${this.runtimeConfig.apiUrl}/mascotas/catalogos-formulario`);
   }
 
   getAssignments(filters: MascotaAssignmentFilters = {}): Observable<MascotaAssignment[]> {
@@ -53,22 +54,22 @@ export class MascotasService {
       params = params.set('soloPendientesCobro', filters.soloPendientesCobro);
     }
 
-    return this.http.get<MascotaAssignment[]>(`${API_BASE_URL}/mascotas/asignaciones`, { params });
+    return this.http.get<MascotaAssignment[]>(`${this.runtimeConfig.apiUrl}/mascotas/asignaciones`, { params });
   }
 
   getAssignmentById(idMascotaAlumno: number): Observable<MascotaAssignment> {
-    return this.http.get<MascotaAssignment>(`${API_BASE_URL}/mascotas/asignaciones/${idMascotaAlumno}`);
+    return this.http.get<MascotaAssignment>(`${this.runtimeConfig.apiUrl}/mascotas/asignaciones/${idMascotaAlumno}`);
   }
 
   createAssignment(payload: SaveMascotaAssignmentRequest): Observable<MascotaAssignment> {
-    return this.http.post<MascotaAssignment>(`${API_BASE_URL}/mascotas/asignaciones`, payload);
+    return this.http.post<MascotaAssignment>(`${this.runtimeConfig.apiUrl}/mascotas/asignaciones`, payload);
   }
 
   updateAssignment(
     idMascotaAlumno: number,
     payload: SaveMascotaAssignmentRequest
   ): Observable<void> {
-    return this.http.put<void>(`${API_BASE_URL}/mascotas/asignaciones/${idMascotaAlumno}`, payload);
+    return this.http.put<void>(`${this.runtimeConfig.apiUrl}/mascotas/asignaciones/${idMascotaAlumno}`, payload);
   }
 
   changeState(
@@ -76,26 +77,26 @@ export class MascotasService {
     payload: ChangeMascotaStateRequest
   ): Observable<MascotaAssignment> {
     return this.http.patch<MascotaAssignment>(
-      `${API_BASE_URL}/mascotas/asignaciones/${idMascotaAlumno}/estado`,
+      `${this.runtimeConfig.apiUrl}/mascotas/asignaciones/${idMascotaAlumno}/estado`,
       payload
     );
   }
 
   deleteAssignment(idMascotaAlumno: number): Observable<void> {
-    return this.http.delete<void>(`${API_BASE_URL}/mascotas/asignaciones/${idMascotaAlumno}`);
+    return this.http.delete<void>(`${this.runtimeConfig.apiUrl}/mascotas/asignaciones/${idMascotaAlumno}`);
   }
 
   getWeeklyChargeCandidates(): Observable<MascotaWeeklyChargeCandidate[]> {
-    return this.http.get<MascotaWeeklyChargeCandidate[]>(`${API_BASE_URL}/mascotas/cobro-semanal`);
+    return this.http.get<MascotaWeeklyChargeCandidate[]>(`${this.runtimeConfig.apiUrl}/mascotas/cobro-semanal`);
   }
 
   processWeeklyCharges(
     payload: ProcessMascotaWeeklyChargeRequest
   ): Observable<MascotaWeeklyChargeResult> {
-    return this.http.post<MascotaWeeklyChargeResult>(`${API_BASE_URL}/mascotas/cobro-semanal`, payload);
+    return this.http.post<MascotaWeeklyChargeResult>(`${this.runtimeConfig.apiUrl}/mascotas/cobro-semanal`, payload);
   }
 
   getMatrix(): Observable<MascotaMatrixRow[]> {
-    return this.http.get<MascotaMatrixRow[]>(`${API_BASE_URL}/mascotas/matriz`);
+    return this.http.get<MascotaMatrixRow[]>(`${this.runtimeConfig.apiUrl}/mascotas/matriz`);
   }
 }

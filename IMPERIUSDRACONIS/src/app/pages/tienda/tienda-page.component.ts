@@ -5,7 +5,6 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signa
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
-import { resolveApiAssetUrl } from '../../core/constants/api.constants';
 import { ActivatedRoute } from '@angular/router';
 import { CatalogItem } from '../../core/models/alumnos.models';
 import {
@@ -17,6 +16,7 @@ import {
   TiendaProducto
 } from '../../core/models/tienda.models';
 import { AuthService } from '../../core/services/auth.service';
+import { RuntimeConfigService } from '../../core/services/runtime-config.service';
 import { TiendaService } from '../../core/services/tienda.service';
 import { ImageFallbackDirective } from '../../shared/directives/image-fallback.directive';
 
@@ -37,6 +37,7 @@ export class TiendaPageComponent {
 
   readonly auth = inject(AuthService);
   readonly tiendaService = inject(TiendaService);
+  readonly runtimeConfig = inject(RuntimeConfigService);
 
   readonly products = signal<TiendaProducto[]>([]);
   readonly selectedProduct = signal<TiendaProducto | null>(null);
@@ -632,7 +633,7 @@ export class TiendaPageComponent {
   }
 
   imageUrl(path: string): string {
-    return resolveApiAssetUrl(path);
+    return this.runtimeConfig.resolveApiAssetUrl(path);
   }
 
   private refreshCurrentUser(): void {

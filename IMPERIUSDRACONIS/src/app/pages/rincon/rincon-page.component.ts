@@ -4,10 +4,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { catchError, finalize, forkJoin, map, Observable, of, switchMap } from 'rxjs';
-import { resolveApiAssetUrl } from '../../core/constants/api.constants';
 import { RinconPedido, RinconProducto, RinconResumenAdmin } from '../../core/models/rincon.models';
 import { AuthService } from '../../core/services/auth.service';
 import { RinconService } from '../../core/services/rincon.service';
+import { RuntimeConfigService } from '../../core/services/runtime-config.service';
 import { ImageFallbackDirective } from '../../shared/directives/image-fallback.directive';
 
 interface RinconCartItem extends RinconProducto {
@@ -31,6 +31,7 @@ export class RinconPageComponent {
 
   readonly auth = inject(AuthService);
   readonly rinconService = inject(RinconService);
+  readonly runtimeConfig = inject(RuntimeConfigService);
 
   readonly canViewCatalog = computed(() =>
     this.auth.hasAnyPermission(['Rincon:Catalogo', 'Rincon:GestionarProductos'])
@@ -683,7 +684,7 @@ export class RinconPageComponent {
   }
 
   imageUrl(path: string): string {
-    return resolveApiAssetUrl(path);
+    return this.runtimeConfig.resolveApiAssetUrl(path);
   }
 
   private hydrateOrderDetails(orders: RinconPedido[]): Observable<RinconPedido[]> {

@@ -4,10 +4,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
-import { resolveApiAssetUrl } from '../../core/constants/api.constants';
 import { Producto } from '../../core/models/productos.models';
 import { AuthService } from '../../core/services/auth.service';
 import { ProductosService } from '../../core/services/productos.service';
+import { RuntimeConfigService } from '../../core/services/runtime-config.service';
 import { ImageFallbackDirective } from '../../shared/directives/image-fallback.directive';
 
 type FormMode = 'create' | 'edit';
@@ -25,6 +25,7 @@ export class ProductosPageComponent {
 
   readonly auth = inject(AuthService);
   readonly productosService = inject(ProductosService);
+  readonly runtimeConfig = inject(RuntimeConfigService);
 
   readonly canView = computed(() =>
     this.auth.hasAnyPermission([
@@ -219,7 +220,7 @@ export class ProductosPageComponent {
   }
 
   imageUrl(path: string): string {
-    return resolveApiAssetUrl(path);
+    return this.runtimeConfig.resolveApiAssetUrl(path);
   }
 
   private revokeTemporaryImagePreview(): void {

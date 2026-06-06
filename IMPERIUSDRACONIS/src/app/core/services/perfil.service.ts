@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { API_BASE_URL } from '../constants/api.constants';
+import { RuntimeConfigService } from './runtime-config.service';
 import {
   ChangeMyPasswordRequest,
   PerfilDetail,
@@ -12,22 +12,23 @@ import {
 @Injectable({ providedIn: 'root' })
 export class PerfilService {
   private readonly http = inject(HttpClient);
+  private readonly runtimeConfig = inject(RuntimeConfigService);
 
   getProfile(): Observable<PerfilDetail> {
-    return this.http.get<PerfilDetail>(`${API_BASE_URL}/perfil`);
+    return this.http.get<PerfilDetail>(`${this.runtimeConfig.apiUrl}/perfil`);
   }
 
   updateProfile(payload: UpdateMyProfileRequest): Observable<void> {
-    return this.http.put<void>(`${API_BASE_URL}/perfil`, payload);
+    return this.http.put<void>(`${this.runtimeConfig.apiUrl}/perfil`, payload);
   }
 
   changePassword(payload: ChangeMyPasswordRequest): Observable<void> {
-    return this.http.put<void>(`${API_BASE_URL}/perfil/contrasena`, payload);
+    return this.http.put<void>(`${this.runtimeConfig.apiUrl}/perfil/contrasena`, payload);
   }
 
   uploadProfileImage(file: File): Observable<UploadProfileImageResponse> {
     const formData = new FormData();
     formData.append('fotoArchivo', file);
-    return this.http.post<UploadProfileImageResponse>(`${API_BASE_URL}/perfil/foto`, formData);
+    return this.http.post<UploadProfileImageResponse>(`${this.runtimeConfig.apiUrl}/perfil/foto`, formData);
   }
 }

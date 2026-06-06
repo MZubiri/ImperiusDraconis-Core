@@ -22,6 +22,7 @@ import {
 import { resolveProfileAvatarUrl } from '../../core/constants/profile.constants';
 import { AuthService } from '../../core/services/auth.service';
 import { PreferencesService } from '../../core/services/preferences.service';
+import { RuntimeConfigService } from '../../core/services/runtime-config.service';
 
 @Component({
   selector: 'app-shell',
@@ -61,6 +62,7 @@ export class AppShellComponent {
 
   readonly auth = inject(AuthService);
   readonly preferencesService = inject(PreferencesService);
+  readonly runtimeConfig = inject(RuntimeConfigService);
   readonly themes = [
     { value: 'imperius', label: 'Imperius', asset: '/theme-assets/imperius-logo.png' },
     { value: 'gryffindor', label: 'Gryffindor', asset: '/theme-assets/gryffindor-shield.png' },
@@ -213,7 +215,7 @@ export class AppShellComponent {
   }
 
   avatarUrl(path: string | null | undefined): string {
-    return resolveProfileAvatarUrl(path);
+    return resolveProfileAvatarUrl(path, this.runtimeConfig);
   }
 
   themeAsset(): string {

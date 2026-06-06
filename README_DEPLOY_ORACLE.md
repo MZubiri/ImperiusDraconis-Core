@@ -95,19 +95,25 @@ El contenedor no ejecuta migraciones de base de datos al iniciar.
    | Puerto interno | `80` |
    | Dominio | `https://imperiusdraconis.lat` |
 
-4. No requiere variables de entorno de runtime.
+4. Configurar la variable de entorno de runtime:
+
+   ```text
+   API_URL=https://api.imperiusdraconis.lat/api
+   ```
+
 5. Desplegar después de que `api.imperiusdraconis.lat` esté disponible.
 
-El build de produccion Angular utiliza:
+El contenedor genera al iniciar:
 
 ```text
-https://api.imperiusdraconis.lat/api
+/usr/share/nginx/html/assets/config/runtime-config.json
 ```
 
-Esta URL se define en:
+La misma imagen puede apuntar a otra API modificando solamente `API_URL` y reiniciando
+el contenedor. No requiere recompilar Angular. La implementacion se documenta en:
 
 ```text
-IMPERIUSDRACONIS/src/environments/environment.production.ts
+IMPERIUSDRACONIS/README_RUNTIME_CONFIG.md
 ```
 
 ## Proxy Y TLS
@@ -137,8 +143,8 @@ export Jwt__SecretKey='SECRETO_LOCAL_DE_AL_MENOS_32_CARACTERES'
 dotnet run
 ```
 
-El frontend de desarrollo continúa usando:
+El frontend de desarrollo usa el archivo runtime local con:
 
 ```text
-http://localhost:5176/api
+http://localhost:8080/api
 ```

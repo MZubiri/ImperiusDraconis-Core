@@ -177,7 +177,7 @@ Proyecto:
 Archivos importantes:
 
 - [src/app/app.routes.ts](C:/Users/user/Desktop/IMPERIUSDRACONIS/src/app/app.routes.ts)
-- [src/app/core/constants/api.constants.ts](C:/Users/user/Desktop/IMPERIUSDRACONIS/src/app/core/constants/api.constants.ts)
+- [src/app/core/services/runtime-config.service.ts](C:/Users/user/Desktop/IMPERIUSDRACONIS/src/app/core/services/runtime-config.service.ts)
 - [src/app/core/services/auth.service.ts](C:/Users/user/Desktop/IMPERIUSDRACONIS/src/app/core/services/auth.service.ts)
 - [src/app/core/services/perfil.service.ts](C:/Users/user/Desktop/IMPERIUSDRACONIS/src/app/core/services/perfil.service.ts)
 - [src/app/core/services/alumnos.service.ts](C:/Users/user/Desktop/IMPERIUSDRACONIS/src/app/core/services/alumnos.service.ts)

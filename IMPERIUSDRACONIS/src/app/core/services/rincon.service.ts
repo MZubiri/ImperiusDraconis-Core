@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { API_BASE_URL } from '../constants/api.constants';
+import { RuntimeConfigService } from './runtime-config.service';
 import {
   CreateRinconPedidoRequest,
   RinconPedido,
@@ -14,6 +14,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class RinconService {
   private readonly http = inject(HttpClient);
+  private readonly runtimeConfig = inject(RuntimeConfigService);
 
   getProductos(filters: RinconProductoFilters = {}): Observable<RinconProducto[]> {
     let params = new HttpParams();
@@ -26,54 +27,54 @@ export class RinconService {
       params = params.set('soloDisponibles', filters.soloDisponibles);
     }
 
-    return this.http.get<RinconProducto[]>(`${API_BASE_URL}/rincon/productos`, { params });
+    return this.http.get<RinconProducto[]>(`${this.runtimeConfig.apiUrl}/rincon/productos`, { params });
   }
 
   getProductoById(idProducto: number): Observable<RinconProducto> {
-    return this.http.get<RinconProducto>(`${API_BASE_URL}/rincon/productos/${idProducto}`);
+    return this.http.get<RinconProducto>(`${this.runtimeConfig.apiUrl}/rincon/productos/${idProducto}`);
   }
 
   createPedido(payload: CreateRinconPedidoRequest): Observable<RinconPedido> {
-    return this.http.post<RinconPedido>(`${API_BASE_URL}/rincon/pedidos`, payload);
+    return this.http.post<RinconPedido>(`${this.runtimeConfig.apiUrl}/rincon/pedidos`, payload);
   }
 
   getComprobante(idPedido: number): Observable<RinconPedido> {
-    return this.http.get<RinconPedido>(`${API_BASE_URL}/rincon/pedidos/${idPedido}/comprobante`);
+    return this.http.get<RinconPedido>(`${this.runtimeConfig.apiUrl}/rincon/pedidos/${idPedido}/comprobante`);
   }
 
   getHistorial(): Observable<RinconPedido[]> {
-    return this.http.get<RinconPedido[]>(`${API_BASE_URL}/rincon/historial`);
+    return this.http.get<RinconPedido[]>(`${this.runtimeConfig.apiUrl}/rincon/historial`);
   }
 
   cancelarPedido(idPedido: number): Observable<RinconPedido> {
-    return this.http.post<RinconPedido>(`${API_BASE_URL}/rincon/pedidos/${idPedido}/cancelar`, {});
+    return this.http.post<RinconPedido>(`${this.runtimeConfig.apiUrl}/rincon/pedidos/${idPedido}/cancelar`, {});
   }
 
   getResumenAdmin(): Observable<RinconResumenAdmin> {
-    return this.http.get<RinconResumenAdmin>(`${API_BASE_URL}/rincon/admin/resumen`);
+    return this.http.get<RinconResumenAdmin>(`${this.runtimeConfig.apiUrl}/rincon/admin/resumen`);
   }
 
   createProducto(payload: SaveRinconProductoRequest): Observable<RinconProducto> {
-    return this.http.post<RinconProducto>(`${API_BASE_URL}/rincon/admin/productos`, this.toFormData(payload));
+    return this.http.post<RinconProducto>(`${this.runtimeConfig.apiUrl}/rincon/admin/productos`, this.toFormData(payload));
   }
 
   updateProducto(idProducto: number, payload: SaveRinconProductoRequest): Observable<void> {
     return this.http.put<void>(
-      `${API_BASE_URL}/rincon/admin/productos/${idProducto}`,
+      `${this.runtimeConfig.apiUrl}/rincon/admin/productos/${idProducto}`,
       this.toFormData(payload)
     );
   }
 
   deleteProducto(idProducto: number): Observable<void> {
-    return this.http.delete<void>(`${API_BASE_URL}/rincon/admin/productos/${idProducto}`);
+    return this.http.delete<void>(`${this.runtimeConfig.apiUrl}/rincon/admin/productos/${idProducto}`);
   }
 
   getPedidosPendientes(): Observable<RinconPedido[]> {
-    return this.http.get<RinconPedido[]>(`${API_BASE_URL}/rincon/admin/pedidos-pendientes`);
+    return this.http.get<RinconPedido[]>(`${this.runtimeConfig.apiUrl}/rincon/admin/pedidos-pendientes`);
   }
 
   marcarEntregado(idPedido: number): Observable<RinconPedido> {
-    return this.http.post<RinconPedido>(`${API_BASE_URL}/rincon/admin/pedidos/${idPedido}/entregado`, {});
+    return this.http.post<RinconPedido>(`${this.runtimeConfig.apiUrl}/rincon/admin/pedidos/${idPedido}/entregado`, {});
   }
 
   getHistorialAdmin(estado?: number | null): Observable<RinconPedido[]> {
@@ -82,7 +83,7 @@ export class RinconService {
       params = params.set('estado', estado);
     }
 
-    return this.http.get<RinconPedido[]>(`${API_BASE_URL}/rincon/admin/historial`, { params });
+    return this.http.get<RinconPedido[]>(`${this.runtimeConfig.apiUrl}/rincon/admin/historial`, { params });
   }
 
   private toFormData(payload: SaveRinconProductoRequest): FormData {

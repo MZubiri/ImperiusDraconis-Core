@@ -1,4 +1,4 @@
-import { resolveApiAssetUrl } from './api.constants';
+import { RuntimeConfigService } from '../services/runtime-config.service';
 
 export interface ProfileCountryOption {
   nombre: string;
@@ -71,7 +71,10 @@ export const PROFILE_AVATARS: readonly ProfileAvatarOption[] = profileAvatarFile
   assetUrl: `${PROFILE_AVATAR_BASE_PATH}/${fileName}`
 }));
 
-export function resolveProfileAvatarUrl(value: string | null | undefined): string {
+export function resolveProfileAvatarUrl(
+  value: string | null | undefined,
+  runtimeConfig: RuntimeConfigService
+): string {
   const trimmed = value?.trim();
   if (!trimmed) {
     return `${PROFILE_AVATAR_BASE_PATH}/default.jpg`;
@@ -83,7 +86,7 @@ export function resolveProfileAvatarUrl(value: string | null | undefined): strin
     return `${PROFILE_AVATAR_BASE_PATH}/${fileName}`;
   }
 
-  return resolveApiAssetUrl(trimmed) || `${PROFILE_AVATAR_BASE_PATH}/default.jpg`;
+  return runtimeConfig.resolveApiAssetUrl(trimmed) || `${PROFILE_AVATAR_BASE_PATH}/default.jpg`;
 }
 
 export function getSuggestedTimezones(): string[] {

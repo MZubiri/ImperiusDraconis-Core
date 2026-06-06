@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { API_BASE_URL } from '../constants/api.constants';
+import { RuntimeConfigService } from './runtime-config.service';
 import {
   DashboardQuickLinksPreference,
   DracoinTransferFavoritesPreference,
@@ -14,18 +14,19 @@ import {
 @Injectable({ providedIn: 'root' })
 export class PreferencesService {
   private readonly http = inject(HttpClient);
+  private readonly runtimeConfig = inject(RuntimeConfigService);
 
   getDashboardQuickLinks(): Observable<DashboardQuickLinksPreference> {
-    return this.http.get<DashboardQuickLinksPreference>(`${API_BASE_URL}/preferencias/dashboard/accesos-rapidos`);
+    return this.http.get<DashboardQuickLinksPreference>(`${this.runtimeConfig.apiUrl}/preferencias/dashboard/accesos-rapidos`);
   }
 
   saveDashboardQuickLinks(payload: UpdateDashboardQuickLinksPreferenceRequest): Observable<void> {
-    return this.http.put<void>(`${API_BASE_URL}/preferencias/dashboard/accesos-rapidos`, payload);
+    return this.http.put<void>(`${this.runtimeConfig.apiUrl}/preferencias/dashboard/accesos-rapidos`, payload);
   }
 
   getDracoinTransferFavorites(): Observable<DracoinTransferFavoritesPreference> {
     return this.http.get<DracoinTransferFavoritesPreference>(
-      `${API_BASE_URL}/preferencias/dracoins/favoritos-transferencia`
+      `${this.runtimeConfig.apiUrl}/preferencias/dracoins/favoritos-transferencia`
     );
   }
 
@@ -33,16 +34,16 @@ export class PreferencesService {
     payload: UpdateDracoinTransferFavoritesPreferenceRequest
   ): Observable<DracoinTransferFavoritesPreference> {
     return this.http.put<DracoinTransferFavoritesPreference>(
-      `${API_BASE_URL}/preferencias/dracoins/favoritos-transferencia`,
+      `${this.runtimeConfig.apiUrl}/preferencias/dracoins/favoritos-transferencia`,
       payload
     );
   }
 
   getTheme(): Observable<ThemePreference> {
-    return this.http.get<ThemePreference>(`${API_BASE_URL}/preferencias/apariencia/tema`);
+    return this.http.get<ThemePreference>(`${this.runtimeConfig.apiUrl}/preferencias/apariencia/tema`);
   }
 
   saveTheme(payload: UpdateThemePreferenceRequest): Observable<ThemePreference> {
-    return this.http.put<ThemePreference>(`${API_BASE_URL}/preferencias/apariencia/tema`, payload);
+    return this.http.put<ThemePreference>(`${this.runtimeConfig.apiUrl}/preferencias/apariencia/tema`, payload);
   }
 }

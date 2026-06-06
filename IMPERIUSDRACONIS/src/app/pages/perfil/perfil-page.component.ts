@@ -20,6 +20,7 @@ import {
 } from '../../core/models/perfil.models';
 import { AuthService } from '../../core/services/auth.service';
 import { PerfilService } from '../../core/services/perfil.service';
+import { RuntimeConfigService } from '../../core/services/runtime-config.service';
 
 interface PerfilFormModel {
   telefono: string;
@@ -43,6 +44,7 @@ export class PerfilPageComponent {
 
   readonly auth = inject(AuthService);
   readonly perfilService = inject(PerfilService);
+  readonly runtimeConfig = inject(RuntimeConfigService);
 
   readonly perfil = signal<PerfilDetail | null>(null);
   readonly loading = signal(true);
@@ -262,7 +264,7 @@ export class PerfilPageComponent {
   }
 
   avatarUrl(path?: string | null): string {
-    return resolveProfileAvatarUrl(path ?? this.form.fotoPerfil);
+    return resolveProfileAvatarUrl(path ?? this.form.fotoPerfil, this.runtimeConfig);
   }
 
   completionPercent(): number {

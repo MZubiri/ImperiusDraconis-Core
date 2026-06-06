@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { API_BASE_URL } from '../constants/api.constants';
+import { RuntimeConfigService } from './runtime-config.service';
 import { PagedResult } from '../models/alumnos.models';
 import {
   AgendaCreateBatchRequest,
@@ -19,6 +19,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class DinamicasService {
   private readonly http = inject(HttpClient);
+  private readonly runtimeConfig = inject(RuntimeConfigService);
 
   getDinamicas(filters: DinamicasFilters): Observable<PagedResult<DinamicaListItem>> {
     let params = new HttpParams()
@@ -49,21 +50,21 @@ export class DinamicasService {
       params = params.set('hasta', filters.hasta);
     }
 
-    return this.http.get<PagedResult<DinamicaListItem>>(`${API_BASE_URL}/dinamicas`, { params });
+    return this.http.get<PagedResult<DinamicaListItem>>(`${this.runtimeConfig.apiUrl}/dinamicas`, { params });
   }
 
   getPointsDetail(idDinamica: number): Observable<DinamicaPuntosDetail> {
-    return this.http.get<DinamicaPuntosDetail>(`${API_BASE_URL}/dinamicas/${idDinamica}/detalle-puntos`);
+    return this.http.get<DinamicaPuntosDetail>(`${this.runtimeConfig.apiUrl}/dinamicas/${idDinamica}/detalle-puntos`);
   }
 
   getDracoinsDetail(idDinamica: number): Observable<DinamicaDracoinsDetail> {
     return this.http.get<DinamicaDracoinsDetail>(
-      `${API_BASE_URL}/dinamicas/${idDinamica}/detalle-dracoins`
+      `${this.runtimeConfig.apiUrl}/dinamicas/${idDinamica}/detalle-dracoins`
     );
   }
 
   getActiveStudents(): Observable<AlumnoActivo[]> {
-    return this.http.get<AlumnoActivo[]>(`${API_BASE_URL}/dinamicas/alumnos-activos`);
+    return this.http.get<AlumnoActivo[]>(`${this.runtimeConfig.apiUrl}/dinamicas/alumnos-activos`);
   }
 
   getAgenda(fecha?: string | null): Observable<AgendaDinamica[]> {
@@ -72,40 +73,40 @@ export class DinamicasService {
       params = params.set('fecha', fecha);
     }
 
-    return this.http.get<AgendaDinamica[]>(`${API_BASE_URL}/dinamicas/agenda`, { params });
+    return this.http.get<AgendaDinamica[]>(`${this.runtimeConfig.apiUrl}/dinamicas/agenda`, { params });
   }
 
   getAgendaResponsables(): Observable<AgendaResponsable[]> {
-    return this.http.get<AgendaResponsable[]>(`${API_BASE_URL}/dinamicas/agenda/responsables`);
+    return this.http.get<AgendaResponsable[]>(`${this.runtimeConfig.apiUrl}/dinamicas/agenda/responsables`);
   }
 
   getAgendaItem(idAgenda: number): Observable<AgendaDinamica> {
-    return this.http.get<AgendaDinamica>(`${API_BASE_URL}/dinamicas/agenda/${idAgenda}`);
+    return this.http.get<AgendaDinamica>(`${this.runtimeConfig.apiUrl}/dinamicas/agenda/${idAgenda}`);
   }
 
   createAgendaBatch(payload: AgendaCreateBatchRequest): Observable<AgendaDinamica[]> {
-    return this.http.post<AgendaDinamica[]>(`${API_BASE_URL}/dinamicas/agenda/lotes`, payload);
+    return this.http.post<AgendaDinamica[]>(`${this.runtimeConfig.apiUrl}/dinamicas/agenda/lotes`, payload);
   }
 
   updateAgenda(idAgenda: number, payload: AgendaUpdateRequest): Observable<AgendaDinamica> {
-    return this.http.put<AgendaDinamica>(`${API_BASE_URL}/dinamicas/agenda/${idAgenda}`, payload);
+    return this.http.put<AgendaDinamica>(`${this.runtimeConfig.apiUrl}/dinamicas/agenda/${idAgenda}`, payload);
   }
 
   deleteAgenda(idAgenda: number): Observable<void> {
-    return this.http.delete<void>(`${API_BASE_URL}/dinamicas/agenda/${idAgenda}`);
+    return this.http.delete<void>(`${this.runtimeConfig.apiUrl}/dinamicas/agenda/${idAgenda}`);
   }
 
   clearAgenda(): Observable<void> {
-    return this.http.delete<void>(`${API_BASE_URL}/dinamicas/agenda`);
+    return this.http.delete<void>(`${this.runtimeConfig.apiUrl}/dinamicas/agenda`);
   }
 
   createDracoinsDinamica(
     payload: RegistrarDinamicaDracoinsRequest
   ): Observable<DinamicaDracoinsDetail> {
-    return this.http.post<DinamicaDracoinsDetail>(`${API_BASE_URL}/dinamicas/dracoins`, payload);
+    return this.http.post<DinamicaDracoinsDetail>(`${this.runtimeConfig.apiUrl}/dinamicas/dracoins`, payload);
   }
 
   deleteDinamica(idDinamica: number): Observable<void> {
-    return this.http.delete<void>(`${API_BASE_URL}/dinamicas/${idDinamica}`);
+    return this.http.delete<void>(`${this.runtimeConfig.apiUrl}/dinamicas/${idDinamica}`);
   }
 }
