@@ -1,0 +1,673 @@
+@if (!canViewModule()) {
+  <section class="blocked panel">
+    <span class="pill warn">Sin permiso</span>
+    <h1>El módulo de dracoins está protegido</h1>
+    <p>Tu sesión no incluye permisos suficientes para operar en este módulo.</p>
+  </section>
+} @else {
+  <section class="dracoins-layout">
+    <article class="hero panel">
+      <div class="hero-copy">
+  
+        <h1>Dracoins</h1>
+        <p>Gestiona tus dracoins y realiza transferencias personales.</p>
+      </div>
+
+      <div class="hero-metrics">
+        <div>
+          <span>Saldo actual</span>
+          <strong>{{ visibleBalance() | number: '1.0-2' }} DC</strong>
+        </div>
+        <div>
+          <span>Transferencias personales</span>
+          <strong>{{ transferHistory()?.totalRegistros ?? 0 }}</strong>
+        </div>
+      </div>
+    </article>
+
+    @if (errorMessage()) {
+      <div class="message panel error-state">{{ errorMessage() }}</div>
+    }
+
+    @if (successMessage()) {
+      <div class="message panel success-state">
+        <span>{{ successMessage() }}</span>
+        @if (latestTransferReceipt()) {
+          <button class="receipt-link" type="button" (click)="downloadLatestReceipt()">Descargar comprobante</button>
+        }
+      </div>
+    }
+
+    @if (transferErrorModalMessage()) {
+      <div class="dracoins-modal-backdrop" (click)="closeTransferErrorModal()"></div>
+      <article class="dracoins-modal transfer-error-modal panel" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <div>
+            <span class="pill warn">Transferencia no válida</span>
+            <h2>No se pudo transferir</h2>
+          </div>
+          <button
+            class="icon-button close-modal-button"
+            type="button"
+            title="Cerrar"
+            (click)="closeTransferErrorModal()"
+          >
+            ×
+          </button>
+        </div>
+
+        <p>{{ transferErrorModalMessage() }}</p>
+
+        <div class="actions modal-actions">
+          <button class="primary-button" type="button" (click)="closeTransferErrorModal()">Entendido</button>
+        </div>
+      </article>
+    }
+
+    <nav class="section-tabs panel" aria-label="Secciones de Dracoins">
+      @if (canViewPersonalSection()) {
+        <button
+          type="button"
+          [class.active]="activeSection() === 'personal'"
+          (click)="setActiveSection('personal')"
+        >
+          Personal
+        </button>
+      }
+
+      @if (canViewHistorySection()) {
+        <button
+          type="button"
+          [class.active]="activeSection() === 'historiales'"
+          (click)="setActiveSection('historiales')"
+        >
+          Historiales
+        </button>
+      }
+
+      @if (canViewBankSection()) {
+        <button
+          type="button"
+          [class.active]="activeSection() === 'banco'"
+          (click)="setActiveSection('banco')"
+        >
+          Administrativos
+        </button>
+      }
+    </nav>
+
+    @if (personalHistoryModalOpen()) {
+      <div class="dracoins-modal-backdrop" (click)="closePersonalHistoryModal()"></div>
+      <article class="dracoins-modal history-modal panel" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <div>
+            <span class="pill success">Historial</span>
+            <h2>Transferencias personales</h2>
+          </div>
+          <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closePersonalHistoryModal()">×</button>
+        </div>
+
+        <div class="filters-grid history-filters">
+          <label class="field">
+            <span>Sentido</span>
+            <select name="personalHistoryDirection" [(ngModel)]="personalHistoryDirection">
+              <option value="todas">Todas</option>
+              <option value="recibidas">Recibidas</option>
+              <option value="enviadas">Enviadas</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Contraparte</span>
+            <input type="text" name="personalHistoryCounterparty" [(ngModel)]="personalHistoryCounterparty" />
+          </label>
+
+          <label class="field">
+            <span>Observación</span>
+            <input type="text" name="personalHistoryObservation" [(ngModel)]="personalHistoryObservation" />
+          </label>
+
+          <label class="field">
+            <span>Monto mínimo</span>
+            <input
+              type="number"
+              [value]="personalHistoryMontoMin ?? ''"
+              min="0"
+              step="1"
+              (input)="personalHistoryMontoMin = coerceNullableNumber($any($event.target).value)"
+            />
+          </label>
+
+          <label class="field">
+            <span>Monto máximo</span>
+            <input
+              type="number"
+              [value]="personalHistoryMontoMax ?? ''"
+              min="0"
+              step="1"
+              (input)="personalHistoryMontoMax = coerceNullableNumber($any($event.target).value)"
+            />
+          </label>
+        </div>
+
+        <div class="actions filters-actions">
+          <button class="ghost-button" type="button" (click)="resetPersonalHistoryFilters()">Limpiar filtros</button>
+        </div>
+
+        <header class="history-head">
+          <p>{{ filteredPersonalTransfers().length }} movimientos visibles</p>
+          <div class="pagination">
+            <button class="ghost-button" type="button" (click)="previousTransfersPage()">Anterior</button>
+            <span>{{ transferHistory()?.paginaActual ?? 1 }} / {{ transferHistory()?.totalPaginas ?? 1 }}</span>
+            <button class="ghost-button" type="button" (click)="nextTransfersPage()">Siguiente</button>
+          </div>
+        </header>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Sentido</th>
+                <th>Contraparte</th>
+                <th>Monto</th>
+                <th>Fecha</th>
+                <th>Observación</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (loadingTransfers()) {
+                <tr>
+                  <td colspan="6" class="empty-state">Cargando historial...</td>
+                </tr>
+              } @else if (filteredPersonalTransfers().length === 0) {
+                <tr>
+                  <td colspan="6" class="empty-state">No hay transferencias para estos filtros.</td>
+                </tr>
+              } @else {
+                @for (transfer of filteredPersonalTransfers(); track transfer.idMovimiento) {
+                  <tr>
+                    <td>#{{ transfer.idMovimiento }}</td>
+                    <td>
+                      <span class="pill" [class.success]="transfer.esRecibido" [class.warn]="!transfer.esRecibido">
+                        {{ transfer.esRecibido ? 'Recibida' : 'Enviada' }}
+                      </span>
+                    </td>
+                    <td>
+                      <strong>{{ transfer.esRecibido ? transfer.codigoRemitente : transfer.codigoDestinatario }}</strong>
+                      <p class="cell-text">{{ transfer.esRecibido ? transfer.nombreRemitente : transfer.nombreDestinatario }}</p>
+                    </td>
+                    <td>{{ transfer.monto | number: '1.0-2' }} DC</td>
+                    <td>{{ transfer.fechaTransferencia | date: 'dd/MM/yyyy HH:mm' }}</td>
+                    <td>{{ transfer.observacion || '-' }}</td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </article>
+    }
+
+    @if (activeSection() === 'personal') {
+      <div class="content-grid">
+        @if (canTransfer()) {
+          <article class="transfer-card panel">
+            <div class="section-head">
+              <div>
+
+                <h2>Transferir dracoins</h2>
+              </div>
+              
+            </div>
+
+            <form class="transfer-form" (ngSubmit)="submitTransfer()">
+              <label class="field">
+                <span>Código destinatario</span>
+                <input
+                  type="text"
+                  name="codigoDestinatario"
+                  [(ngModel)]="codigoDestinatario"
+                  placeholder="Ejemplo: G1010"
+                />
+              </label>
+
+              <label class="field">
+                <span>Monto</span>
+                <input type="number" name="monto" [(ngModel)]="monto" min="1" step="1" placeholder="1" />
+              </label>
+
+              <label class="field">
+                <span>Observación</span>
+                <textarea
+                  name="observacion"
+                  [(ngModel)]="observacion"
+                  rows="4"
+                  placeholder="Motivo de la transferencia (Opcional)"
+                ></textarea>
+              </label>
+
+              <div class="actions">
+                <button class="primary-button" type="submit" [disabled]="submittingTransfer()">
+                  {{ submittingTransfer() ? 'Procesando...' : 'Transferir' }}
+                </button>
+                <button class="ghost-button" type="button" (click)="addFavoriteFromCurrentRecipient()">
+                  Guardar favorito
+                </button>
+                @if (canViewHistory()) {
+                  <button class="ghost-button" type="button" (click)="openPersonalHistoryModal()">
+                    Ver transferencias personales
+                  </button>
+                }
+              </div>
+            </form>
+
+            @if (transferFavorites().length > 0) {
+              <div class="favorites-panel">
+                <div class="favorites-head">
+                  <span>Favoritos</span>
+                  <strong>{{ transferFavorites().length }}</strong>
+                </div>
+
+                <div class="favorites-list">
+                  @for (favorite of transferFavorites(); track favorite.codigo) {
+                    <div class="favorite-row">
+                      <button class="favorite-chip" type="button" (click)="useFavorite(favorite)">
+                        <strong>{{ favorite.codigo }}</strong>
+                        <span>{{ favorite.nombre || 'Sin nombre guardado' }}</span>
+                      </button>
+                      <button class="mini-button" type="button" (click)="removeFavorite(favorite.codigo)">
+                        Quitar
+                      </button>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </article>
+        }
+
+        @if (canViewSummary()) {
+          <article class="summary-card panel">
+            <div class="section-head">
+              <div>
+                <span class="pill">Resumen</span>
+                <h2>Vista personal</h2>
+              </div>
+              <p>
+                @if (loadingSummary()) {
+                  Sincronizando saldo y movimientos...
+                } @else {
+                  Últimos movimientos vinculados a tu cuenta.
+                }
+              </p>
+            </div>
+
+            <div class="flow-list">
+              @if (loadingSummary()) {
+                <div class="empty-state">Cargando resumen...</div>
+              } @else if (recentTransfers().length === 0) {
+                <div class="empty-state">No hay transferencias recientes para mostrar.</div>
+              } @else {
+                @for (transfer of recentTransfers(); track transfer.idMovimiento) {
+                  <article class="flow-item">
+                    <div>
+                      <span class="pill" [class.success]="transfer.esRecibido" [class.warn]="!transfer.esRecibido">
+                        {{ transfer.esRecibido ? 'Recibida' : 'Enviada' }}
+                      </span>
+                      <h3>
+                        {{ transfer.esRecibido ? transfer.codigoRemitente : transfer.codigoDestinatario }}
+                      </h3>
+                      <p>
+                        {{ transfer.esRecibido ? transfer.nombreRemitente : transfer.nombreDestinatario }}
+                      </p>
+                      <button
+                        class="mini-button"
+                        type="button"
+                        [disabled]="isFavorite(transfer.esRecibido ? transfer.codigoRemitente : transfer.codigoDestinatario)"
+                        (click)="addFavoriteFromTransfer(transfer)"
+                      >
+                        {{
+                          isFavorite(transfer.esRecibido ? transfer.codigoRemitente : transfer.codigoDestinatario)
+                            ? 'Favorito'
+                            : 'Agregar favorito'
+                        }}
+                      </button>
+                    </div>
+                    <div class="flow-meta">
+                      <strong>{{ transfer.monto | number: '1.0-2' }} DC</strong>
+                      <span>{{ transfer.fechaTransferencia | date: 'dd/MM/yyyy HH:mm' }}</span>
+                    </div>
+                  </article>
+                }
+              }
+            </div>
+          </article>
+        }
+      </div>
+
+    }
+
+    @if (activeSection() === 'historiales' && canViewGeneralHistory()) {
+      <section class="history-card panel">
+        <header class="history-head">
+          <div>
+            
+            <h2>Historial general</h2>
+            <p>{{ generalHistory()?.totalRegistros ?? 0 }} movimientos encontrados</p>
+          </div>
+          <div class="pagination">
+            <button class="ghost-button" type="button" (click)="previousGeneralHistoryPage()">Anterior</button>
+            <span>{{ generalHistory()?.paginaActual ?? 1 }} / {{ generalHistory()?.totalPaginas ?? 1 }}</span>
+            <button class="ghost-button" type="button" (click)="nextGeneralHistoryPage()">Siguiente</button>
+          </div>
+        </header>
+
+        <div class="filters-grid">
+          <label class="field">
+            <span>Remitente</span>
+            <input type="text" [(ngModel)]="remitente" />
+          </label>
+
+          <label class="field">
+            <span>Destinatario</span>
+            <input type="text" [(ngModel)]="destinatario" />
+          </label>
+
+          <label class="field">
+            <span>Monto mínimo</span>
+            <input
+              type="number"
+              [value]="montoMin ?? ''"
+              min="0"
+              step="1"
+              (input)="montoMin = coerceNullableNumber($any($event.target).value)"
+            />
+          </label>
+
+          <label class="field">
+            <span>Monto máximo</span>
+            <input
+              type="number"
+              [value]="montoMax ?? ''"
+              min="0"
+              step="1"
+              (input)="montoMax = coerceNullableNumber($any($event.target).value)"
+            />
+          </label>
+
+          <label class="field">
+            <span>Observación</span>
+            <input type="text" [(ngModel)]="observacionGeneral" />
+          </label>
+
+          <label class="field">
+            <span>Desde</span>
+            <input type="date" [(ngModel)]="desde" />
+          </label>
+
+          <label class="field">
+            <span>Hasta</span>
+            <input type="date" [(ngModel)]="hasta" />
+          </label>
+        </div>
+
+        <div class="actions filters-actions">
+          <button class="primary-button" type="button" (click)="loadGeneralHistory()">Aplicar filtros</button>
+          <button class="ghost-button" type="button" (click)="resetGeneralFilters()">Limpiar</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Remitente</th>
+                <th>Destinatario</th>
+                <th>Monto</th>
+                <th>Fecha</th>
+                <th>Observación</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (loadingGeneralHistory()) {
+                <tr>
+                  <td colspan="6" class="empty-state">Cargando historial general...</td>
+                </tr>
+              } @else if ((generalHistory()?.items?.length ?? 0) === 0) {
+                <tr>
+                  <td colspan="6" class="empty-state">No hay movimientos para los filtros actuales.</td>
+                </tr>
+              } @else {
+                @for (movement of generalHistory()?.items ?? []; track movement.idMovimiento) {
+                  <tr>
+                    <td>#{{ movement.idMovimiento }}</td>
+                    <td>
+                      <strong>{{ movement.codigoRemitente }}</strong>
+                      <p class="cell-text">{{ movement.nombreRemitente || 'Sin alumno vinculado' }}</p>
+                    </td>
+                    <td>
+                      <strong>{{ movement.codigoDestinatario }}</strong>
+                      <p class="cell-text">{{ movement.nombreDestinatario || 'Sin alumno vinculado' }}</p>
+                    </td>
+                    <td>{{ movement.monto | number: '1.0-2' }} DC</td>
+                    <td>{{ movement.fechaTransferencia | date: 'dd/MM/yyyy HH:mm' }}</td>
+                    <td>{{ movement.observacion || '-' }}</td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+
+    @if (activeSection() === 'banco' && canViewBankSection()) {
+      <nav class="section-tabs bank-tabs panel" aria-label="Secciones administrativas">
+        @if (canViewSalaryCatalog()) {
+          <button
+            type="button"
+            [class.active]="activeBankTab() === 'sueldos'"
+            (click)="setActiveBankTab('sueldos')"
+          >
+            Sueldos por cargo
+          </button>
+        }
+
+        @if (canPayManualSalaries()) {
+          <button
+            type="button"
+            [class.active]="activeBankTab() === 'pagos-manuales'"
+            (click)="setActiveBankTab('pagos-manuales')"
+          >
+            Pagar sueldos
+          </button>
+        }
+
+        @if (canViewPayments()) {
+          <button
+            type="button"
+            [class.active]="activeBankTab() === 'historial-pagos'"
+            (click)="setActiveBankTab('historial-pagos')"
+          >
+            Historial de pagos
+          </button>
+        }
+      </nav>
+
+      @if (activeBankTab() === 'sueldos' && canViewSalaryCatalog()) {
+        <article class="admin-card panel">
+          <div class="section-head">
+            <div>
+              
+              <h2>Sueldos por cargo</h2>
+            </div>
+            <p>Catálogo base usado para los pagos manuales administrativos.</p>
+          </div>
+
+          <div class="table-wrap salary-table-wrap">
+            <table class="salary-table">
+              <thead>
+                <tr>
+                  <th>Cargo</th>
+                  <th>Sueldo fijo</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (loadingSalaryCatalog()) {
+                  <tr>
+                    <td colspan="2" class="empty-state">Cargando sueldos...</td>
+                  </tr>
+                } @else if (salaryCatalog().length === 0) {
+                  <tr>
+                    <td colspan="2" class="empty-state">No hay sueldos configurados.</td>
+                  </tr>
+                } @else {
+                  @for (salary of salaryCatalog(); track salary.idSueldo) {
+                    <tr>
+                      <td class="salary-cargo">{{ salary.cargo }}</td>
+                      <td>
+                        <input
+                          class="compact-input salary-input"
+                          type="number"
+                          [value]="salary.sueldoEditado ?? ''"
+                          min="0"
+                          step="1"
+                          [disabled]="!canUpdateSalaries()"
+                          (input)="updateSalaryAmount(salary.idSueldo, coerceNullableNumber($any($event.target).value))"
+                        />
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="actions">
+            <button class="primary-button" type="button" [disabled]="savingSalaries() || !canUpdateSalaries()" (click)="saveSalaries()">
+              {{ savingSalaries() ? 'Guardando...' : 'Guardar sueldos' }}
+            </button>
+            <button class="ghost-button" type="button" (click)="loadSalaryCatalog()">Recargar</button>
+          </div>
+        </article>
+      }
+
+      @if (activeBankTab() === 'pagos-manuales' && canPayManualSalaries()) {
+        <article class="admin-card panel">
+          <div class="section-head">
+            <div>
+              <span class="pill">Administrativos</span>
+              <h2>Pagar sueldos</h2>
+            </div>
+            <p>Los pagos se calculan con el sueldo previamente configurado para cada cargo.</p>
+          </div>
+
+          <div class="selection-summary">
+            <span>{{ totalSelectedManualPayments() }} alumnos</span>
+            <strong>{{ totalManualPaymentAmount() | number: '1.0-2' }} DC</strong>
+          </div>
+
+          <div class="table-wrap">
+            <table class="payroll-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Alumno</th>
+                  <th>Cargo</th>
+                  <th>Sueldo</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (loadingManualPayments()) {
+                  <tr>
+                    <td colspan="4" class="empty-state">Cargando sueldos configurados...</td>
+                  </tr>
+                } @else if (manualPaymentCandidates().length === 0) {
+                  <tr>
+                    <td colspan="4" class="empty-state">No hay candidatos para pagos manuales.</td>
+                  </tr>
+                } @else {
+                  @for (candidate of manualPaymentCandidates(); track candidate.idAlumno) {
+                    <tr>
+                      <td>{{ candidate.codigoAlumno }}</td>
+                      <td><strong>{{ candidate.nombreAlumno }}</strong></td>
+                      <td>{{ candidate.cargo }}</td>
+                      <td class="salary-amount">{{ candidate.montoSugerido | number: '1.0-2' }} DC</td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="actions">
+            <button
+              class="primary-button"
+              type="button"
+              [disabled]="processingManualPayments() || totalSelectedManualPayments() === 0"
+              (click)="processManualPayments()"
+            >
+              {{ processingManualPayments() ? 'Procesando...' : 'Pagar sueldos configurados' }}
+            </button>
+            <button class="ghost-button" type="button" (click)="loadManualPaymentCandidates()">Recargar</button>
+          </div>
+        </article>
+      }
+
+      @if (activeBankTab() === 'historial-pagos' && canViewPayments()) {
+        <section class="history-card panel">
+          <header class="history-head">
+            <div>
+              <span class="pill">Administrativo</span>
+              <h2>Historial de pagos</h2>
+              <p>{{ paymentHistory()?.totalRegistros ?? 0 }} pagos registrados</p>
+            </div>
+            <div class="pagination">
+              <button class="ghost-button" type="button" (click)="previousPaymentsPage()">Anterior</button>
+              <span>{{ paymentHistory()?.paginaActual ?? 1 }} / {{ paymentHistory()?.totalPaginas ?? 1 }}</span>
+              <button class="ghost-button" type="button" (click)="nextPaymentsPage()">Siguiente</button>
+            </div>
+          </header>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Alumno</th>
+                  <th>Cargo</th>
+                  <th>Monto</th>
+                  <th>Fecha</th>
+                  <th>Pagado por</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (loadingPayments()) {
+                  <tr>
+                    <td colspan="6" class="empty-state">Cargando pagos...</td>
+                  </tr>
+                } @else if ((paymentHistory()?.items?.length ?? 0) === 0) {
+                  <tr>
+                    <td colspan="6" class="empty-state">No hay pagos administrativos para mostrar.</td>
+                  </tr>
+                } @else {
+                  @for (payment of paymentHistory()?.items ?? []; track payment.idPago) {
+                    <tr>
+                      <td>{{ payment.codigoAlumno }}</td>
+                      <td>{{ payment.nombreAlumno }}</td>
+                      <td>{{ payment.cargo }}</td>
+                      <td>{{ payment.montoPagado | number: '1.0-2' }} DC</td>
+                      <td>{{ payment.fechaPago | date: 'dd/MM/yyyy HH:mm' }}</td>
+                      <td>{{ payment.pagadoPor || '-' }}</td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+    }
+  </section>
+}

@@ -1,0 +1,382 @@
+.profile-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.loading-state,
+.identity-card,
+.message {
+  padding: 1.35rem;
+}
+
+.loading-state,
+.message {
+  grid-column: 1 / -1;
+}
+
+.loading-state,
+.identity-card {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.loading-state p,
+.message p,
+.identity-copy p {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.message {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.message.error {
+  border-color: rgba(255, 130, 111, 0.28);
+  background: rgba(91, 22, 18, 0.45);
+}
+
+.message.success {
+  border-color: rgba(91, 185, 140, 0.28);
+  background: rgba(18, 61, 42, 0.45);
+}
+
+.identity-card {
+  gap: 1.1rem;
+}
+
+.identity-header {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+}
+
+.avatar-wrap {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  padding: 4px;
+  border-radius: 30px;
+  background: var(--accent-soft);
+}
+
+.avatar-wrap img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 26px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.avatar-edit-button {
+  position: absolute;
+  right: -0.35rem;
+  bottom: -0.35rem;
+}
+
+.identity-copy {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.identity-topline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 0.55rem;
+  justify-content: end;
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 800;
+  line-height: 1;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.icon-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(232, 197, 103, 0.32);
+  background: rgba(232, 197, 103, 0.1);
+}
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.identity-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.identity-detail {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.95rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.identity-detail span {
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.identity-detail strong {
+  overflow-wrap: anywhere;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.stat-card {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.stat-card span {
+  color: var(--text-soft);
+}
+
+.stat-card strong {
+  font-size: 1.35rem;
+}
+
+.profile-chart {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.profile-chart p {
+  margin: 0.55rem 0 0;
+  color: var(--text-soft);
+}
+
+.completion-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  border-radius: 6px;
+}
+
+.completion-ring::after {
+  content: '';
+  position: absolute;
+  inset: 12px;
+  border-radius: inherit;
+  background: var(--panel-strong);
+}
+
+.completion-ring span {
+  position: relative;
+  z-index: 1;
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.card-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.card-head > div {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.field span {
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
+.field input,
+.field select {
+  min-height: 48px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 0 0.95rem;
+  color: var(--text-main);
+  background: rgba(7, 14, 24, 0.72);
+}
+
+.field input:focus,
+.field select:focus {
+  outline: 2px solid rgba(232, 197, 103, 0.38);
+  border-color: rgba(232, 197, 103, 0.42);
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 0.75rem;
+}
+
+.avatar-option {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.03);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.avatar-option img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 18px;
+  object-fit: cover;
+}
+
+.avatar-option:hover,
+.avatar-option.selected {
+  transform: translateY(-2px);
+  border-color: rgba(232, 197, 103, 0.48);
+  box-shadow: 0 12px 28px rgba(232, 197, 103, 0.14);
+}
+
+.security-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.modal-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 50;
+  width: min(760px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 1.35rem;
+  transform: translate(-50%, -50%);
+}
+
+.modal-panel .card-head {
+  padding-right: 3rem;
+}
+
+.close-modal-button {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+}
+
+.modal-actions,
+.upload-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.upload-row {
+  justify-content: space-between;
+  margin: 0 0 1rem;
+}
+
+.upload-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.upload-button input {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .identity-header,
+  .identity-details,
+  .stats-grid,
+  .profile-chart,
+  .field-grid,
+  .security-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .identity-topline {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-actions {
+    justify-content: start;
+  }
+
+  .card-head {
+    flex-direction: column;
+  }
+
+  .card-head .primary-button,
+  .card-head .ghost-button {
+    width: 100%;
+  }
+}

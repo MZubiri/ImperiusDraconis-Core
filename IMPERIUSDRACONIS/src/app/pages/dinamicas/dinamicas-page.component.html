@@ -1,0 +1,746 @@
+@if (!canViewModule()) {
+  <section class="blocked panel">
+    <span class="pill warn">Sin permiso</span>
+    <h1>El módulo de dinámicas está protegido</h1>
+    <p>Tu sesión no incluye permisos suficientes para este módulo.</p>
+  </section>
+} @else {
+  <section class="dinamicas-layout">
+    <article class="hero panel">
+      <div class="hero-copy">
+
+        <h1>Dinámicas</h1>
+        <p>Listado de dinámicas, detalle de resultados, registro por dracoins y agenda administrativa.</p>
+      </div>
+
+      
+    </article>
+
+    @if (errorMessage()) {
+      <div class="message panel error-state">{{ errorMessage() }}</div>
+    }
+
+    @if (successMessage()) {
+      <div class="message panel success-state">{{ successMessage() }}</div>
+    }
+
+    @if (selectedDinamica()) {
+      <div class="dinamicas-modal-backdrop" (click)="closeDetail()"></div>
+      <article class="dinamicas-modal detail-modal panel" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <div>
+            <span class="pill success">Detalle</span>
+            <h2>{{ selectedDinamica()!.nombre }}</h2>
+          </div>
+          <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeDetail()">×</button>
+        </div>
+
+        @if (loadingDetail()) {
+          <div class="detail-empty">Cargando detalle...</div>
+        } @else if (selectedPointsDetail()) {
+          <div class="detail-meta compact-detail-meta">
+            <div>
+              <span>Responsable</span>
+              <strong>{{ selectedPointsDetail()!.nombreResponsable || 'Sin responsable' }}</strong>
+            </div>
+            <div>
+              <span>Fecha</span>
+              <strong>{{ selectedPointsDetail()!.fecha | date: 'dd/MM/yyyy' }}</strong>
+            </div>
+            <div>
+              <span>Subtipo</span>
+              <strong>{{ selectedPointsDetail()!.subtipo || '-' }}</strong>
+            </div>
+            <div>
+              <span>Observación</span>
+              <strong>{{ selectedPointsDetail()!.observacion || '-' }}</strong>
+            </div>
+          </div>
+
+          <div class="table-wrap compact-detail-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Casa</th>
+                  <th>Puntos</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (result of selectedPointsDetail()!.resultados; track result.idCasa) {
+                  <tr>
+                    <td>{{ result.nombreCasa }}</td>
+                    <td>{{ result.puntosOtorgados | number: '1.0-0' }} pts</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else if (selectedDracoinsDetail()) {
+          <div class="detail-meta compact-detail-meta">
+            <div>
+              <span>Responsable</span>
+              <strong>{{ selectedDracoinsDetail()!.nombreResponsable || 'Sin responsable' }}</strong>
+            </div>
+            <div>
+              <span>Fecha</span>
+              <strong>{{ selectedDracoinsDetail()!.fecha | date: 'dd/MM/yyyy' }}</strong>
+            </div>
+            <div>
+              <span>Total otorgado</span>
+              <strong>{{ selectedDracoinsDetail()!.totalDracoinsOtorgados | number: '1.0-0' }} DC</strong>
+            </div>
+            <div>
+              <span>Observación</span>
+              <strong>{{ selectedDracoinsDetail()!.observacion || '-' }}</strong>
+            </div>
+          </div>
+
+          <div class="table-wrap compact-detail-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Alumno</th>
+                  <th>Dracoins</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (result of selectedDracoinsDetail()!.resultados; track result.idAlumno) {
+                  <tr>
+                    <td>
+                      <strong>{{ result.codigoAlumno }}</strong>
+                      <p class="cell-text">{{ result.nombreAlumno }}</p>
+                    </td>
+                    <td>{{ result.dracoinsOtorgados | number: '1.0-0' }} DC</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="detail-empty">No hay detalle disponible para esta dinámica.</div>
+        }
+      </article>
+    }
+
+    @if (dinamicaToDelete()) {
+      <div class="dinamicas-modal-backdrop" (click)="closeDinamicaDeleteModal()"></div>
+      <article class="dinamicas-modal confirm-modal panel" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <div>
+            <span class="pill warn">Confirmar</span>
+            <h2>Eliminar dinámica</h2>
+          </div>
+          <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeDinamicaDeleteModal()">×</button>
+        </div>
+        <p>Se eliminará "{{ dinamicaToDelete()!.nombre }}".</p>
+        <div class="actions modal-actions">
+          <button class="ghost-button" type="button" (click)="closeDinamicaDeleteModal()">Cancelar</button>
+          <button class="primary-button danger-button" type="button" (click)="confirmDeleteDinamica()" [disabled]="deletingDinamicaId() === dinamicaToDelete()!.idDinamica">
+            {{ deletingDinamicaId() === dinamicaToDelete()!.idDinamica ? 'Eliminando...' : 'Eliminar' }}
+          </button>
+        </div>
+      </article>
+    }
+
+    <nav class="section-tabs panel" aria-label="Secciones de Dinámicas">
+      @if (canViewListSection()) {
+        <button
+          type="button"
+          [class.active]="activeSection() === 'listado'"
+          (click)="setActiveSection('listado')"
+        >
+          Listado
+        </button>
+      }
+
+      @if (canRegisterDracoins()) {
+        <button
+          type="button"
+          [class.active]="activeSection() === 'registrar'"
+          (click)="setActiveSection('registrar')"
+        >
+          Registrar Dracoins
+        </button>
+      }
+
+      @if (canRegisterPoints()) {
+        <button
+          type="button"
+          [class.active]="activeSection() === 'puntos'"
+          (click)="setActiveSection('puntos')"
+        >
+          Dinámica por puntos
+        </button>
+      }
+
+      @if (canManageAgenda()) {
+        <button
+          type="button"
+          [class.active]="activeSection() === 'agenda'"
+          (click)="setActiveSection('agenda')"
+        >
+          Agenda
+        </button>
+      }
+    </nav>
+
+    @if (activeSection() === 'listado' && canViewListSection()) {
+    <div class="top-grid list-grid">
+      @if (canViewIndex()) {
+        <article class="filters panel">
+          <div class="section-head">
+            <div>
+ 
+              <h2>Buscar dinámicas</h2>
+            </div>
+            <p>Utiliza los filtros para encontrar las dinámicas que necesitas.</p>
+          </div>
+
+          <div class="filters-grid">
+            <label class="field">
+              <span>Nombre</span>
+              <input type="text" [(ngModel)]="nombre" placeholder="Buscar por nombre" />
+            </label>
+
+            <label class="field">
+              <span>Tipo</span>
+              <select [(ngModel)]="tipo">
+                <option value="">Todos</option>
+                <option value="Puntos">Puntos</option>
+                <option value="Dracoins">Dracoins</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Subtipo</span>
+              <select [(ngModel)]="subtipo">
+                <option value="">Todos</option>
+                <option value="Normal">Normal</option>
+                <option value="Actividad">Actividad</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Responsable</span>
+              <input type="text" [(ngModel)]="responsable" placeholder="Buscar por responsable" />
+            </label>
+
+            <label class="field">
+              <span>Desde</span>
+              <input type="date" [(ngModel)]="desde" />
+            </label>
+
+            <label class="field">
+              <span>Hasta</span>
+              <input type="date" [(ngModel)]="hasta" />
+            </label>
+          </div>
+
+          <div class="actions">
+            <button class="primary-button" type="button" (click)="loadDinamicas()">Aplicar filtros</button>
+            <button class="ghost-button" type="button" (click)="resetFilters()">Limpiar</button>
+          </div>
+        </article>
+      }
+    </div>
+
+    <div class="content-grid list-only-grid">
+      @if (canViewIndex()) {
+        <section class="table-card panel">
+          <header class="table-head">
+            <div>
+              <h2>Listado</h2>
+              <p>{{ result()?.totalRegistros ?? 0 }} registros encontrados</p>
+            </div>
+            <div class="pagination">
+              <button class="ghost-button" type="button" (click)="previousPage()">Anterior</button>
+              <span>{{ result()?.paginaActual ?? 1 }} / {{ result()?.totalPaginas ?? 1 }}</span>
+              <button class="ghost-button" type="button" (click)="nextPage()">Siguiente</button>
+            </div>
+          </header>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Nombre</th>
+                  <th>Tipo</th>
+                  <th>Subtipo</th>
+                  <th>Responsable</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (loadingList()) {
+                  <tr>
+                    <td colspan="6" class="empty-state">Cargando dinámicas...</td>
+                  </tr>
+                } @else if (dinamicas().length === 0) {
+                  <tr>
+                    <td colspan="6" class="empty-state">No hay dinámicas para los filtros actuales.</td>
+                  </tr>
+                } @else {
+                  @for (item of dinamicas(); track item.idDinamica) {
+                    <tr [class.selected]="selectedDinamica()?.idDinamica === item.idDinamica">
+                      <td>{{ item.fecha | date: 'dd/MM/yyyy' }}</td>
+                      <td>
+                        <strong>{{ item.nombre }}</strong>
+                        <p class="cell-text">{{ item.observacion || 'Sin observación' }}</p>
+                      </td>
+                      <td>{{ item.tipo || '-' }}</td>
+                      <td>{{ item.subtipo || '-' }}</td>
+                      <td>{{ item.nombreResponsable || '-' }}</td>
+                      <td class="actions-cell">
+                        <button class="ghost-button compact-button" type="button" (click)="openDetail(item)">
+                          Ver detalle
+                        </button>
+                        @if (canDeleteDinamica()) {
+                          <button
+                            class="ghost-button compact-button danger-button"
+                            type="button"
+                            [disabled]="deletingDinamicaId() === item.idDinamica"
+                            (click)="deleteDinamica(item)"
+                          >
+                            {{ deletingDinamicaId() === item.idDinamica ? 'Eliminando...' : 'Eliminar' }}
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
+    </div>
+    }
+
+    @if (activeSection() === 'registrar' && canRegisterDracoins()) {
+      <article class="create-card panel">
+        <div class="section-head">
+          <div>
+            
+            <h2>Dinámica por dracoins</h2>
+          </div>
+          <p>Busca alumnos activos, asigna dracoins y registra la dinámica en una sola operación.</p>
+        </div>
+
+        <form class="create-form" (ngSubmit)="submitDracoinsDinamica()">
+          <label class="field">
+            <span>Nombre de la dinámica</span>
+            <input
+              type="text"
+              name="nombreDinamica"
+              [(ngModel)]="nombreDinamica"
+              placeholder="Ejemplo: Trivia semanal"
+            />
+          </label>
+
+          <label class="field">
+            <span>Observación de la dinámica</span>
+            <textarea
+              name="observacionDinamica"
+              [(ngModel)]="observacionDinamica"
+              rows="3"
+              placeholder="Detalle general para el listado y los movimientos"
+            ></textarea>
+          </label>
+
+          <label class="field">
+            <span>Buscar alumno</span>
+            <input
+              type="text"
+              name="studentSearch"
+              [(ngModel)]="studentSearch"
+              placeholder="Buscar por código o nombre"
+            />
+          </label>
+
+          <div class="selection-summary">
+            <span>{{ totalSelectedStudents() }} con dracoins</span>
+            <strong>{{ totalAssignedDracoins() | number: '1.0-0' }} DC</strong>
+          </div>
+
+          <div class="table-wrap students-wrap">
+            <table class="assignment-table">
+              <thead>
+                <tr>
+                  <th>Alumno</th>
+                  <th>Dracoins</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (loadingStudents()) {
+                  <tr>
+                    <td colspan="2" class="empty-state">Cargando alumnos activos...</td>
+                  </tr>
+                } @else if (filteredStudents().length === 0) {
+                  <tr>
+                    <td colspan="2" class="empty-state">No hay alumnos que coincidan con la búsqueda.</td>
+                  </tr>
+                } @else {
+                  @for (student of filteredStudents(); track student.idAlumno) {
+                    <tr>
+                      <td>
+                        <strong>{{ student.codigo }}</strong>
+                        <p class="cell-text">{{ student.nombre }}</p>
+                      </td>
+                      <td>
+                        <input
+                          class="compact-input amount-input"
+                          type="number"
+                          [value]="student.dracoinsOtorgados ?? ''"
+                          min="0"
+                          (input)="setAssignedDracoins(student.idAlumno, $any($event.target).valueAsNumber)"
+                        />
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="actions">
+            <button class="primary-button" type="submit" [disabled]="submitting()">
+              {{ submitting() ? 'Guardando...' : 'Crear dinámica' }}
+            </button>
+            <button class="ghost-button" type="button" (click)="loadActiveStudents()">Recargar alumnos</button>
+          </div>
+        </form>
+      </article>
+    }
+
+    @if (activeSection() === 'puntos' && canRegisterPoints()) {
+      <article class="create-card panel">
+        <div class="section-head">
+          <div>
+            <h2>Dinámica por puntos</h2>
+          </div>
+          <p>Registra una dinámica y suma puntos al marcador de las casas principales.</p>
+        </div>
+
+        <form class="create-form" (ngSubmit)="submitPointsDinamica()">
+          <div class="filters-grid points-form-grid">
+            <label class="field">
+              <span>Nombre de la dinámica</span>
+              <input
+                type="text"
+                name="nombreDinamicaPuntos"
+                [(ngModel)]="nombreDinamicaPuntos"
+                placeholder="Ejemplo: Trivia de casas"
+              />
+            </label>
+
+            <label class="field">
+              <span>Subtipo</span>
+              <select name="subtipoDinamicaPuntos" [(ngModel)]="subtipoDinamicaPuntos">
+                <option value="Normal">Normal</option>
+                <option value="Actividad">Actividad</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Observación</span>
+            <textarea
+              name="observacionDinamicaPuntos"
+              [(ngModel)]="observacionDinamicaPuntos"
+              rows="3"
+              placeholder="Detalle opcional para la dinámica"
+            ></textarea>
+          </label>
+
+          <div class="selection-summary">
+            <span>{{ pointsHouses().length }} casas</span>
+            <strong>{{ totalAssignedPoints() | number: '1.0-0' }} pts</strong>
+          </div>
+
+          <div class="table-wrap">
+            <table class="assignment-table">
+              <thead>
+                <tr>
+                  <th>Casa</th>
+                  <th>Puntos a sumar</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (loadingPointsHouses()) {
+                  <tr>
+                    <td colspan="2" class="empty-state">Cargando casas...</td>
+                  </tr>
+                } @else if (pointsHouses().length === 0) {
+                  <tr>
+                    <td colspan="2" class="empty-state">No hay casas disponibles.</td>
+                  </tr>
+                } @else {
+                  @for (house of pointsHouses(); track house.idCasa) {
+                    <tr>
+                      <td>{{ house.nombreCasa }}</td>
+                      <td>
+                        <input
+                          class="compact-input amount-input"
+                          type="number"
+                          [value]="house.puntos"
+                          min="0"
+                          step="1"
+                          (input)="setHousePoints(house.idCasa, coerceNullableNumber($any($event.target).value))"
+                        />
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="actions">
+            <button class="primary-button" type="submit" [disabled]="submittingPoints()">
+              {{ submittingPoints() ? 'Guardando...' : 'Crear dinámica por puntos' }}
+            </button>
+            <button class="ghost-button" type="button" (click)="loadPointsHouses()">Recargar casas</button>
+          </div>
+        </form>
+      </article>
+    }
+
+    @if (activeSection() === 'agenda' && canManageAgenda()) {
+      <section class="agenda-grid">
+        <article class="agenda-card panel">
+          <div class="section-head">
+            <div>
+              <span class="pill success">Agenda</span>
+              <h2>Agenda de dinámicas</h2>
+            </div>
+            <p>Panel administrativo para cargar, editar y limpiar la agenda.</p>
+          </div>
+
+          <div class="agenda-toolbar">
+            <label class="field">
+              <span>Filtrar por fecha</span>
+              <input type="date" [(ngModel)]="agendaFilterDate" />
+            </label>
+
+            <div class="actions">
+              <button class="primary-button" type="button" (click)="loadAgenda()">Filtrar</button>
+              <button class="ghost-button" type="button" (click)="resetAgendaFilter()">Limpiar</button>
+              <button class="primary-button" type="button" (click)="openAgendaCreateModal()">Nueva agenda</button>
+              <button class="ghost-button danger-button" type="button" [disabled]="clearingAgenda()" (click)="clearAgenda()">
+                {{ clearingAgenda() ? 'Limpiando...' : 'Vaciar agenda' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Hora</th>
+                  <th>Alumno</th>
+                  <th>Cargo</th>
+                  <th>Tipo</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (loadingAgenda()) {
+                  <tr>
+                    <td colspan="6" class="empty-state">Cargando agenda...</td>
+                  </tr>
+                } @else if (agendaItems().length === 0) {
+                  <tr>
+                    <td colspan="6" class="empty-state">No hay registros en la agenda.</td>
+                  </tr>
+                } @else {
+                  @for (item of agendaItems(); track item.idAgenda) {
+                    <tr [class.selected]="selectedAgenda()?.idAgenda === item.idAgenda">
+                      <td>{{ item.fecha | date: 'yyyy-MM-dd' }}</td>
+                      <td>{{ item.hora.slice(0, 5) }}</td>
+                      <td>{{ item.nombreAlumno }}</td>
+                      <td>{{ item.cargo }}</td>
+                      <td>{{ item.titulo }}</td>
+                      <td class="actions-cell">
+                        <button class="ghost-button compact-button" type="button" (click)="startAgendaEdit(item)">
+                          Editar
+                        </button>
+                        <button
+                          class="ghost-button compact-button danger-button"
+                          type="button"
+                          [disabled]="deletingAgendaId() === item.idAgenda"
+                          (click)="deleteAgenda(item)"
+                        >
+                          {{ deletingAgendaId() === item.idAgenda ? 'Eliminando...' : 'Eliminar' }}
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        @if (agendaModalMode()) {
+          <div class="dinamicas-modal-backdrop" (click)="closeAgendaModal()"></div>
+          <article class="dinamicas-modal agenda-modal panel" role="dialog" aria-modal="true">
+            <div class="modal-head">
+              <div>
+                <span class="pill">Agenda</span>
+                <h2>{{ agendaModalMode() === 'edit' ? 'Editar agenda' : 'Nueva agenda del día' }}</h2>
+              </div>
+              <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeAgendaModal()">×</button>
+            </div>
+
+          @if (agendaModalMode() === 'create') {
+          <form class="agenda-form" (ngSubmit)="submitAgendaBatch()">
+            <label class="field">
+              <span>Fecha del día</span>
+              <input type="date" name="agendaFormDate" [(ngModel)]="agendaFormDate" />
+            </label>
+
+            <div class="agenda-rows">
+              @for (row of agendaRows(); track $index) {
+                <div class="agenda-row">
+                  <label class="field">
+                    <span>Hora</span>
+                    <input
+                      type="time"
+                      [value]="row.hora"
+                      (input)="updateAgendaRow($index, { hora: $any($event.target).value })"
+                    />
+                  </label>
+
+                  <label class="field">
+                    <span>Responsable</span>
+                    <select
+                      [value]="row.idAlumno ?? ''"
+                      (change)="updateAgendaRow($index, { idAlumno: coerceNullableNumber($any($event.target).value) })"
+                    >
+                      <option value="">Selecciona</option>
+                      @for (responsable of agendaResponsables(); track responsable.idAlumno) {
+                        <option [value]="responsable.idAlumno">{{ responsable.nombre }} - {{ responsable.cargo }}</option>
+                      }
+                    </select>
+                  </label>
+
+                  <label class="field">
+                    <span>Tipo</span>
+                    <select
+                      [value]="row.titulo"
+                      (change)="updateAgendaRow($index, { titulo: $any($event.target).value })"
+                    >
+                      <option value="">Selecciona</option>
+                      @for (agendaType of agendaTypes; track agendaType) {
+                        <option [value]="agendaType">{{ agendaType }}</option>
+                      }
+                    </select>
+                  </label>
+
+                  <button class="ghost-button compact-button danger-button" type="button" (click)="removeAgendaRow($index)">
+                    Quitar
+                  </button>
+                </div>
+              }
+            </div>
+
+            <div class="actions">
+              <button class="ghost-button" type="button" (click)="addAgendaRow()">Agregar fila</button>
+              <button class="primary-button" type="submit" [disabled]="submittingAgenda()">
+                {{ submittingAgenda() ? 'Guardando...' : 'Guardar agenda' }}
+              </button>
+            </div>
+          </form>
+          } @else {
+            @if (selectedAgenda()) {
+              <form class="agenda-form" (ngSubmit)="submitAgendaEdit()">
+                <label class="field">
+                  <span>Fecha</span>
+                  <input type="date" name="agendaEditFecha" [(ngModel)]="agendaEditFecha" />
+                </label>
+
+                <label class="field">
+                  <span>Hora</span>
+                  <input type="time" name="agendaEditHora" [(ngModel)]="agendaEditHora" />
+                </label>
+
+                <label class="field">
+                  <span>Responsable</span>
+                  <select name="agendaEditIdAlumno" [(ngModel)]="agendaEditIdAlumno">
+                    <option [ngValue]="null">Selecciona</option>
+                    @for (responsable of agendaResponsables(); track responsable.idAlumno) {
+                      <option [ngValue]="responsable.idAlumno">{{ responsable.nombre }} - {{ responsable.cargo }}</option>
+                    }
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Tipo</span>
+                  <select name="agendaEditTitulo" [(ngModel)]="agendaEditTitulo">
+                    <option value="">Selecciona</option>
+                    @for (agendaType of agendaTypes; track agendaType) {
+                      <option [value]="agendaType">{{ agendaType }}</option>
+                    }
+                  </select>
+                </label>
+
+                <div class="actions">
+                  <button class="primary-button" type="submit" [disabled]="submittingAgenda()">
+                    {{ submittingAgenda() ? 'Guardando...' : 'Guardar cambios' }}
+                  </button>
+                  <button class="ghost-button" type="button" (click)="closeAgendaModal()">Cancelar</button>
+                </div>
+              </form>
+            } @else {
+              <div class="detail-empty">No hay agenda seleccionada para editar.</div>
+            }
+          }
+          </article>
+        }
+
+        @if (agendaToDelete()) {
+          <div class="dinamicas-modal-backdrop" (click)="closeAgendaDeleteModal()"></div>
+          <article class="dinamicas-modal confirm-modal panel" role="dialog" aria-modal="true">
+            <div class="modal-head">
+              <div>
+                <span class="pill warn">Confirmar</span>
+                <h2>Eliminar agenda</h2>
+              </div>
+              <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeAgendaDeleteModal()">×</button>
+            </div>
+            <p>Se eliminará la agenda #{{ agendaToDelete()!.idAgenda }}.</p>
+            <div class="actions modal-actions">
+              <button class="ghost-button" type="button" (click)="closeAgendaDeleteModal()">Cancelar</button>
+              <button class="primary-button danger-button" type="button" (click)="confirmDeleteAgenda()" [disabled]="deletingAgendaId() === agendaToDelete()!.idAgenda">
+                {{ deletingAgendaId() === agendaToDelete()!.idAgenda ? 'Eliminando...' : 'Eliminar' }}
+              </button>
+            </div>
+          </article>
+        }
+
+        @if (confirmClearAgendaOpen()) {
+          <div class="dinamicas-modal-backdrop" (click)="closeClearAgendaModal()"></div>
+          <article class="dinamicas-modal confirm-modal panel" role="dialog" aria-modal="true">
+            <div class="modal-head">
+              <div>
+                <span class="pill warn">Confirmar</span>
+                <h2>Vaciar agenda</h2>
+              </div>
+              <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeClearAgendaModal()">×</button>
+            </div>
+            <p>Se eliminarán todas las agendas registradas.</p>
+            <div class="actions modal-actions">
+              <button class="ghost-button" type="button" (click)="closeClearAgendaModal()">Cancelar</button>
+              <button class="primary-button danger-button" type="button" (click)="confirmClearAgenda()" [disabled]="clearingAgenda()">
+                {{ clearingAgenda() ? 'Limpiando...' : 'Vaciar agenda' }}
+              </button>
+            </div>
+          </article>
+        }
+      </section>
+    }
+  </section>
+}

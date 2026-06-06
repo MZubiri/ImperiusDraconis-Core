@@ -1,0 +1,105 @@
+<section class="login-screen">
+  <div class="login-copy">
+    <span class="pill success">Bienvenido(a)</span>
+    <h1>Imperius Draconis</h1>
+    <p>
+      
+    </p>
+
+    <div class="login-copy-grid">
+      <article class="copy-card">
+        <strong>Acceso</strong>
+        <p>Usa tu codigo y contraseña para acceder.</p>
+      </article>
+
+      <article class="copy-card">
+        <strong>Recuperación</strong>
+        <p>Si olvidaste tu contraseña, puedes generar una temporal desde este portal.</p>
+      </article>
+    </div>
+  </div>
+
+  @if (viewMode() === 'login') {
+    <form class="login-card panel" (ngSubmit)="submit()">
+      <div class="card-header">
+        <span class="pill">Inicio de sesión</span>
+        <h2>Acceder</h2>
+      </div>
+
+      <label class="field">
+        <span>Código</span>
+        <input
+          type="text"
+          name="codigo"
+          [(ngModel)]="credentials.codigo"
+          placeholder="Ejemplo: G1146"
+          autocomplete="username"
+        />
+      </label>
+
+      <label class="field">
+        <span>Contraseña</span>
+        <input
+          type="password"
+          name="contrasena"
+          [(ngModel)]="credentials.contrasena"
+          placeholder="Tu contraseña"
+          autocomplete="current-password"
+        />
+      </label>
+
+      @if (errorMessage()) {
+        <div class="message-box error-box">{{ errorMessage() }}</div>
+      }
+
+      <div class="actions">
+        <button class="primary-button" type="submit" [disabled]="loading()">
+          {{ loading() ? 'Validando...' : 'Entrar al portal' }}
+        </button>
+        <button class="ghost-button" type="button" (click)="openRecovery()">Olvidé mi contraseña</button>
+      </div>
+    </form>
+  } @else {
+    <form class="login-card panel" (ngSubmit)="submitRecovery()">
+      <div class="card-header">
+        <span class="pill warn">Recuperación</span>
+        <h2>Generar contraseña temporal</h2>
+        <p>Ingresa el correo que tienes registrado en tu perfil para restablecer el acceso.</p>
+      </div>
+
+      <label class="field">
+        <span>Correo electrónico</span>
+        <input
+          type="email"
+          name="correo"
+          [(ngModel)]="recovery.correo"
+          placeholder="tu-correo@ejemplo.com"
+          autocomplete="email"
+        />
+      </label>
+
+      @if (recoveryErrorMessage()) {
+        <div class="message-box error-box">{{ recoveryErrorMessage() }}</div>
+      }
+
+      @if (recoverySuccessMessage()) {
+        <div class="message-box success-box">{{ recoverySuccessMessage() }}</div>
+      }
+
+      @if (temporaryPasswordPreview()) {
+        <div class="preview-box">
+          <span class="pill">Acceso temporal</span>
+          <strong>{{ temporaryPasswordPreview() }}</strong>
+          <p>Úsala para ingresar y cámbiala de inmediato desde tu perfil.</p>
+        </div>
+      }
+
+      <div class="actions">
+        <button class="primary-button" type="submit" [disabled]="recoveryLoading()">
+          {{ recoveryLoading() ? 'Procesando...' : 'Recuperar acceso' }}
+        </button>
+        <button class="ghost-button" type="button" (click)="returnToLogin()">Volver al inicio</button>
+      </div>
+    </form>
+  }
+</section>

@@ -1,0 +1,597 @@
+@if (!canViewModule()) {
+  <section class="blocked panel">
+    <span class="pill warn">Sin permiso</span>
+    <h1>El módulo de mascotas está protegido</h1>
+    <p>Tu sesión no incluye permisos suficientes para operar en este módulo.</p>
+  </section>
+} @else {
+  <section class="mascotas-layout">
+    <article class="hero panel">
+      <div class="hero-copy">
+        <span class="pill success">Resumen</span>
+        <h1>Mascotas</h1>
+        <p>Catálogo, asignaciones por alumno, cambio de estado, cobro semanal y matriz operativa.</p>
+      </div>
+
+      
+    </article>
+
+    @if (errorMessage()) {
+      <div class="message panel error-state">{{ errorMessage() }}</div>
+    }
+
+    @if (successMessage()) {
+      <div class="message panel success-state">{{ successMessage() }}</div>
+    }
+
+    @if (canViewSummary()) {
+      <section class="summary-grid">
+        <article class="metric-card panel">
+          <span class="pill">Suscritas</span>
+          <strong>{{ summary()?.totalSuscritas ?? 0 }}</strong>
+          <p>Mascotas al día o reactivables en el ciclo actual.</p>
+        </article>
+
+        <article class="metric-card panel">
+          <span class="pill warn">No activas</span>
+          <strong>{{ summary()?.totalNoActivas ?? 0 }}</strong>
+          <p>Casos que requieren saldo o ajuste de estado.</p>
+        </article>
+
+        <article class="metric-card panel">
+          <span class="pill success">Subsidiadas</span>
+          <strong>{{ summary()?.totalSubsidiadas ?? 0 }}</strong>
+          <p>Seguimiento especial de apoyo manual.</p>
+        </article>
+
+       
+      </section>
+    }
+
+    <nav class="section-tabs panel" aria-label="Secciones de Mascotas">
+      @if (canViewAssignments()) {
+        <button type="button" [class.active]="activePanel() === 'asignaciones'" (click)="setActivePanel('asignaciones')">
+          Asignaciones
+        </button>
+      }
+      @if (canViewCatalog()) {
+        <button type="button" [class.active]="activePanel() === 'catalogo'" (click)="setActivePanel('catalogo')">
+          Catálogo
+        </button>
+      }
+      @if (canViewWeeklyCharges()) {
+        <button type="button" [class.active]="activePanel() === 'cobro'" (click)="setActivePanel('cobro')">
+          Cobro semanal
+        </button>
+      }
+      @if (canViewMatrix()) {
+        <button type="button" [class.active]="activePanel() === 'matriz'" (click)="setActivePanel('matriz')">
+          Matriz
+        </button>
+      }
+    </nav>
+
+    @if (activePanel() === 'asignaciones') {
+    <div class="content-grid single-column">
+      @if (canViewAssignments()) {
+        <article class="panel table-card">
+          <div class="section-head">
+            <div>
+              <span class="pill success">Asignaciones</span>
+              <h2>Mascotas por alumno</h2>
+            </div>
+            <p>{{ assignments().length }} resultados en la vista actual.</p>
+            @if (canCreateAssignment()) {
+              <button class="primary-button compact-create-button" type="button" (click)="startCreateAssignment()">
+                Nueva asignación
+              </button>
+            }
+          </div>
+
+          <div class="filters-grid">
+            <label class="field">
+              <span>Filtro de estado</span>
+              <select name="filtroEstado" [(ngModel)]="filtroEstado">
+                <option value="todas">Todas</option>
+                <option value="vigente">Vigente</option>
+                <option value="no activa">No activa</option>
+                <option value="congelada">Congelada</option>
+                <option value="subsidiada">Subsidiada</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Búsqueda</span>
+              <input
+                type="text"
+                name="busqueda"
+                [(ngModel)]="busqueda"
+                placeholder="Código, alumno, mascota o estado"
+              />
+            </label>
+
+            <label class="checkbox-field">
+              <input type="checkbox" name="soloPendientesCobro" [(ngModel)]="soloPendientesCobro" />
+              <span>Solo pendientes de cobro</span>
+            </label>
+
+            <div class="actions compact-actions">
+              <button class="primary-button" type="button" (click)="applyFilters()">Aplicar</button>
+              <button class="ghost-button" type="button" (click)="resetFilters()">Limpiar</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Alumno</th>
+                  <th>Mascota</th>
+                  <th>Estado</th>
+                  <th>Compra</th>
+                  <th>Último pago</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (loadingAssignments()) {
+                  <tr>
+                    <td colspan="7" class="empty-state">Cargando asignaciones...</td>
+                  </tr>
+                } @else if (assignments().length === 0) {
+                  <tr>
+                    <td colspan="7" class="empty-state">No hay asignaciones para este filtro.</td>
+                  </tr>
+                } @else {
+                  @for (assignment of assignments(); track assignment.idMascotaAlumno) {
+                    <tr [class.selected-row]="selectedAssignment()?.idMascotaAlumno === assignment.idMascotaAlumno">
+                      <td>#{{ assignment.idMascotaAlumno }}</td>
+                      <td>
+                        <strong>{{ assignment.codigoAlumno }}</strong>
+                        <p class="cell-text">{{ assignment.nombreAlumno }}</p>
+                      </td>
+                      <td>
+                        <strong>{{ assignment.nombreMascota }}</strong>
+                        <p class="cell-text">{{ assignment.precioMantenimiento | number: '1.0-2' }} DC/sem</p>
+                      </td>
+                      <td>
+                        <span class="pill" [ngClass]="stateTone(assignment.estado)">{{ assignment.estado }}</span>
+                      </td>
+                      <td>{{ assignment.fechaCompra | date: 'dd/MM/yyyy' }}</td>
+                      <td>
+                        @if (assignment.fechaUltimoPago) {
+                          {{ assignment.fechaUltimoPago | date: 'dd/MM/yyyy' }}
+                        } @else {
+                          -
+                        }
+                        @if (assignment.debePagar) {
+                          <p class="cell-text warn-text">Debe pagar esta semana</p>
+                        }
+                      </td>
+                      <td>
+                        <button
+                          class="ghost-button"
+                          type="button"
+                          (click)="selectAssignment(assignment)"
+                        >
+                          Ver
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </article>
+      }
+
+      @if (canOpenWorkbench() && (selectedAssignment() || formMode() !== 'hidden' || loadingSelection())) {
+        <div class="mascotas-modal-backdrop" (click)="closeAssignmentModal()"></div>
+        <article class="panel workbench-card mascotas-modal" role="dialog" aria-modal="true">
+          <div class="section-head">
+            <div>
+              <span class="pill">Operaciones</span>
+              <h2>Banco de trabajo</h2>
+            </div>
+            @if (canCreateAssignment()) {
+              <button class="primary-button compact-create-button" type="button" (click)="startCreateAssignment()">
+                Nueva asignación
+              </button>
+            }
+            <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeAssignmentModal()">×</button>
+          </div>
+
+          @if (selectedAssignment()) {
+            <div class="selected-card">
+              <div>
+                <span class="pill" [ngClass]="stateTone(selectedAssignment()?.estado)">
+                  {{ selectedAssignment()?.estado }}
+                </span>
+                <h3>
+                  {{ selectedAssignment()?.nombreAlumno }} | {{ selectedAssignment()?.nombreMascota }}
+                </h3>
+                <p>
+                  {{ selectedAssignment()?.codigoAlumno }} | Compra:
+                  {{ selectedAssignment()?.fechaCompra | date: 'dd/MM/yyyy' }}
+                </p>
+              </div>
+
+              <div class="actions">
+                @if (canEditAssignment()) {
+                  <button class="ghost-button" type="button" (click)="startEditAssignment()">Editar</button>
+                }
+                @if (canDeleteAssignment()) {
+                  <button
+                    class="ghost-button danger-button"
+                    type="button"
+                    (click)="deleteSelectedAssignment()"
+                    [disabled]="deletingAssignment()"
+                  >
+                    {{ deletingAssignment() ? 'Eliminando...' : 'Eliminar' }}
+                  </button>
+                }
+              </div>
+            </div>
+          } @else if (loadingSelection()) {
+            <div class="empty-state">Cargando detalle seleccionado...</div>
+          } @else {
+            <div class="empty-state">Selecciona una asignación para verla o editarla.</div>
+          }
+
+          @if (formMode() !== 'hidden') {
+            <form class="editor-grid" (ngSubmit)="saveAssignment()">
+              <div class="section-head compact-head">
+                <div>
+                  <span class="pill success">
+                    {{ formMode() === 'edit' ? 'Edición' : 'Alta' }}
+                  </span>
+                  <h3>{{ formMode() === 'edit' ? 'Editar asignación' : 'Nueva asignación' }}</h3>
+                </div>
+                <button class="ghost-button" type="button" (click)="cancelAssignmentForm()">Cerrar</button>
+              </div>
+
+              <label class="field">
+                <span>Alumno</span>
+                <select name="idAlumno" [(ngModel)]="assignmentForm.idAlumno">
+                  @for (alumno of formCatalogs()?.alumnos ?? []; track alumno.idAlumno) {
+                    <option [ngValue]="alumno.idAlumno">{{ alumno.codigo }} | {{ alumno.nombre }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Mascota</span>
+                <select name="idMascota" [(ngModel)]="assignmentForm.idMascota">
+                  @for (mascota of formCatalogs()?.mascotas ?? []; track mascota.idMascota) {
+                    <option [ngValue]="mascota.idMascota">
+                      {{ mascota.nombre }} | {{ mascota.precioMantenimiento | number: '1.0-2' }} DC
+                    </option>
+                  }
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Estado</span>
+                <select name="estado" [(ngModel)]="assignmentForm.estado">
+                  @for (estado of formCatalogs()?.estados ?? []; track estado) {
+                    <option [value]="estado">{{ estado }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Fecha de compra</span>
+                <input type="date" name="fechaCompra" [(ngModel)]="assignmentForm.fechaCompra" />
+              </label>
+
+              <label class="field">
+                <span>Fecha último pago</span>
+                <input type="date" name="fechaUltimoPago" [(ngModel)]="assignmentForm.fechaUltimoPago" />
+              </label>
+
+              <label class="field">
+                <span>Subsidiada por</span>
+                <input
+                  type="text"
+                  name="subsidiadaPor"
+                  [(ngModel)]="assignmentForm.subsidiadaPor"
+                  maxlength="100"
+                />
+              </label>
+
+              <label class="field field-full">
+                <span>Observaciones</span>
+                <textarea
+                  name="observaciones"
+                  [(ngModel)]="assignmentForm.observaciones"
+                  rows="3"
+                  maxlength="255"
+                ></textarea>
+              </label>
+
+              <div class="actions">
+                <button class="primary-button" type="submit" [disabled]="savingAssignment()">
+                  {{ savingAssignment() ? 'Guardando...' : 'Guardar' }}
+                </button>
+                <button class="ghost-button" type="button" (click)="cancelAssignmentForm()">Cancelar</button>
+              </div>
+            </form>
+          }
+
+          @if (selectedAssignment() && canChangeState()) {
+            <form class="editor-grid state-card" (ngSubmit)="saveStateChange()">
+              <div class="section-head compact-head">
+                <div>
+                  <span class="pill warn">Estado</span>
+                  <h3>Cambiar estado rápido</h3>
+                </div>
+              </div>
+
+              <label class="field">
+                <span>Nuevo estado</span>
+                <select name="nuevoEstado" [(ngModel)]="stateForm.nuevoEstado">
+                  @for (estado of formCatalogs()?.estados ?? []; track estado) {
+                    <option [value]="estado">{{ estado }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Subsidiada por</span>
+                <input
+                  type="text"
+                  name="stateSubsidiadaPor"
+                  [(ngModel)]="stateForm.subsidiadaPor"
+                  maxlength="100"
+                />
+              </label>
+
+              <label class="field field-full">
+                <span>Observaciones</span>
+                <textarea
+                  name="stateObservaciones"
+                  [(ngModel)]="stateForm.observaciones"
+                  rows="3"
+                  maxlength="255"
+                ></textarea>
+              </label>
+
+              <div class="actions">
+                <button class="primary-button" type="submit" [disabled]="updatingState()">
+                  {{ updatingState() ? 'Aplicando...' : 'Guardar estado' }}
+                </button>
+              </div>
+            </form>
+          }
+        </article>
+      }
+    </div>
+    }
+
+    @if (activePanel() === 'catalogo' || activePanel() === 'cobro') {
+    <div class="admin-grid single-column">
+      @if (activePanel() === 'catalogo' && canViewCatalog()) {
+        <article class="panel table-card">
+          <div class="section-head">
+            <div>
+              <span class="pill">Catálogo</span>
+              <h2>Mascotas disponibles</h2>
+            </div>
+            <p>{{ catalog().length }} registros.</p>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nombre</th>
+                  <th>Compra</th>
+                  <th>Mantenimiento</th>
+                  <th>Activo</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (loadingCatalog()) {
+                  <tr>
+                    <td colspan="5" class="empty-state">Cargando catálogo...</td>
+                  </tr>
+                } @else if (catalog().length === 0) {
+                  <tr>
+                    <td colspan="5" class="empty-state">No hay mascotas en catálogo.</td>
+                  </tr>
+                } @else {
+                  @for (item of catalog(); track item.idMascota) {
+                    <tr>
+                      <td>#{{ item.idMascota }}</td>
+                      <td>{{ item.nombre }}</td>
+                      <td>{{ item.precioCompra | number: '1.0-2' }} DC</td>
+                      <td>{{ item.precioMantenimiento | number: '1.0-2' }} DC</td>
+                      <td>
+                        <span class="pill" [class.success]="item.activo" [class.warn]="!item.activo">
+                          {{ item.activo ? 'Sí' : 'No' }}
+                        </span>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </article>
+      }
+
+      @if (activePanel() === 'cobro' && canViewWeeklyCharges()) {
+        <article class="panel table-card">
+          <div class="section-head">
+            <div>
+              <span class="pill success">Cobro semanal</span>
+              <h2>Candidatos a cobro</h2>
+            </div>
+            <p>{{ weeklyChargeCandidates().length }} mascotas pendientes.</p>
+          </div>
+
+          <div class="actions compact-actions">
+            <button class="ghost-button" type="button" (click)="selectAllWeeklyCharges()">Seleccionar todo</button>
+            <button class="ghost-button" type="button" (click)="clearWeeklyChargeSelection()">Limpiar</button>
+          </div>
+
+          <div class="selection-summary">
+            <div>
+              <strong>{{ selectedWeeklyChargeIds().length }}</strong>
+              <span>seleccionadas</span>
+            </div>
+            <div>
+              <strong>{{ totalSelectedWeeklyChargeAmount() | number: '1.0-2' }} DC</strong>
+              <span>monto total</span>
+            </div>
+            @if (canProcessWeeklyCharges()) {
+              <button
+                class="primary-button"
+                type="button"
+                (click)="processWeeklyCharges()"
+                [disabled]="processingWeeklyCharges()"
+              >
+                {{ processingWeeklyCharges() ? 'Procesando...' : 'Procesar cobro' }}
+              </button>
+            }
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Alumno</th>
+                  <th>Mascota</th>
+                  <th>Estado</th>
+                  <th>Saldo</th>
+                  <th>Último pago</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (loadingWeeklyCharges()) {
+                  <tr>
+                    <td colspan="6" class="empty-state">Cargando bandeja...</td>
+                  </tr>
+                } @else if (weeklyChargeCandidates().length === 0) {
+                  <tr>
+                    <td colspan="6" class="empty-state">No hay cobros pendientes esta semana.</td>
+                  </tr>
+                } @else {
+                  @for (candidate of weeklyChargeCandidates(); track candidate.idMascotaAlumno) {
+                    <tr>
+                      <td>
+                        <input
+                          type="checkbox"
+                          [checked]="candidate.seleccionado"
+                          (change)="setWeeklyChargeSelection(candidate.idMascotaAlumno, $any($event.target).checked)"
+                        />
+                      </td>
+                      <td>
+                        <strong>{{ candidate.codigoAlumno }}</strong>
+                        <p class="cell-text">{{ candidate.nombreAlumno }}</p>
+                      </td>
+                      <td>
+                        <strong>{{ candidate.nombreMascota }}</strong>
+                        <p class="cell-text">{{ candidate.precioMantenimiento | number: '1.0-2' }} DC</p>
+                      </td>
+                      <td>
+                        <span class="pill" [ngClass]="stateTone(candidate.estado)">{{ candidate.estado }}</span>
+                      </td>
+                      <td>{{ candidate.dracoinsDisponibles | number: '1.0-2' }} DC</td>
+                      <td>
+                        @if (candidate.fechaUltimoPago) {
+                          {{ candidate.fechaUltimoPago | date: 'dd/MM/yyyy' }}
+                        } @else {
+                          Nunca
+                        }
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </article>
+      }
+    </div>
+    }
+
+    @if (activePanel() === 'matriz' && canViewMatrix()) {
+      <section class="panel table-card">
+        <div class="section-head">
+          <div>
+            <span class="pill">Matriz</span>
+            <h2>Lectura transversal por alumno</h2>
+          </div>
+          <p>{{ matrixRows().length }} alumnos con al menos una mascota.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Alumno</th>
+                <th>Lechuza</th>
+                <th>Gato</th>
+                <th>Sapo</th>
+                <th>Giratiempo</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (loadingMatrix()) {
+                <tr>
+                  <td colspan="5" class="empty-state">Cargando matriz...</td>
+                </tr>
+              } @else if (matrixRows().length === 0) {
+                <tr>
+                  <td colspan="5" class="empty-state">No hay registros para mostrar.</td>
+                </tr>
+              } @else {
+                @for (row of matrixRows(); track row.idAlumno) {
+                  <tr>
+                    <td>
+                      <strong>{{ row.codigoAlumno }}</strong>
+                      <p class="cell-text">{{ row.nombreAlumno }}</p>
+                    </td>
+                    <td><span class="pill" [ngClass]="stateTone(row.estadoLechuza)">{{ row.estadoLechuza || '-' }}</span></td>
+                    <td><span class="pill" [ngClass]="stateTone(row.estadoGato)">{{ row.estadoGato || '-' }}</span></td>
+                    <td><span class="pill" [ngClass]="stateTone(row.estadoSapo)">{{ row.estadoSapo || '-' }}</span></td>
+                    <td>
+                      <span class="pill" [ngClass]="stateTone(row.estadoGiratiempo)">
+                        {{ row.estadoGiratiempo || '-' }}
+                      </span>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+
+    @if (deleteConfirmOpen() && selectedAssignment()) {
+      <div class="mascotas-modal-backdrop" (click)="closeDeleteConfirm()"></div>
+      <article class="panel mascotas-modal confirm-modal" role="dialog" aria-modal="true">
+        <div class="section-head">
+          <div>
+            <span class="pill warn">Confirmar</span>
+            <h2>Eliminar asignación</h2>
+          </div>
+          <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeDeleteConfirm()">×</button>
+        </div>
+        <p>Se eliminará la asignación #{{ selectedAssignment()!.idMascotaAlumno }}.</p>
+        <div class="actions modal-actions">
+          <button class="ghost-button" type="button" (click)="closeDeleteConfirm()">Cancelar</button>
+          <button class="primary-button danger-button" type="button" (click)="confirmDeleteSelectedAssignment()" [disabled]="deletingAssignment()">
+            {{ deletingAssignment() ? 'Eliminando...' : 'Eliminar' }}
+          </button>
+        </div>
+      </article>
+    }
+  </section>
+}

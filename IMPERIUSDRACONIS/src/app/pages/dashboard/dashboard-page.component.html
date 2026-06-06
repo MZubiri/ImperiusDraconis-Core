@@ -1,0 +1,148 @@
+<section class="dashboard-layout">
+  <article class="hero panel">
+    <div class="hero-copy">
+      
+      <a class="profile-name-link" routerLink="/perfil">
+        <h1>{{ auth.user()?.nombre || 'Usuario autenticado' }}</h1>
+      </a>
+      <p>
+        Código {{ auth.user()?.codigo || 'SIN CÓDIGO' }} | {{ auth.user()?.cargoNombre || 'Sin cargo' }} |
+        {{ auth.user()?.casaNombre || 'Sin casa' }}
+      </p>
+    </div>
+
+    <div class="hero-metrics">
+      <div>
+        <span>Saldo actual</span>
+        <strong>{{ visibleBalance() | number: '1.0-2' }}</strong>
+      </div>
+    </div>
+  </article>
+
+  @if (errorMessage()) {
+    <div class="status-banner error">{{ errorMessage() }}</div>
+  }
+
+  <section class="dashboard-grid">
+    <article class="panel section-card">
+      <div class="section-head">
+        <div>
+          <span class="pill">Accesos rápidos</span>
+        </div>
+        <button
+          class="ghost-button compact-button settings-button"
+          type="button"
+          (click)="toggleQuickLinkEditor()"
+          [attr.aria-label]="customizingQuickLinks() ? 'Cerrar ajustes de accesos rápidos' : 'Ajustar accesos rápidos'"
+          [title]="customizingQuickLinks() ? 'Cerrar ajustes' : 'Ajustar accesos rápidos'"
+        >
+          <svg lucideIcon="settings" aria-hidden="true"></svg>
+        </button>
+      </div>
+
+      <div class="quick-links-grid">
+        @for (link of visibleQuickLinks(); track link.route) {
+          <div class="quick-link-item">
+            <a class="quick-link" [routerLink]="link.route" [title]="link.description">
+              <span class="quick-icon"><svg [lucideIcon]="link.icon" aria-hidden="true"></svg></span>
+              <strong>{{ link.label }}</strong>
+            </a>
+
+            @if (customizingQuickLinks()) {
+              <button
+                class="quick-remove"
+                type="button"
+                [attr.aria-label]="'Quitar ' + link.label"
+                (click)="toggleQuickLink(link.route)"
+              >
+                <svg lucideIcon="minus" aria-hidden="true"></svg>
+              </button>
+            }
+          </div>
+        } @empty {
+          <div class="empty-state compact-state">No tienes accesos visibles.</div>
+        }
+      </div>
+
+      @if (customizingQuickLinks()) {
+        <div class="quick-link-picker">
+          @for (link of availableQuickLinks(); track link.route) {
+            <button
+              class="picker-item"
+              type="button"
+              [class.selected]="isQuickLinkSelected(link.route)"
+              (click)="toggleQuickLink(link.route)"
+            >
+              <span class="quick-icon"><svg [lucideIcon]="link.icon" aria-hidden="true"></svg></span>
+              <span>{{ link.label }}</span>
+              <svg [lucideIcon]="isQuickLinkSelected(link.route) ? 'minus' : 'plus'" aria-hidden="true"></svg>
+            </button>
+          }
+        </div>
+      }
+    </article>
+
+    <article class="panel section-card">
+      <div class="section-head">
+        <div>
+         
+          <h2>Agenda del día</h2>
+        </div>
+        <p>{{ todaysAgenda().length }} elementos visibles</p>
+      </div>
+
+      @if (loadingAgenda()) {
+        <div class="empty-state">Cargando agenda...</div>
+      } @else if (todaysAgenda().length === 0) {
+        <div class="empty-state">No hay dinámicas agendadas para hoy.</div>
+      } @else {
+        <div class="timeline-list">
+          @for (item of todaysAgenda(); track trackAgenda($index, item)) {
+            <article class="timeline-item">
+              <div>
+                <strong>{{ item.hora.slice(0, 5) }}</strong>
+                <p>{{ item.titulo }}</p>
+              </div>
+              <span>{{ item.nombreAlumno }}</span>
+            </article>
+          }
+        </div>
+      }
+    </article>
+
+    <article class="panel section-card">
+      <div class="section-head">
+        <div>
+          
+          <h2>Últimas transacciones</h2>
+        </div>
+        <p>Movimientos recientes de tu cuenta.</p>
+      </div>
+
+      @if (loadingSummary()) {
+        <div class="empty-state">Sincronizando transacciones...</div>
+      } @else if (recentTransfers().length === 0) {
+        <div class="empty-state">No hay transacciones recientes.</div>
+      } @else {
+        <div class="transfer-list">
+          @for (transfer of recentTransfers(); track trackTransfer($index, transfer)) {
+            <article class="transfer-item">
+              <div>
+                <span class="pill" [class.success]="transfer.esRecibido" [class.warn]="!transfer.esRecibido">
+                  {{ transfer.esRecibido ? 'Recibida' : 'Enviada' }}
+                </span>
+                <strong>{{ transfer.esRecibido ? transfer.codigoRemitente : transfer.codigoDestinatario }}</strong>
+                <p>{{ transfer.esRecibido ? transfer.nombreRemitente : transfer.nombreDestinatario }}</p>
+                <p class="transfer-observation">{{ transfer.observacion || 'Sin observación' }}</p>
+              </div>
+              <div class="transfer-meta">
+                <strong>{{ transfer.monto | number: '1.0-2' }} DC</strong>
+                <span>{{ transfer.fechaTransferencia | date: 'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </article>
+  </section>
+</section>

@@ -1,0 +1,486 @@
+@if (!canViewModule()) {
+  <section class="blocked panel">
+    <span class="pill warn">Sin permiso</span>
+    <h1>El módulo de alumnos está protegido</h1>
+    <p>Tu sesión no incluye permisos suficientes para operar en este módulo.</p>
+  </section>
+} @else {
+  <section class="alumnos-layout">
+    <article class="hero panel">
+      <div class="hero-copy">
+        <span class="pill success">Gestión académica</span>
+        <h1>Alumnos</h1>
+     
+      </div>
+
+      <div class="hero-actions">
+        @if (canCreate()) {
+          <button class="primary-button" type="button" (click)="startCreate()">Nuevo alumno</button>
+        }
+        @if (canList()) {
+          <button class="ghost-button" type="button" (click)="loadAlumnos(resultado()?.paginaActual ?? 1)">
+            Recargar listado
+          </button>
+        }
+      </div>
+    </article>
+
+    @if (errorMessage()) {
+      <div class="message panel error-state">{{ errorMessage() }}</div>
+    }
+
+    @if (successMessage()) {
+      <div class="message panel success-state">{{ successMessage() }}</div>
+    }
+
+    <div class="workspace-grid">
+      @if (canList()) {
+        <section class="directory-card panel">
+          <header class="section-head">
+            <div>
+              <span class="pill">Directorio</span>
+              <h2>Listado y filtros</h2>
+            </div>
+            <p>{{ resultado()?.totalRegistros ?? 0 }} alumnos encontrados</p>
+          </header>
+
+          <div class="table-toolbar">
+            <div class="filters-summary">
+              <button class="ghost-button" type="button" (click)="toggleFilters()">
+                {{ filtersCollapsed() ? 'Mostrar filtros' : 'Ocultar filtros' }}
+              </button>
+              <button class="ghost-button" type="button" (click)="resetFilters()">
+                Limpiar filtros
+              </button>
+            </div>
+
+            <div class="filters-grid table-filters" [class.collapsed]="filtersCollapsed()">
+              <label class="field">
+                <span>Código</span>
+                <input
+                  type="text"
+                  [(ngModel)]="codigo"
+                  (ngModelChange)="onLiveFilterChange()"
+                  placeholder="Buscar por código"
+                />
+              </label>
+
+              <label class="field">
+                <span>Nombre</span>
+                <input
+                  type="text"
+                  [(ngModel)]="nombre"
+                  (ngModelChange)="onLiveFilterChange()"
+                  placeholder="Buscar por nombre"
+                />
+              </label>
+
+              <label class="field">
+                <span>Casa</span>
+                <select [(ngModel)]="idCasa" (ngModelChange)="onLiveFilterChange()">
+                  <option [ngValue]="null">Todas</option>
+                  @for (casa of casas(); track casa.id) {
+                    <option [ngValue]="casa.id">{{ casa.nombre }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Estado</span>
+                <select [(ngModel)]="estado" (ngModelChange)="onLiveFilterChange()">
+                  <option value="active">Activos</option>
+                  <option value="inactive">Inactivos</option>
+                  <option value="all">Todos</option>
+                </select>
+              </label>
+            </div>
+
+            
+          </div>
+
+          <header class="table-head">
+            <div>
+              <h3>Directorio</h3>
+              <p>Los filtros se aplican en vivo mientras escribes o cambias opciones.</p>
+            </div>
+            <div class="pagination">
+              <button class="ghost-button" type="button" (click)="previousPage()">Anterior</button>
+              <span>{{ resultado()?.paginaActual ?? 1 }} / {{ resultado()?.totalPaginas ?? 1 }}</span>
+              <button class="ghost-button" type="button" (click)="nextPage()">Siguiente</button>
+            </div>
+          </header>
+
+          <div class="table-wrap responsive-cards">
+            <table>
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Nombre</th>
+                  <th>Casa</th>
+                  <th>Cargo</th>
+                  <th>
+                    <button
+                      class="sort-header-button"
+                      type="button"
+                      (click)="toggleDracoinsSort()"
+                      [attr.aria-pressed]="dracoinsSortActive()"
+                    >
+                      <span>Dracoins</span>
+                      <span class="sort-indicator">
+                        {{ dracoinsSortActive() ? '↓' : '↕' }}
+                      </span>
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (loading()) {
+                  <tr>
+                    <td colspan="5" class="empty-state">Cargando alumnos...</td>
+                  </tr>
+                } @else if (alumnos().length === 0) {
+                  <tr>
+                    <td colspan="5" class="empty-state">No hay alumnos para los filtros actuales.</td>
+                  </tr>
+                } @else {
+                  @for (alumno of alumnos(); track alumno.idAlumno) {
+                    <tr
+                      class="row-clickable"
+                      [class.selected]="selectedAlumno()?.idAlumno === alumno.idAlumno"
+                      [class.inactive-row]="!alumno.activo"
+                      (click)="openAlumno(alumno.idAlumno)"
+                    >
+                      <td data-label="Código">{{ alumno.codigo }}</td>
+                      <td data-label="Nombre">{{ alumno.nombre }}</td>
+                      <td data-label="Casa">{{ alumno.casaNombre || '-' }}</td>
+                      <td data-label="Cargo">{{ alumno.nombreCargo || '-' }}</td>
+                      <td data-label="Dracoins">{{ alumno.dracoins | number: '1.0-2' }}</td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      } @else {
+        <section class="directory-card panel compact-state">
+          <span class="pill warn">Sin listado</span>
+          <h2>Tu sesión no incluye acceso al directorio general</h2>
+          <p>Las acciones administrativas disponibles se muestran en el panel derecho.</p>
+        </section>
+      }
+    </div>
+
+    @if (alumnoModalMode()) {
+      <div class="alumno-modal-backdrop" (click)="closeAlumnoModal()"></div>
+      <div class="side-stack alumno-modal-shell">
+        @if (alumnoModalMode() === 'detail') {
+        <aside class="detail-card panel">
+          <header class="section-head">
+            <div>
+              <span class="pill success">Ficha</span>
+              <h2>Detalle del alumno</h2>
+            </div>
+            <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeAlumnoModal()">×</button>
+          </header>
+
+          @if (detailLoading()) {
+            <div class="detail-empty">Cargando detalle del alumno...</div>
+          } @else if (selectedAlumno()) {
+            <div class="detail-profile">
+              <img
+                class="detail-profile-photo"
+                appImageFallback
+                [src]="avatarUrl(selectedAlumno()!.fotoPerfil)"
+                [alt]="'Foto de ' + selectedAlumno()!.nombre"
+              />
+              <div class="detail-profile-copy">
+                <span class="pill success">{{ selectedAlumno()!.codigo }}</span>
+                <h3>{{ selectedAlumno()!.nombre }}</h3>
+                <p>{{ selectedAlumno()!.nombreCargo || 'Sin cargo' }} | {{ selectedAlumno()!.casaNombre || 'Sin casa' }}</p>
+              </div>
+              <span class="pill" [class.success]="selectedAlumno()!.activo" [class.warn]="!selectedAlumno()!.activo">
+                {{ selectedAlumno()!.activo ? 'Activo' : 'Inactivo' }}
+              </span>
+            </div>
+
+            <div class="detail-grid">
+              <div>
+                <span>Correo</span>
+                <strong>{{ selectedAlumno()!.correoElectronico || 'No registrado' }}</strong>
+              </div>
+              <div>
+                <span>Teléfono</span>
+                <strong>{{ selectedAlumno()!.telefono || 'No registrado' }}</strong>
+              </div>
+              <div>
+                <span>Dracoins</span>
+                <strong>{{ selectedAlumno()!.dracoins | number: '1.0-2' }}</strong>
+              </div>
+              <div>
+                <span>Género</span>
+                <strong>{{ selectedAlumno()!.genero || 'No registrado' }}</strong>
+              </div>
+              <div>
+                <span>País</span>
+                <strong>{{ selectedAlumno()!.pais || 'No registrado' }}</strong>
+              </div>
+              <div>
+                <span>Zona horaria</span>
+                <strong>{{ selectedAlumno()!.zonaHoraria || 'No registrada' }}</strong>
+              </div>
+              <div>
+                <span>Cumpleaños</span>
+                <strong>
+                  {{
+                    selectedAlumno()!.cumpleanos
+                      ? (selectedAlumno()!.cumpleanos | date: 'dd/MM/yyyy')
+                      : 'No registrado'
+                  }}
+                </strong>
+              </div>
+            </div>
+
+            <div class="actions detail-actions">
+              @if (canEdit()) {
+                <button class="primary-button" type="button" (click)="startEdit()">Editar</button>
+                <button class="ghost-button" type="button" [disabled]="changingStatus()" (click)="changeEstado()">
+                  {{ changingStatus() ? 'Guardando...' : selectedAlumno()!.activo ? 'Desactivar' : 'Activar' }}
+                </button>
+              }
+              @if (canNotes()) {
+                <button class="ghost-button" type="button" (click)="openNotesPanel()">Notas</button>
+              }
+              @if (canResetPassword()) {
+                <button class="ghost-button" type="button" (click)="openPasswordPanel()">Cambiar contraseña</button>
+              }
+              @if (canDelete()) {
+                <button class="danger-button" type="button" [disabled]="deleting()" (click)="openDeleteConfirm()">
+                  Eliminar
+                </button>
+              }
+            </div>
+          } @else {
+            <div class="detail-empty">Selecciona un alumno del listado para abrir su ficha completa.</div>
+          }
+        </aside>
+        }
+
+        @if (showFormPanel()) {
+          <article class="form-card panel">
+            <header class="section-head">
+              <div>
+                <span class="pill">{{ formMode() === 'edit' ? 'Edición' : 'Alta' }}</span>
+                <h2>{{ formTitle() }}</h2>
+              </div>
+              <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="cancelForm()">×</button>
+            </header>
+
+            <form class="form-grid" (ngSubmit)="submitForm()">
+              <label class="field">
+                <span>Código</span>
+                <input type="text" name="codigoAlumno" [(ngModel)]="form.codigo" placeholder="Ejemplo: G1234" />
+              </label>
+
+              <label class="field">
+                <span>Nombre</span>
+                <input type="text" name="nombreAlumno" [(ngModel)]="form.nombre" placeholder="Nombre completo" />
+              </label>
+
+              <label class="field">
+                <span>Teléfono</span>
+                <input type="text" name="telefonoAlumno" [(ngModel)]="form.telefono" placeholder="+51 999 999 999" />
+              </label>
+
+              <label class="field">
+                <span>Correo</span>
+                <input type="email" name="correoAlumno" [(ngModel)]="form.correoElectronico" placeholder="correo@dominio.com" />
+              </label>
+
+              <label class="field">
+                <span>Casa</span>
+                <select name="idCasaAlumno" [(ngModel)]="form.idCasa" (ngModelChange)="onCasaSelected($event)">
+                  <option [ngValue]="null">Sin casa</option>
+                  @for (casa of casas(); track casa.id) {
+                    <option [ngValue]="casa.id">{{ casa.nombre }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Género</span>
+                <select name="generoAlumno" [(ngModel)]="form.genero">
+                  <option value="">Sin registro</option>
+                  @for (genero of generos; track genero) {
+                    <option [value]="genero">{{ genero }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Cumpleaños</span>
+                <input type="date" name="cumpleanosAlumno" [(ngModel)]="form.cumpleanos" />
+              </label>
+
+              <label class="field">
+                <span>País</span>
+                <select name="paisAlumno" [(ngModel)]="form.pais" (ngModelChange)="onPaisSelected()">
+                  <option value="">Selecciona un país</option>
+                  @for (pais of paises; track pais.nombre) {
+                    <option [value]="pais.nombre">{{ pais.nombre }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Prefijo país</span>
+                <input type="text" name="prefijoPaisAlumno" [(ngModel)]="form.prefijoPais" readonly />
+              </label>
+
+              @if (formMode() === 'edit') {
+                <label class="field">
+                  <span>Cargo</span>
+                  <select name="idCargoAlumno" [(ngModel)]="form.idCargo">
+                    <option [ngValue]="null">Sin cargo</option>
+                    @for (cargo of cargos(); track cargo.id) {
+                      <option [ngValue]="cargo.id">{{ cargo.nombre }}</option>
+                    }
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Dracoins</span>
+                  <input type="number" name="dracoinsAlumno" [(ngModel)]="form.dracoins" min="0" step="0.01" />
+                </label>
+
+                <label class="field field-wide">
+                  <span>Foto perfil</span>
+                  <input type="text" name="fotoPerfilAlumno" [(ngModel)]="form.fotoPerfil" placeholder="Ruta relativa o URL" />
+                </label>
+
+                <label class="field">
+                  <span>Zona horaria</span>
+                  <input type="text" name="zonaHorariaAlumno" [(ngModel)]="form.zonaHoraria" placeholder="America/Lima" />
+                </label>
+
+                <label class="checkbox-field field-wide">
+                  <input type="checkbox" name="activoAlumno" [(ngModel)]="form.activo" />
+                  <span>Alumno activo</span>
+                </label>
+              }
+
+              <div class="actions field-wide">
+                <button class="primary-button" type="submit" [disabled]="savingForm()">
+                  {{ savingForm() ? 'Guardando...' : formMode() === 'edit' ? 'Guardar cambios' : 'Crear alumno' }}
+                </button>
+                <button class="ghost-button" type="button" (click)="cancelForm()">Limpiar</button>
+              </div>
+            </form>
+          </article>
+        }
+
+        @if (selectedAlumno() && canNotes() && showNotesPanel()) {
+          <article class="notes-card panel">
+            <header class="section-head">
+              <div>
+                <span class="pill success">Notas</span>
+                <h2>Seguimiento del alumno</h2>
+              </div>
+              <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeNotesPanel()">×</button>
+            </header>
+
+            <form class="note-form" (ngSubmit)="createNota()">
+              <label class="field field-wide">
+                <span>Nueva nota</span>
+                <textarea
+                  name="notaAlumno"
+                  [(ngModel)]="notaTexto"
+                  rows="4"
+                  placeholder="Escribe una observación para la ficha del alumno"
+                ></textarea>
+              </label>
+
+              <div class="actions">
+                <button class="primary-button" type="submit" [disabled]="savingNote()">
+                  {{ savingNote() ? 'Guardando...' : 'Agregar nota' }}
+                </button>
+              </div>
+            </form>
+
+            <div class="notes-list">
+              @if (notesLoading()) {
+                <div class="empty-state">Cargando notas...</div>
+              } @else if (notas().length === 0) {
+                <div class="empty-state">Este alumno no tiene notas registradas.</div>
+              } @else {
+                @for (note of notas(); track note.idNota) {
+                  <article class="note-item">
+                    <div class="note-meta">
+                      <strong>#{{ note.idNota }}</strong>
+                      <span>{{ note.fecha | date: 'dd/MM/yyyy HH:mm' }}</span>
+                    </div>
+                    <p>{{ note.nota }}</p>
+                  </article>
+                }
+              }
+            </div>
+          </article>
+        }
+
+        @if (selectedAlumno() && canResetPassword() && showPasswordPanel()) {
+          <article class="password-card panel">
+            <header class="section-head">
+              <div>
+                <span class="pill warn">Admin</span>
+                <h2>Restablecer contraseña</h2>
+              </div>
+              <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closePasswordPanel()">×</button>
+            </header>
+
+            <form class="password-form" (ngSubmit)="resetPassword()">
+              <label class="field">
+                <span>Nueva contraseña</span>
+                <input type="password" name="nuevaContrasena" [(ngModel)]="nuevaContrasena" />
+              </label>
+
+              <label class="field">
+                <span>Confirmar contraseña</span>
+                <input type="password" name="confirmarContrasena" [(ngModel)]="confirmarContrasena" />
+              </label>
+
+              <div class="actions">
+                <button class="primary-button" type="submit" [disabled]="resettingPassword()">
+                  {{ resettingPassword() ? 'Actualizando...' : 'Actualizar contraseña' }}
+                </button>
+              </div>
+            </form>
+          </article>
+        }
+      </div>
+    }
+
+    @if (deleteConfirmOpen() && selectedAlumno()) {
+      <div class="confirm-modal-backdrop" (click)="closeDeleteConfirm()"></div>
+      <article class="confirm-modal panel">
+        <div>
+          <span class="pill warn">Confirmación</span>
+          <h2>Eliminar alumno</h2>
+          <p>
+            Se eliminará
+            <strong>{{ selectedAlumno()!.codigo }} - {{ selectedAlumno()!.nombre }}</strong>.
+            Esta acción no se puede deshacer.
+          </p>
+        </div>
+
+        <div class="actions confirm-actions">
+          <button class="ghost-button" type="button" [disabled]="deleting()" (click)="closeDeleteConfirm()">
+            Cancelar
+          </button>
+          <button class="danger-button" type="button" [disabled]="deleting()" (click)="deleteSelected()">
+            {{ deleting() ? 'Eliminando...' : 'Eliminar' }}
+          </button>
+        </div>
+      </article>
+    }
+  </section>
+}

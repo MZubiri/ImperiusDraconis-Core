@@ -1,0 +1,64 @@
+<div class="shell" [class.mobile-menu-open]="menuOpen">
+  <div class="sidebar-backdrop" *ngIf="menuOpen" (click)="toggleMenu()"></div>
+  <aside class="sidebar" [class.open]="menuOpen">
+    <div class="brand-block">
+      <span class="brand-mark">
+        <img [src]="themeAsset()" alt="" />
+      </span>
+      <div>
+        <strong>Imperius Draconis</strong>
+        <span>Plataforma</span>
+      </div>
+    </div>
+
+    <nav class="menu">
+      @for (item of menu; track item.route) {
+        @if (canView(item.permission)) {
+          <a class="menu-link" [routerLink]="item.route" routerLinkActive="active" (click)="menuOpen = false">
+            <span class="menu-icon"><svg [lucideIcon]="item.icon" aria-hidden="true"></svg></span>
+            <span>{{ item.label }}</span>
+          </a>
+        }
+      }
+    </nav>
+
+    <div class="sidebar-footer">
+      <label class="theme-field">
+        <span>Tema</span>
+        <select [value]="theme" (change)="setTheme($any($event.target).value)">
+          @for (item of themes; track item.value) {
+            <option [value]="item.value">{{ item.label }}</option>
+          }
+        </select>
+      </label>
+
+      <section class="user-card">
+        <a class="user-avatar" routerLink="/perfil" (click)="menuOpen = false">
+          <img [src]="avatarUrl(auth.user()?.fotoPerfil)" [alt]="auth.user()?.nombre || 'Usuario actual'" />
+        </a>
+        <a class="user-name-link" routerLink="/perfil" (click)="menuOpen = false">
+          <strong>{{ auth.user()?.nombre || 'Sin sesión activa' }}</strong>
+          <span>{{ auth.user()?.cargoNombre || 'Sin cargo' }}</span>
+        </a>
+        <button class="logout-button" type="button" (click)="logout()" aria-label="Cerrar sesión" title="Cerrar sesión">
+          <svg lucideIcon="log-out" aria-hidden="true"></svg>
+        </button>
+      </section>
+    </div>
+  </aside>
+
+  <main class="workspace">
+    <header class="workspace-header">
+      <button class="menu-toggle" type="button" (click)="toggleMenu()" aria-label="Abrir menú" [attr.aria-expanded]="menuOpen">
+        <svg lucideIcon="menu" aria-hidden="true"></svg>
+      </button>
+      <div>
+        <p class="eyebrow">Imperius Draconis - La magia en tus manos</p>
+        
+      </div>
+      <span class="balance">{{ auth.user()?.dracoins ?? 0 | number: '1.0-2' }} DC</span>
+    </header>
+
+    <router-outlet />
+  </main>
+</div>

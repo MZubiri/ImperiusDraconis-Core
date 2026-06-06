@@ -1,0 +1,8 @@
+.actions-bottom {
+  align-self: end;
+}
+
+input[type='checkbox'] {
+  width: 22px;
+  min-height: 22px;
+}

@@ -1,0 +1,242 @@
+@if (!canViewModule()) {
+  <section class="blocked panel">
+    <span class="pill warn">Sin permiso</span>
+    <h1>El módulo de marcadores está protegido</h1>
+    <p>Tu sesión no incluye permisos suficientes para entrar a este módulo.</p>
+  </section>
+} @else {
+  <section class="marcadores-layout">
+    <article class="hero panel">
+      <div class="hero-copy">
+        <span class="pill success">Módulo activo</span>
+        <h1>Marcadores</h1>
+        <p>Panel de puntajes por casa, actualización manual, ajustes administrativos e historial de cierres.</p>
+      </div>
+
+      <div class="hero-metrics">
+        <div>
+          <span>Lider actual</span>
+          <strong>{{ leader() ? leader()!.nombreCasa : 'Sin datos' }}</strong>
+        </div>
+        <div>
+          <span>Puntos visibles</span>
+          <strong>{{ totalPoints() | number: '1.0-0' }}</strong>
+        </div>
+        <div>
+          <span>Casas activas</span>
+          <strong>{{ rankedScoreboard().length }}</strong>
+        </div>
+      </div>
+    </article>
+
+    @if (errorMessage()) {
+      <div class="message panel error-state">{{ errorMessage() }}</div>
+    }
+
+    @if (successMessage()) {
+      <div class="message panel success-state">{{ successMessage() }}</div>
+    }
+
+    @if (closeConfirmOpen()) {
+      <div class="marcadores-modal-backdrop" (click)="closeScoreboardModal()"></div>
+      <article class="marcadores-modal confirm-modal panel" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <div>
+            <span class="pill warn">Confirmar</span>
+            <h2>Cerrar marcador</h2>
+          </div>
+          <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeScoreboardModal()">×</button>
+        </div>
+        <p>Los puntajes actuales pasarán al historial y el tablero se reiniciará.</p>
+        <div class="actions modal-actions">
+          <button class="ghost-button" type="button" (click)="closeScoreboardModal()">Cancelar</button>
+          <button class="primary-button danger-button" type="button" [disabled]="closingScoreboard()" (click)="confirmCloseScoreboard()">
+            {{ closingScoreboard() ? 'Cerrando...' : 'Cerrar marcador' }}
+          </button>
+        </div>
+      </article>
+    }
+
+    @if (!canViewScoreboard() && !canViewHistory()) {
+      <section class="notice panel">
+        <span class="pill">Panel base</span>
+        <h2>Tu perfil solo tiene acceso al índice</h2>
+        <p>Faltan permisos específicos para mostrar el marcador, el historial o los formularios administrativos.</p>
+      </section>
+    }
+
+    <nav class="section-tabs panel" aria-label="Secciones de Marcadores">
+      @if (canViewScoreboard()) {
+        <button type="button" [class.active]="activePanel() === 'marcador'" (click)="setActivePanel('marcador')">
+          Marcador
+        </button>
+      }
+      @if (canAdjust()) {
+        <button type="button" [class.active]="activePanel() === 'ajustar'" (click)="setActivePanel('ajustar')">
+          Ajustes y cierre
+        </button>
+      }
+      @if (canViewHistory()) {
+        <button type="button" [class.active]="activePanel() === 'historial'" (click)="setActivePanel('historial')">
+          Historial
+        </button>
+      }
+    </nav>
+
+    <div class="content-grid single-column">
+      @if (activePanel() === 'marcador' && canViewScoreboard()) {
+        <article class="scoreboard-card panel">
+          <div class="section-head">
+            <div>
+              <span class="pill success">Marcador actual</span>
+              <h2>Tabla por casas</h2>
+            </div>
+            <p>
+              @if (loadingCurrent() || loadingHouses()) {
+                Sincronizando puntajes...
+              } @else {
+                Vista consolidada del marcador vigente.
+              }
+            </p>
+          </div>
+
+          <div class="scoreboard-grid">
+            @if (loadingCurrent() || loadingHouses()) {
+              <div class="empty-state">Cargando marcador...</div>
+            } @else if (rankedScoreboard().length === 0) {
+              <div class="empty-state">No hay puntajes disponibles.</div>
+            } @else {
+              @for (house of rankedScoreboard(); track house.idCasa) {
+                <article class="house-card" [attr.data-tone]="toneFor(house)">
+                  <span class="house-rank">#{{ $index + 1 }}</span>
+                  <h3>{{ house.nombreCasa }}</h3>
+                  <p>{{ house.color || 'Sin color' }}</p>
+                  <strong>{{ house.puntosAcumulados | number: '1.0-0' }}</strong>
+                </article>
+              }
+            }
+          </div>
+        </article>
+      }
+
+    </div>
+
+    @if (activePanel() === 'ajustar' && canAdjust()) {
+      <section class="admin-grid">
+        <article class="admin-card panel">
+          <div class="section-head">
+            <div>
+              <span class="pill success">Administrativo</span>
+              <h2>Ajuste de puntos</h2>
+            </div>
+            <p>Aplica un ajuste positivo o negativo a una sola casa y registra la observación obligatoria.</p>
+          </div>
+
+          <form class="update-form" (ngSubmit)="submitAdjustment()">
+            <div class="fields-grid">
+              <label class="field">
+                <span>Casa</span>
+                <select name="ajusteIdCasa" [(ngModel)]="ajusteIdCasa">
+                  @for (house of visibleScoreboard(); track house.idCasa) {
+                    <option [ngValue]="house.idCasa">{{ house.nombreCasa }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Puntos</span>
+                <input type="number" name="ajustePuntos" [(ngModel)]="ajustePuntos" step="1" />
+              </label>
+            </div>
+
+            <label class="field">
+              <span>Observación</span>
+              <textarea
+                name="ajusteObservacion"
+                [(ngModel)]="ajusteObservacion"
+                rows="3"
+                placeholder="Motivo del ajuste"
+              ></textarea>
+            </label>
+
+            <div class="actions">
+              <button class="primary-button" type="submit" [disabled]="submittingAdjustment()">
+                {{ submittingAdjustment() ? 'Guardando...' : 'Guardar ajuste' }}
+              </button>
+              <button class="ghost-button" type="button" (click)="loadHouses()">Recargar casas</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="admin-card panel">
+          <div class="section-head">
+            <div>
+              <span class="pill">Cierre</span>
+              <h2>Cerrar marcador</h2>
+            </div>
+            <p>Guarda los puntajes actuales en el historial y reinicia el tablero completo.</p>
+          </div>
+
+          <div class="close-card">
+            <strong>Acción sensible</strong>
+            <p>Este cierre afecta todas las casas y debe ejecutarse solo cuando el ciclo del marcador termina.</p>
+          </div>
+
+          <div class="actions">
+            <button class="primary-button danger-button" type="button" [disabled]="closingScoreboard()" (click)="closeScoreboard()">
+              {{ closingScoreboard() ? 'Cerrando...' : 'Cerrar marcador' }}
+            </button>
+          </div>
+        </article>
+      </section>
+    }
+
+    @if (activePanel() === 'historial' && canViewHistory()) {
+      <section class="history-card panel">
+        <header class="history-head">
+          <div>
+            <span class="pill success">Historial</span>
+            <h2>Cierres anteriores</h2>
+            <p>{{ history()?.totalRegistros ?? 0 }} registros históricos</p>
+          </div>
+          <div class="pagination">
+            <button class="ghost-button" type="button" (click)="previousHistoryPage()">Anterior</button>
+            <span>{{ history()?.paginaActual ?? 1 }} / {{ history()?.totalPaginas ?? 1 }}</span>
+            <button class="ghost-button" type="button" (click)="nextHistoryPage()">Siguiente</button>
+          </div>
+        </header>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Casa</th>
+                <th>Puntos</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (loadingHistory()) {
+                <tr>
+                  <td colspan="3" class="empty-state">Cargando historial...</td>
+                </tr>
+              } @else if ((history()?.items?.length ?? 0) === 0) {
+                <tr>
+                  <td colspan="3" class="empty-state">Aún no hay cierres históricos para mostrar.</td>
+                </tr>
+              } @else {
+                @for (item of history()?.items ?? []; track item.idHistorial) {
+                  <tr>
+                    <td>{{ item.fechaCierre | date: 'dd/MM/yyyy HH:mm' }}</td>
+                    <td>{{ item.nombreCasa }}</td>
+                    <td>{{ item.puntosAcumulados | number: '1.0-0' }}</td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  </section>
+}

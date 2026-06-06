@@ -1,0 +1,608 @@
+<section class="module-layout">
+  <article class="module-hero panel">
+    <div class="stack">
+      <span class="pill success">Tienda</span>
+      <h1>Emporio del Dragón</h1>
+      <p class="muted">
+        Elige tu próximo tesoro, regálalo si quieres y deja que el Emporio haga la magia.
+      </p>
+    </div>
+  </article>
+
+  <div class="tienda-nav panel">
+    <button
+      class="ghost-button"
+      type="button"
+      [class.active]="viewMode() === 'store'"
+      (click)="showStore()"
+    >
+      Catálogo
+    </button>
+    <button
+      class="ghost-button"
+      type="button"
+      [class.active]="viewMode() === 'history'"
+      (click)="showHistory()"
+    >
+      Mis compras
+    </button>
+    @if (hasAdminPanelAccess()) {
+      <button
+        class="ghost-button"
+        type="button"
+        [class.active]="viewMode() === 'admin'"
+        (click)="showAdminOverview()"
+      >
+        Panel administrativo
+      </button>
+    }
+  </div>
+
+  @if (successMessage()) {
+    <div class="status-banner success">{{ successMessage() }}</div>
+  }
+
+  @if (errorMessage()) {
+    <div class="status-banner error">{{ errorMessage() }}</div>
+  }
+
+  @if (viewMode() === 'store') {
+    <section class="content-grid tienda-top-grid">
+      <article class="section-card panel">
+        <div class="toolbar">
+          <span class="pill">Catálogo</span>
+        </div>
+
+        <div class="form-grid three-up">
+          <label>
+            Nombre
+            <input [(ngModel)]="nombreProducto" (ngModelChange)="onProductFiltersChange()" />
+          </label>
+          <label class="range-field">
+            Precio mínimo: {{ getSliderMinValue() | number: '1.0-2' }} DC
+            <div class="range-slider-wrap">
+              <input
+                type="range"
+                [min]="priceBounds().min"
+                [max]="priceBounds().max"
+                [step]="1"
+                [ngModel]="getSliderMinValue()"
+                (ngModelChange)="onMinPriceSliderChange($event)"
+              />
+              <span class="range-badge" [style.left.%]="getSliderMinPercent()">
+                {{ getSliderMinValue() | number: '1.0-2' }}
+              </span>
+            </div>
+          </label>
+          <label class="range-field">
+            Precio máximo: {{ getSliderMaxValue() | number: '1.0-2' }} DC
+            <div class="range-slider-wrap">
+              <input
+                type="range"
+                [min]="priceBounds().min"
+                [max]="priceBounds().max"
+                [step]="1"
+                [ngModel]="getSliderMaxValue()"
+                (ngModelChange)="onMaxPriceSliderChange($event)"
+              />
+              <span class="range-badge" [style.left.%]="getSliderMaxPercent()">
+                {{ getSliderMaxValue() | number: '1.0-2' }}
+              </span>
+            </div>
+          </label>
+        </div>
+
+        <div class="inline-actions">
+          <span class="live-filter-note">Usa los controles para filtrar el catálogo.</span>
+          <button class="ghost-button" type="button" (click)="resetProductFilters()">Limpiar filtros</button>
+        </div>
+
+        @if (loadingProducts()) {
+          <div class="empty-state">Cargando catálogo...</div>
+        } @else if (!filteredProducts().length) {
+          <div class="empty-state">No hay productos disponibles con esos filtros.</div>
+        } @else {
+          <div class="store-grid">
+            @for (product of filteredProducts(); track product.idProducto) {
+              <button
+                class="panel store-card"
+                type="button"
+                [class.selected]="selectedProduct()?.idProducto === product.idProducto"
+                (click)="selectProduct(product)"
+              >
+                @if (product.imagen) {
+                  <img appImageFallback [src]="imageUrl(product.imagen)" [alt]="product.nombre" />
+                }
+                <strong>{{ product.nombre }}</strong>
+                <p>{{ product.descripcion }}</p>
+                <span class="tag">{{ product.precio | number: '1.0-2' }} DC</span>
+              </button>
+            }
+          </div>
+        }
+      </article>
+    </section>
+  }
+
+  @if (viewMode() === 'history') {
+    <article class="section-card panel">
+      <div class="toolbar">
+        <span class="pill">Mis compras</span>
+      </div>
+
+      <div class="form-grid four-up">
+        <label>
+          Estado
+          <select [(ngModel)]="estadoHistorial" (ngModelChange)="onHistoryFiltersChange()">
+            @for (estado of historyStatusOptions; track estado) {
+              <option [value]="estado">{{ estado || 'Todos' }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Producto
+          <input [(ngModel)]="nombreHistorial" (ngModelChange)="onHistoryFiltersChange()" />
+        </label>
+        <label>
+          Desde
+          <input type="date" [(ngModel)]="desdeHistorial" (ngModelChange)="onHistoryFiltersChange()" />
+        </label>
+        <label>
+          Hasta
+          <input type="date" [(ngModel)]="hastaHistorial" (ngModelChange)="onHistoryFiltersChange()" />
+        </label>
+      </div>
+
+      @if (loadingHistory()) {
+        <div class="empty-state">Cargando historial...</div>
+      } @else if ((history()?.items?.length ?? 0) === 0) {
+        <div class="empty-state">No hay pedidos en tu historial con esos filtros.</div>
+      } @else {
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>Pedido</th>
+                <th>Producto</th>
+                <th>Estado</th>
+                <th>Total</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of history()?.items ?? []; track item.idPedido) {
+                <tr>
+                  <td>#{{ item.idPedido }}<br /><span class="muted">{{ item.fechaPedido | date: 'short' }}</span></td>
+                  <td>{{ item.producto }}</td>
+                  <td>{{ item.estado }}</td>
+                  <td>{{ item.total | number: '1.0-2' }} DC</td>
+                  <td>
+                    <button class="ghost-button" type="button" (click)="openReceipt(item.idPedido)">
+                      Comprobante
+                    </button>
+                    @if (item.puedeCancelar) {
+                      <button class="ghost-button" type="button" (click)="cancelarPedido(item.idPedido)">
+                        Cancelar
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </article>
+  }
+
+  @if (viewMode() === 'admin' && hasAdminPanelAccess()) {
+    <section class="admin-stack">
+      <article class="section-card panel">
+        <div class="toolbar">
+          <span class="pill">Panel administrativo</span>
+          @if (adminSection() !== 'overview') {
+            <button class="ghost-button" type="button" (click)="showAdminOverview()">Volver al panel</button>
+          }
+        </div>
+
+        @if (adminSection() === 'overview') {
+          <p class="muted">
+            Accesos administrativos de la tienda, separados del catálogo y del historial personal.
+          </p>
+
+          @if (canViewPanelAdmin()) {
+            <div class="metric-grid admin-summary-grid">
+              <article class="metric-card">
+                <span>Activos</span>
+                <strong>{{ panelSummary()?.totalProductosActivos ?? 0 }}</strong>
+              </article>
+              <article class="metric-card">
+                <span>Pendientes</span>
+                <strong>{{ panelSummary()?.totalPedidosPendientes ?? 0 }}</strong>
+              </article>
+              <article class="metric-card">
+                <span>Tomados</span>
+                <strong>{{ panelSummary()?.totalPedidosTomados ?? 0 }}</strong>
+              </article>
+              <article class="metric-card">
+                <span>Entregados</span>
+                <strong>{{ panelSummary()?.totalPedidosEntregados ?? 0 }}</strong>
+              </article>
+              <article class="metric-card">
+                <span>Cancelados</span>
+                <strong>{{ panelSummary()?.totalPedidosCancelados ?? 0 }}</strong>
+              </article>
+            </div>
+          }
+
+          <div class="admin-grid">
+            @if (canManageProducts()) {
+              <article class="panel admin-entry">
+                <span class="pill">Productos</span>
+                <h3>Catálogo administrativo</h3>
+                <p>Alta, edición, estado e imágenes del catálogo usado por la tienda.</p>
+                <div class="inline-actions">
+                  <button class="primary-button" type="button" (click)="goToProductos()">Abrir productos</button>
+                </div>
+              </article>
+            }
+
+            @if (canViewPending()) {
+              <article class="panel admin-entry">
+                <span class="pill">Pedidos</span>
+                <h3>Pedidos pendientes</h3>
+                <p>Toma pedidos disponibles para asignarlos al vendedor actual.</p>
+                <div class="inline-actions">
+                  <button class="primary-button" type="button" (click)="showAdminPending()">Ver pendientes</button>
+                </div>
+              </article>
+            }
+
+            @if (canViewMyOrders()) {
+              <article class="panel admin-entry">
+                <span class="pill">Vendedor</span>
+                <h3>Mis pedidos tomados</h3>
+                <p>Gestiona entregas y cancelaciones de los pedidos ya asignados.</p>
+                <div class="inline-actions">
+                  <button class="primary-button" type="button" (click)="showAdminMyOrders()">Abrir mis pedidos</button>
+                </div>
+              </article>
+            }
+
+            @if (canViewAdminHistory()) {
+              <article class="panel admin-entry">
+                <span class="pill">Historial</span>
+                <h3>Historial administrativo</h3>
+                <p>Consulta pedidos, filtra por vendedor o estado y ajusta su situación final.</p>
+                <div class="inline-actions">
+                  <button class="primary-button" type="button" (click)="showAdminHistory()">Ver historial</button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </article>
+
+      @if (adminSection() === 'pending' && canViewPending()) {
+        <article class="section-card panel">
+          <div class="toolbar">
+            <span class="pill">Pendientes</span>
+            <button class="ghost-button" type="button" (click)="loadPendingOrders()">Recargar</button>
+          </div>
+
+          @if (loadingVendor() && !pendingOrders().length) {
+            <div class="empty-state">Cargando pedidos pendientes...</div>
+          } @else if (!pendingOrders().length) {
+            <div class="empty-state">No hay pedidos pendientes.</div>
+          } @else {
+            <div class="table-shell">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Pedido</th>
+                    <th>Comprador</th>
+                    <th>Producto</th>
+                    <th>Comentario</th>
+                    <th>Total</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of pendingOrders(); track item.idPedido) {
+                    <tr>
+                      <td>#{{ item.idPedido }}</td>
+                      <td>
+                        @if (item.nombreDestinatario) {
+                          <span>
+                            {{ item.nombreDestinatario }} ({{ item.codigoDestinatario }})
+                            <span class="tag">Regalo</span>
+                          </span>
+                          <div class="muted">
+                            Pagado por: {{ item.nombreComprador }} ({{ item.codigoComprador }})
+                          </div>
+                        } @else {
+                          {{ item.nombreComprador }} ({{ item.codigoComprador }})
+                        }
+                      </td>
+                      <td>{{ item.producto }}</td>
+                      <td>{{ item.comentario || 'Sin comentario' }}</td>
+                      <td>{{ item.total | number: '1.0-2' }} DC</td>
+                      <td>
+                        <button class="primary-button" type="button" (click)="tomarPedido(item.idPedido)">
+                          Tomar pedido
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </article>
+      }
+
+      @if (adminSection() === 'my-orders' && canViewMyOrders()) {
+        <article class="section-card panel">
+          <div class="toolbar">
+            <span class="pill">Mis pedidos</span>
+            <button class="ghost-button" type="button" (click)="loadMyOrders()">Recargar</button>
+          </div>
+
+          @if (loadingVendor() && !myOrders().length) {
+            <div class="empty-state">Cargando pedidos tomados...</div>
+          } @else if (!myOrders().length) {
+            <div class="empty-state">No hay pedidos asignados al usuario actual.</div>
+          } @else {
+            <div class="table-shell">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Pedido</th>
+                    <th>Comprador</th>
+                    <th>Producto</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of myOrders(); track item.idPedido) {
+                    <tr>
+                      <td>#{{ item.idPedido }}</td>
+                      <td>
+                        @if (item.nombreDestinatario) {
+                          <span>
+                            {{ item.nombreDestinatario }} ({{ item.codigoDestinatario }})
+                            <span class="tag">Regalo</span>
+                          </span>
+                          <div class="muted">
+                            Pagado por: {{ item.nombreComprador }} ({{ item.codigoComprador }})
+                          </div>
+                        } @else {
+                          {{ item.nombreComprador }} ({{ item.codigoComprador }})
+                        }
+                      </td>
+                      <td>{{ item.producto }}</td>
+                      <td>{{ item.estado }}</td>
+                      <td class="inline-actions">
+                        @if (item.idEstado === 2) {
+                          <button class="primary-button" type="button" (click)="cambiarEstadoVendedor(item.idPedido, 3)">
+                            Marcar entregado
+                          </button>
+                          <button class="danger-button" type="button" (click)="cambiarEstadoVendedor(item.idPedido, 4)">
+                            Cancelar
+                          </button>
+                        } @else {
+                          <span class="muted">Sin acciones</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </article>
+      }
+
+      @if (adminSection() === 'history' && canViewAdminHistory()) {
+        <article class="section-card panel">
+          <div class="toolbar">
+            <span class="pill">Historial admin</span>
+          </div>
+
+          <div class="form-grid three-up">
+            <label>
+              Código comprador
+              <input [(ngModel)]="codigoAdmin" />
+            </label>
+            <label>
+              Vendedor
+              <select [(ngModel)]="idVendedorAdmin">
+                <option [ngValue]="null">Todos</option>
+                @for (item of adminCatalogs()?.vendedores ?? []; track item.id) {
+                  <option [ngValue]="item.id">{{ item.nombre }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              Estado
+              <select [(ngModel)]="estadoAdmin">
+                <option [ngValue]="null">Todos</option>
+                @for (estado of adminCatalogs()?.estados ?? []; track estado.id) {
+                  <option [ngValue]="estado.id">{{ estado.nombre }}</option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <div class="inline-actions">
+            <button class="primary-button" type="button" (click)="loadAdminHistory()">Filtrar</button>
+          </div>
+
+          @if (loadingAdmin() && !(adminHistory()?.items?.length ?? 0)) {
+            <div class="empty-state">Cargando historial administrativo...</div>
+          } @else if ((adminHistory()?.items?.length ?? 0) === 0) {
+            <div class="empty-state">No hay registros administrativos con esos filtros.</div>
+          } @else {
+            <div class="table-shell">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Pedido</th>
+                    <th>Comprador</th>
+                    <th>Vendedor</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of adminHistory()?.items ?? []; track item.idPedido) {
+                    <tr>
+                      <td>#{{ item.idPedido }}</td>
+                      <td>
+                        @if (item.nombreDestinatario) {
+                          <span>{{ item.nombreDestinatario }} ({{ item.codigoDestinatario }}) <span class="tag">Regalo</span></span>
+                          <div class="muted">
+                            Pagado por: {{ item.nombreComprador }} ({{ item.codigoComprador }})
+                          </div>
+                        } @else {
+                          {{ item.nombreComprador }}
+                        }
+                      </td>
+                      <td>{{ item.nombreVendedor || 'Sin vendedor' }}</td>
+                      <td>{{ item.estado }}</td>
+                      <td>
+                        <select #estadoSelect>
+                          @for (estado of adminCatalogs()?.estados ?? []; track estado.id) {
+                            <option [value]="estado.id" [selected]="estado.id === item.idEstado">
+                              {{ estado.nombre }}
+                            </option>
+                          }
+                        </select>
+                        <button class="ghost-button" type="button" (click)="cambiarEstadoAdmin(item.idPedido, +estadoSelect.value)">
+                          Guardar
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </article>
+      }
+    </section>
+  }
+
+  @if (purchaseModalOpen() && selectedProduct()) {
+    <div class="store-modal-backdrop" (click)="closePurchaseModal()"></div>
+    <article class="store-modal purchase-modal panel">
+      <div class="toolbar">
+        <div>
+          <span class="pill">Compra</span>
+          <h2>{{ selectedProduct()?.nombre }}</h2>
+        </div>
+        <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closePurchaseModal()">×</button>
+      </div>
+
+      <div class="purchase-card panel">
+        @if (selectedProduct()?.imagen) {
+          <img
+            appImageFallback
+            [src]="imageUrl(selectedProduct()?.imagen ?? '')"
+            [alt]="selectedProduct()?.nombre"
+          />
+        }
+        <div class="stack">
+          <span class="tag">Producto seleccionado</span>
+          <h3>{{ selectedProduct()?.nombre }}</h3>
+          <p class="muted">{{ selectedProduct()?.descripcion }}</p>
+          <div class="purchase-meta">
+            <strong>{{ selectedProduct()?.precio | number: '1.0-2' }} DC</strong>
+            <span>{{ selectedProduct()?.activo ? 'Disponible' : 'No disponible' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <label>
+        Comentario
+        <textarea [(ngModel)]="comentario" placeholder="Instrucciones o comentario para el vendedor."></textarea>
+      </label>
+
+      <div class="purchase-choice">
+        <span>Compra para</span>
+        <div class="choice-row">
+          <label class="choice-option">
+            <input
+              type="radio"
+              name="purchaseMode"
+              [value]="'self'"
+              [(ngModel)]="purchaseMode"
+              (ngModelChange)="onPurchaseModeChange()"
+            />
+            <span>Para mí</span>
+          </label>
+          <label class="choice-option">
+            <input
+              type="radio"
+              name="purchaseMode"
+              [value]="'gift'"
+              [(ngModel)]="purchaseMode"
+              (ngModelChange)="onPurchaseModeChange()"
+            />
+            <span>Para alguien más</span>
+          </label>
+        </div>
+      </div>
+
+      @if (purchaseMode === 'gift') {
+        <label>
+          Destinatario
+          <select [(ngModel)]="idDestinatario">
+            <option [ngValue]="null">Selecciona</option>
+            @for (recipient of recipients(); track recipient.id) {
+              <option [ngValue]="recipient.id">{{ recipient.nombre }}</option>
+            }
+          </select>
+        </label>
+      }
+
+      <div class="inline-actions modal-actions">
+        <button class="ghost-button" type="button" (click)="closePurchaseModal()">Seguir viendo</button>
+        <button class="primary-button" type="button" [disabled]="processing()" (click)="comprar()">
+          {{ processing() ? 'Procesando...' : purchaseMode === 'gift' ? 'Registrar regalo' : 'Comprar' }}
+        </button>
+      </div>
+    </article>
+  }
+
+  @if (receiptModalOpen() && receipt()) {
+    <div class="store-modal-backdrop" (click)="closeReceiptModal()"></div>
+    <article class="store-modal receipt-modal panel">
+      <div class="toolbar">
+        <div>
+          <span class="pill success">Comprobante</span>
+          <h2>#{{ receipt()?.idPedido }} - {{ receipt()?.estado }}</h2>
+        </div>
+        <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeReceiptModal()">×</button>
+      </div>
+
+      <div class="receipt panel">
+        <h3>{{ receipt()?.producto }}</h3>
+        <p>{{ receipt()?.total | number: '1.0-2' }} DC</p>
+        <p class="muted">Comprador: {{ receipt()?.comprador }}</p>
+        @if (receipt()?.destinatario) {
+          <p class="muted">Destinatario: {{ receipt()?.destinatario }}</p>
+        }
+        @if (receipt()?.comentario) {
+          <p class="muted">Comentario: {{ receipt()?.comentario }}</p>
+        }
+      </div>
+
+      <div class="inline-actions modal-actions">
+        <button class="ghost-button" type="button" (click)="shareReceipt()">Compartir</button>
+        <button class="primary-button" type="button" (click)="downloadReceiptPng()">Descargar PNG</button>
+      </div>
+    </article>
+  }
+</section>

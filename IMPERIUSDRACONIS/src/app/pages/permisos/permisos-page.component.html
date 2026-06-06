@@ -1,0 +1,121 @@
+<section class="module-layout">
+  <article class="module-hero panel">
+    <div class="stack">
+      <span class="pill success">Permisos</span>
+      <h1>Matriz por cargo</h1>
+      <p class="muted">
+        Gestiona los permisos por cargo y aplica los cambios directamente desde este panel.
+      </p>
+    </div>
+
+    <div class="metric-grid">
+      <article class="metric-card">
+        <span>Cargos</span>
+        <strong>{{ cargos().length }}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Habilitados</span>
+        <strong>{{ enabledCount() }}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Edición</span>
+        <strong>{{ canSave() ? 'Permitida' : 'Solo lectura' }}</strong>
+      </article>
+    </div>
+  </article>
+
+  @if (!canView()) {
+    <div class="status-banner error">No cuentas con permisos para administrar la matriz de cargos.</div>
+  } @else {
+    @if (successMessage()) {
+      <div class="status-banner success">{{ successMessage() }}</div>
+    }
+
+    @if (errorMessage()) {
+      <div class="status-banner error">{{ errorMessage() }}</div>
+    }
+
+    @if (canSave()) {
+      <article class="section-card panel">
+        <div class="toolbar">
+          <span class="pill success">Nuevo permiso</span>
+          <span class="muted">Crea la funcionalidad para todos los cargos y trabajos, apagada por defecto.</span>
+        </div>
+
+        <form class="form-grid two-up" (ngSubmit)="createPermiso()">
+          <label>
+            Controlador
+            <input type="text" name="nuevoControlador" [(ngModel)]="nuevoControlador" placeholder="Ejemplo: Trabajos" />
+          </label>
+          <label>
+            Acción
+            <input type="text" name="nuevaAccion" [(ngModel)]="nuevaAccion" placeholder="Ejemplo: Crear" />
+          </label>
+          <div class="inline-actions actions-bottom">
+            <button class="primary-button" type="submit" [disabled]="creating()">
+              {{ creating() ? 'Creando...' : 'Crear permiso' }}
+            </button>
+          </div>
+        </form>
+      </article>
+    }
+
+    <article class="section-card panel">
+      <div class="form-grid two-up">
+        <label>
+          Cargo
+          <select [(ngModel)]="selectedCargoId" (ngModelChange)="loadCargo()">
+            @for (cargo of cargos(); track cargo.id) {
+              <option [ngValue]="cargo.id">{{ cargo.nombre }}</option>
+            }
+          </select>
+        </label>
+        <div class="inline-actions actions-bottom">
+          <button class="ghost-button" type="button" (click)="loadCargos()">Recargar cargos</button>
+          <button class="primary-button" type="button" [disabled]="saving() || !canSave()" (click)="save()">
+            {{ saving() ? 'Guardando...' : 'Guardar cambios' }}
+          </button>
+        </div>
+      </div>
+
+      @if (loadingCargo()) {
+        <div class="empty-state">Cargando permisos del cargo...</div>
+      } @else if (!cargo()) {
+        <div class="empty-state">Selecciona un cargo para ver su matriz.</div>
+      } @else {
+        <div class="toolbar">
+          <span class="pill">{{ cargo()?.cargoNombre }}</span>
+          <span class="muted">{{ cargo()?.permisos?.length ?? 0 }} permisos listados</span>
+        </div>
+
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>Controlador</th>
+                <th>Acción</th>
+                <th>Activo</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of cargo()?.permisos ?? []; track item.idPermiso) {
+                <tr>
+                  <td>{{ item.controlador }}</td>
+                  <td>{{ item.accion }}</td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      [checked]="item.tienePermiso"
+                      [disabled]="!canSave()"
+                      (change)="togglePermiso(item, $any($event.target).checked)"
+                    />
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </article>
+  }
+</section>

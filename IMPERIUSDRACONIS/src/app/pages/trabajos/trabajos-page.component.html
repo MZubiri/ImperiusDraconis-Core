@@ -1,0 +1,239 @@
+<section class="module-layout">
+  <article class="module-hero panel">
+    <div class="stack">
+      <span class="pill success">Trabajos</span>
+      <h1>Administración de trabajos</h1>
+      <p class="muted">Crea trabajos, asígnalos a alumnos y define qué funcionalidades desbloquean.</p>
+    </div>
+
+    <div class="metric-grid">
+      <article class="metric-card">
+        <span>Alumnos</span>
+        <strong>{{ catalogs()?.alumnos?.length ?? 0 }}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Trabajos</span>
+        <strong>{{ trabajos().length }}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Permisos activos</span>
+        <strong>{{ enabledTrabajoPermisosCount() }}</strong>
+      </article>
+    </div>
+  </article>
+
+  @if (!canView()) {
+    <div class="status-banner error">No cuentas con acceso para administrar trabajos.</div>
+  } @else {
+    @if (successMessage()) {
+      <div class="status-banner success">{{ successMessage() }}</div>
+    }
+
+    @if (errorMessage()) {
+      <div class="status-banner error">{{ errorMessage() }}</div>
+    }
+
+    <nav class="section-tabs panel">
+      <button type="button" [class.active]="activePanel() === 'catalogo'" (click)="setActivePanel('catalogo')">
+        Catálogo
+      </button>
+      @if (canAssignAlumnos()) {
+        <button type="button" [class.active]="activePanel() === 'alumnos'" (click)="setActivePanel('alumnos')">
+          Alumnos
+        </button>
+      }
+      @if (canAssignPermisos()) {
+        <button type="button" [class.active]="activePanel() === 'permisos'" (click)="setActivePanel('permisos')">
+          Permisos
+        </button>
+      }
+    </nav>
+
+    @if (activePanel() === 'catalogo') {
+      <section class="work-grid">
+        <article class="section-card panel">
+          <div class="toolbar">
+            <span class="pill">Catálogo</span>
+            <button class="ghost-button compact-button" type="button" (click)="startCreateTrabajo()">Nuevo</button>
+          </div>
+
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>Trabajo</th>
+                  <th>Descripción</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (loadingTrabajos()) {
+                  <tr>
+                    <td colspan="3" class="empty-state">Cargando trabajos...</td>
+                  </tr>
+                } @else if (trabajos().length === 0) {
+                  <tr>
+                    <td colspan="3" class="empty-state">No hay trabajos registrados.</td>
+                  </tr>
+                } @else {
+                  @for (trabajo of trabajos(); track trabajo.idTrabajo) {
+                    <tr>
+                      <td>{{ trabajo.nombre }}</td>
+                      <td>{{ trabajo.descripcion || '-' }}</td>
+                      <td>
+                        <div class="inline-actions">
+                          <button class="ghost-button compact-button" type="button" (click)="startEditTrabajo(trabajo)">Editar</button>
+                          <button
+                            class="ghost-button compact-button danger-button"
+                            type="button"
+                            [disabled]="deletingTrabajoId() === trabajo.idTrabajo"
+                            (click)="deleteTrabajo(trabajo)"
+                          >
+                            {{ deletingTrabajoId() === trabajo.idTrabajo ? 'Eliminando...' : 'Eliminar' }}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="section-card panel">
+          <div class="toolbar">
+            <span class="pill success">{{ selectedTrabajo() ? 'Edición' : 'Alta' }}</span>
+            <span class="muted">{{ selectedTrabajo() ? selectedTrabajo()?.nombre : 'Nuevo trabajo' }}</span>
+          </div>
+
+          <form class="form-grid" (ngSubmit)="saveTrabajo()">
+            <label>
+              Nombre
+              <input type="text" name="trabajoNombre" [(ngModel)]="trabajoForm.nombre" maxlength="100" />
+            </label>
+
+            <label>
+              Descripción
+              <textarea name="trabajoDescripcion" [(ngModel)]="trabajoForm.descripcion" rows="4" maxlength="255"></textarea>
+            </label>
+
+            <div class="inline-actions actions-bottom">
+              <button class="ghost-button" type="button" (click)="startCreateTrabajo()">Limpiar</button>
+              <button class="primary-button" type="submit" [disabled]="savingTrabajo() || !canManageCatalog()">
+                {{ savingTrabajo() ? 'Guardando...' : 'Guardar trabajo' }}
+              </button>
+            </div>
+          </form>
+        </article>
+      </section>
+    }
+
+    @if (activePanel() === 'alumnos' && canAssignAlumnos()) {
+      <article class="section-card panel">
+        <div class="form-grid two-up">
+          <label>
+            Alumno
+            <select [(ngModel)]="selectedAlumnoId" (ngModelChange)="loadAssignments()">
+              @for (alumno of catalogs()?.alumnos ?? []; track alumno.id) {
+                <option [ngValue]="alumno.id">{{ alumno.nombre }}</option>
+              }
+            </select>
+          </label>
+          <div class="inline-actions actions-bottom">
+            <button class="ghost-button" type="button" (click)="loadCatalogs()">Recargar</button>
+            <button class="primary-button" type="button" [disabled]="saving()" (click)="saveAssignments()">
+              {{ saving() ? 'Guardando...' : 'Guardar asignación' }}
+            </button>
+          </div>
+        </div>
+
+        @if (loadingAssignment()) {
+          <div class="empty-state">Cargando asignaciones...</div>
+        } @else if (!assignment()) {
+          <div class="empty-state">Selecciona un alumno para gestionar sus trabajos.</div>
+        } @else {
+          <div class="toolbar">
+            <span class="pill">{{ assignment()?.codigoAlumno }}</span>
+            <span class="muted">{{ assignment()?.nombreAlumno }} | {{ selectedCount() }} trabajos asignados</span>
+          </div>
+
+          <div class="task-grid">
+            @for (item of assignment()?.trabajos ?? []; track item.idTrabajo) {
+              <label class="panel task-card">
+                <input
+                  type="checkbox"
+                  [checked]="item.asignado"
+                  (change)="toggleTrabajo(item.idTrabajo, $any($event.target).checked)"
+                />
+                <div>
+                  <strong>{{ item.nombre }}</strong>
+                  <p>{{ item.descripcion }}</p>
+                </div>
+              </label>
+            }
+          </div>
+        }
+      </article>
+    }
+
+    @if (activePanel() === 'permisos' && canAssignPermisos()) {
+      <article class="section-card panel">
+        <div class="form-grid two-up">
+          <label>
+            Trabajo
+            <select [(ngModel)]="selectedTrabajoPermisosId" (ngModelChange)="loadTrabajoPermisos()">
+              @for (trabajo of trabajos(); track trabajo.idTrabajo) {
+                <option [ngValue]="trabajo.idTrabajo">{{ trabajo.nombre }}</option>
+              }
+            </select>
+          </label>
+          <div class="inline-actions actions-bottom">
+            <button class="ghost-button" type="button" (click)="loadTrabajoPermisos()">Recargar</button>
+            <button class="primary-button" type="button" [disabled]="savingTrabajoPermisos()" (click)="saveTrabajoPermisos()">
+              {{ savingTrabajoPermisos() ? 'Guardando...' : 'Guardar permisos' }}
+            </button>
+          </div>
+        </div>
+
+        @if (loadingTrabajoPermisos()) {
+          <div class="empty-state">Cargando permisos del trabajo...</div>
+        } @else if (!trabajoPermisos()) {
+          <div class="empty-state">Selecciona un trabajo para gestionar sus permisos.</div>
+        } @else {
+          <div class="toolbar">
+            <span class="pill">{{ trabajoPermisos()?.trabajoNombre }}</span>
+            <span class="muted">{{ enabledTrabajoPermisosCount() }} permisos activos</span>
+          </div>
+
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>Controlador</th>
+                  <th>Acción</th>
+                  <th>Activo</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of trabajoPermisos()?.permisos ?? []; track item.controlador + ':' + item.accion) {
+                  <tr>
+                    <td>{{ item.controlador }}</td>
+                    <td>{{ item.accion }}</td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        [checked]="item.tienePermiso"
+                        (change)="toggleTrabajoPermiso(item, $any($event.target).checked)"
+                      />
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </article>
+    }
+  }
+</section>

@@ -1,0 +1,159 @@
+<section class="module-layout">
+  <article class="module-hero panel">
+    <div class="stack">
+      <span class="pill success">Productos</span>
+      <h1>Catálogo administrable de tienda</h1>
+      <p class="muted">
+        Gestiona nombre, precio, estado e imagen del catálogo de la tienda heredada por trabajos.
+      </p>
+    </div>
+
+    <div class="metric-grid">
+      <article class="metric-card">
+        <span>Total</span>
+        <strong>{{ products().length }}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Activos</span>
+        <strong>{{ activeCount() }}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Modo</span>
+        <strong>{{ formMode === 'create' ? 'Alta' : 'Edición' }}</strong>
+      </article>
+    </div>
+  </article>
+
+  @if (!canView()) {
+    <div class="status-banner error">No cuentas con permisos para gestionar productos.</div>
+  } @else {
+    @if (successMessage()) {
+      <div class="status-banner success">{{ successMessage() }}</div>
+    }
+
+    @if (errorMessage()) {
+      <div class="status-banner error">{{ errorMessage() }}</div>
+    }
+
+    <section class="content-grid two-up">
+      <article class="section-card panel inventory-card">
+        <div class="section-head">
+          <div>
+            <span class="pill">Inventario</span>
+            <h2>Productos registrados</h2>
+          </div>
+          @if (canCreate()) {
+            <button class="ghost-button" type="button" (click)="openCreate()">Nuevo producto</button>
+          }
+        </div>
+
+        <div class="toolbar compact-toolbar">
+          <label class="search-field">
+            <span class="muted">Buscar producto</span>
+            <input
+              type="text"
+              [(ngModel)]="searchTerm"
+              placeholder="Nombre o descripción"
+            />
+          </label>
+          <span class="pill">{{ visibleProducts().length }} visibles</span>
+        </div>
+
+        @if (loading()) {
+          <div class="empty-state">Cargando productos...</div>
+        } @else if (!visibleProducts().length) {
+          <div class="empty-state">No hay productos registrados.</div>
+        } @else {
+          <div class="product-list">
+            @for (product of visibleProducts(); track product.idProducto) {
+              <button
+                class="panel product-row"
+                [class.selected]="selectedProduct()?.idProducto === product.idProducto"
+                type="button"
+                (click)="selectProduct(product)"
+              >
+                <div class="thumb">
+                  @if (product.imagen) {
+                    <img appImageFallback [src]="imageUrl(product.imagen)" [alt]="product.nombre" />
+                  } @else {
+                    <span>Sin imagen</span>
+                  }
+                </div>
+                <div class="product-copy">
+                  <div class="product-row-head">
+                    <strong>{{ product.nombre }}</strong>
+                    <span class="pill">ID {{ product.idProducto }}</span>
+                  </div>
+                  <p>{{ product.precio | number: '1.0-2' }} DC</p>
+                  <span class="tag" [class.inactive]="!product.activo">
+                    {{ product.activo ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </div>
+              </button>
+            }
+          </div>
+        }
+      </article>
+
+      <article class="section-card panel editor-card">
+        <div class="section-head">
+          <div>
+            <span class="pill">{{ formMode === 'create' ? 'Alta' : 'Edición' }}</span>
+            <h2>{{ formMode === 'create' ? 'Nuevo producto' : 'Editar producto' }}</h2>
+          </div>
+          @if (selectedProduct()) {
+            <span class="muted">ID {{ selectedProduct()?.idProducto }}</span>
+          }
+        </div>
+
+        <div class="form-grid two-up">
+          <label>
+            Nombre
+            <input [(ngModel)]="nombre" />
+          </label>
+          <label>
+            Precio
+            <input type="number" min="0" [(ngModel)]="precio" />
+          </label>
+        </div>
+
+        <label>
+          Descripción
+          <textarea [(ngModel)]="descripcion" rows="4"></textarea>
+        </label>
+
+        <div class="form-grid two-up">
+          <label>
+            Imagen
+            <input type="file" accept="image/*" (change)="onFileSelected($event)" />
+          </label>
+          <label>
+            Estado
+            <select [(ngModel)]="activo">
+              <option [ngValue]="true">Activo</option>
+              <option [ngValue]="false">Inactivo</option>
+            </select>
+          </label>
+        </div>
+
+        @if (imagePreview) {
+          <div class="preview panel">
+            <img appImageFallback [src]="imageUrl(imagePreview)" [alt]="nombre || 'Vista previa'" />
+            <p class="muted">Vista previa de imagen</p>
+          </div>
+        }
+
+        <div class="inline-actions">
+          <button class="primary-button" type="button" [disabled]="saving()" (click)="save()">
+            {{ saving() ? 'Guardando...' : formMode === 'create' ? 'Crear producto' : 'Guardar cambios' }}
+          </button>
+          @if (selectedProduct() && canDelete()) {
+            <button class="danger-button" type="button" [disabled]="deleting()" (click)="deleteSelected()">
+              {{ deleting() ? 'Eliminando...' : 'Eliminar' }}
+            </button>
+          }
+        </div>
+      </article>
+    </section>
+  }
+</section>

@@ -1,0 +1,226 @@
+@if (loading()) {
+  <section class="loading-state panel">
+    <span class="pill">Mi perfil</span>
+    <h1>Cargando información personal...</h1>
+    <p>Consultando los datos de tu cuenta.</p>
+  </section>
+} @else {
+  <section class="profile-grid">
+    @if (errorMessage()) {
+      <article class="message error panel">
+        <strong>Error operativo</strong>
+        <p>{{ errorMessage() }}</p>
+      </article>
+    }
+
+    @if (successMessage()) {
+      <article class="message success panel">
+        <strong>Cambios aplicados</strong>
+        <p>{{ successMessage() }}</p>
+      </article>
+    }
+
+    <article class="identity-card panel">
+      <div class="identity-header">
+        <div class="avatar-wrap">
+          <img [src]="avatarUrl(form.fotoPerfil)" [alt]="perfil()?.nombre || 'Foto de perfil'" />
+          <button class="icon-button avatar-edit-button" type="button" title="Cambiar foto" (click)="openAvatarModal()">
+            ✎
+          </button>
+        </div>
+
+        <div class="identity-copy">
+          <div class="identity-topline">
+            <span class="pill success">Mi perfil</span>
+            <div class="profile-actions">
+              <button class="icon-button" type="button" title="Editar información" (click)="openInfoModal()">⚙</button>
+              <button class="icon-button" type="button" title="Cambiar contraseña" (click)="openPasswordModal()">🔑</button>
+            </div>
+          </div>
+          <h1>{{ perfil()?.nombre }}</h1>
+          <p>{{ perfil()?.codigo }} | {{ perfil()?.nombreCargo || 'Sin cargo' }}</p>
+        </div>
+      </div>
+
+      <div class="badge-row">
+        <span class="pill">{{ perfil()?.casaNombre || 'Sin casa' }}</span>
+        <span class="pill">{{ perfil()?.genero || 'Sin definir' }}</span>
+      </div>
+
+      <div class="identity-details">
+        <article class="identity-detail">
+          <span>País</span>
+          <strong>{{ perfil()?.pais || form.pais || 'Sin registrar' }}</strong>
+        </article>
+        <article class="identity-detail">
+          <span>Zona horaria</span>
+          <strong>{{ perfil()?.zonaHoraria || form.zonaHoraria || 'Sin registrar' }}</strong>
+        </article>
+        <article class="identity-detail">
+          <span>Correo</span>
+          <strong>{{ perfil()?.correoElectronico || form.correoElectronico || 'Sin registrar' }}</strong>
+        </article>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span>Dracoins</span>
+          <strong>{{ perfil()?.dracoins ?? 0 | number: '1.0-2' }}</strong>
+        </div>
+        <div class="stat-card">
+          <span>Casa</span>
+          <strong>{{ perfil()?.casaNombre || 'Sin casa' }}</strong>
+        </div>
+      </div>
+
+      <div class="profile-chart">
+        <div
+          class="completion-ring"
+          [style.background]="'conic-gradient(var(--emerald) 0 ' + completionPercent() + '%, rgba(255, 255, 255, 0.08) ' + completionPercent() + '% 100%)'"
+          aria-hidden="true"
+        >
+          <span>{{ completionPercent() }}%</span>
+        </div>
+        <div>
+          <span class="pill">Completitud</span>
+          <p>País, prefijo, teléfono, correo, cumpleaños y zona horaria.</p>
+        </div>
+      </div>
+    </article>
+
+    @if (activeModal()) {
+      <div class="modal-backdrop" (click)="closeModal()"></div>
+
+      @if (activeModal() === 'info') {
+        <form class="modal-panel panel" (ngSubmit)="saveProfile()">
+          <div class="card-head">
+            <div>
+              <span class="pill">Datos editables</span>
+              <h2>Información personal</h2>
+            </div>
+            <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeModal()">×</button>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>País</span>
+              <select name="pais" [(ngModel)]="form.pais" (change)="applyCountryPrefix()">
+                <option value="">Selecciona un país</option>
+                @for (country of countries; track country.nombre) {
+                  <option [value]="country.nombre">{{ country.nombre }}</option>
+                }
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Prefijo internacional</span>
+              <input type="text" name="prefijoPais" [(ngModel)]="form.prefijoPais" placeholder="+51" maxlength="8" />
+            </label>
+
+            <label class="field">
+              <span>Teléfono</span>
+              <input type="text" name="telefono" [(ngModel)]="form.telefono" maxlength="32" />
+            </label>
+
+            <label class="field">
+              <span>Correo electrónico</span>
+              <input type="email" name="correoElectronico" [(ngModel)]="form.correoElectronico" maxlength="120" />
+            </label>
+
+            <label class="field">
+              <span>Cumpleaños</span>
+              <input type="date" name="cumpleanos" [(ngModel)]="form.cumpleanos" />
+            </label>
+
+            <label class="field">
+              <span>Zona horaria</span>
+              <input type="text" name="zonaHoraria" [(ngModel)]="form.zonaHoraria" list="perfil-timezones" maxlength="80" />
+              <datalist id="perfil-timezones">
+                @for (timezone of availableTimezones; track timezone) {
+                  <option [value]="timezone"></option>
+                }
+              </datalist>
+            </label>
+          </div>
+
+          <div class="modal-actions">
+            <button class="ghost-button" type="button" (click)="closeModal()">Cancelar</button>
+            <button class="primary-button" type="submit" [disabled]="saving()">
+              {{ saving() ? 'Guardando...' : 'Guardar cambios' }}
+            </button>
+          </div>
+        </form>
+      }
+
+      @if (activeModal() === 'avatar') {
+        <article class="modal-panel panel">
+          <div class="card-head">
+            <div>
+              <span class="pill">Foto de perfil</span>
+              <h2>Imagen de perfil</h2>
+            </div>
+            <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeModal()">×</button>
+          </div>
+
+          <div class="upload-row">
+            <label class="primary-button upload-button">
+              {{ uploadingAvatar() ? 'Subiendo...' : 'Subir imagen propia' }}
+              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" (change)="uploadCustomAvatar($event)" />
+            </label>
+            <button class="ghost-button" type="button" (click)="resetAvatar()">Usar predeterminada</button>
+          </div>
+
+          <div class="avatar-grid">
+            @for (avatar of avatarOptions; track avatar.value) {
+              <button
+                class="avatar-option"
+                type="button"
+                [class.selected]="isSelectedAvatar(avatar)"
+                (click)="selectAvatar(avatar)"
+                [attr.aria-label]="avatar.label"
+              >
+                <img [src]="avatar.assetUrl" [alt]="avatar.label" />
+              </button>
+            }
+          </div>
+        </article>
+      }
+
+      @if (activeModal() === 'password') {
+        <form class="modal-panel panel" (ngSubmit)="changePassword()">
+          <div class="card-head">
+            <div>
+              <span class="pill warn">Seguridad</span>
+              <h2>Cambiar contraseña</h2>
+            </div>
+            <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeModal()">×</button>
+          </div>
+
+          <div class="field-grid security-grid">
+            <label class="field">
+              <span>Contraseña actual</span>
+              <input type="password" name="contrasenaActual" [(ngModel)]="contrasenaActual" maxlength="64" />
+            </label>
+
+            <label class="field">
+              <span>Nueva contraseña</span>
+              <input type="password" name="nuevaContrasena" [(ngModel)]="nuevaContrasena" maxlength="64" />
+            </label>
+
+            <label class="field">
+              <span>Confirmar nueva contraseña</span>
+              <input type="password" name="confirmarContrasena" [(ngModel)]="confirmarContrasena" maxlength="64" />
+            </label>
+          </div>
+
+          <div class="modal-actions">
+            <button class="ghost-button" type="button" (click)="closeModal()">Cancelar</button>
+            <button class="primary-button" type="submit" [disabled]="changingPassword()">
+              {{ changingPassword() ? 'Aplicando...' : 'Actualizar contraseña' }}
+            </button>
+          </div>
+        </form>
+      }
+    }
+  </section>
+}
