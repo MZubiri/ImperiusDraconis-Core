@@ -179,7 +179,7 @@
   display: grid;
   gap: 1rem;
   width: min(680px, calc(100vw - 2rem));
-  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
   overflow: auto;
   padding: 1.25rem;
   transform: translate(-50%, -50%);

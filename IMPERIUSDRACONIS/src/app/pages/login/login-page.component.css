@@ -1,5 +1,5 @@
 .login-screen {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   grid-template-columns: minmax(360px, 560px) minmax(360px, 480px);
   justify-content: center;

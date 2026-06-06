@@ -306,7 +306,7 @@
   left: 50%;
   z-index: 50;
   width: min(760px, calc(100vw - 2rem));
-  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
   overflow: auto;
   padding: 1.35rem;
   transform: translate(-50%, -50%);
