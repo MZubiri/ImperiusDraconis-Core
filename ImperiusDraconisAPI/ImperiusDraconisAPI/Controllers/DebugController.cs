@@ -1,11 +1,13 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ImperiusDraconisAPI.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/debug")]
 public sealed class DebugController : ControllerBase
 {

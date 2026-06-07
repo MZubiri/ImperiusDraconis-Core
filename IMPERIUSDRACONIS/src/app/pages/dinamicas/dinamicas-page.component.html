@@ -173,6 +173,14 @@
             >
               {{ analyzingDracoinsCounter() ? 'Analizando...' : 'Analizar' }}
             </button>
+            <button
+              class="ghost-button"
+              type="button"
+              [disabled]="suggestingFormatCorrection() || !dracoinsCounterText.trim()"
+              (click)="suggestFormatCorrection('dracoins')"
+            >
+              {{ suggestingFormatCorrection() ? 'Consultando IA...' : '✨ Sugerir corrección con IA' }}
+            </button>
           </div>
 
           @if (dracoinsCounterAnalysis(); as counter) {
@@ -258,6 +266,38 @@
               </section>
             }
           }
+        </div>
+      </article>
+    }
+
+    @if (formatCorrectionPreview(); as preview) {
+      <div class="dinamicas-modal-backdrop" (click)="cancelFormatCorrection()"></div>
+      <article class="dinamicas-modal detail-modal panel" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <div>
+            <span class="pill success">IA</span>
+            <h2>Sugerencia de formato</h2>
+          </div>
+          <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="cancelFormatCorrection()">×</button>
+        </div>
+
+        <div class="create-form">
+          <p class="cell-text">{{ preview.warning }}</p>
+          <div class="filters-grid points-form-grid">
+            <label class="field">
+              <span>Texto original</span>
+              <textarea readonly rows="12" [value]="preview.originalText"></textarea>
+            </label>
+            <label class="field">
+              <span>Texto sugerido</span>
+              <textarea readonly rows="12" [value]="preview.suggestedText"></textarea>
+            </label>
+          </div>
+
+          <div class="actions modal-actions">
+            <button class="ghost-button" type="button" (click)="cancelFormatCorrection()">Cancelar</button>
+            <button class="primary-button" type="button" (click)="applyFormatCorrection()">Usar sugerencia</button>
+          </div>
         </div>
       </article>
     }
@@ -660,6 +700,14 @@
                 (click)="analyzeAutomaticPoints()"
               >
                 {{ analyzingAutomaticPoints() ? 'Analizando...' : 'Analizar dinámica' }}
+              </button>
+              <button
+                class="ghost-button"
+                type="button"
+                [disabled]="suggestingFormatCorrection() || !automaticPointsText.trim()"
+                (click)="suggestFormatCorrection('puntos')"
+              >
+                {{ suggestingFormatCorrection() ? 'Consultando IA...' : '✨ Sugerir corrección con IA' }}
               </button>
               <button class="ghost-button" type="button" (click)="resetAutomaticPoints()">Limpiar</button>
             </div>

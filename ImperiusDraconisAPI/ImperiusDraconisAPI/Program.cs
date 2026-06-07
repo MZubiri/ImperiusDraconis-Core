@@ -20,6 +20,7 @@ builder.Services.AddScoped<MarcadoresService>();
 builder.Services.AddScoped<DinamicasService>();
 builder.Services.AddSingleton<AutomaticHousePointsService>();
 builder.Services.AddSingleton<AutomaticDracoinsCounterService>();
+builder.Services.AddScoped<GeminiFormatCorrectionService>();
 builder.Services.AddScoped<MascotasService>();
 builder.Services.AddScoped<ChismesService>();
 builder.Services.AddScoped<PermisosService>();

@@ -17,6 +17,8 @@ import {
 } from '../../core/models/dinamicas.models';
 import { AuthService } from '../../core/services/auth.service';
 import { DinamicasService } from '../../core/services/dinamicas.service';
+import { FormatCorrectionType } from '../../core/models/ia.models';
+import { IaService } from '../../core/services/ia.service';
 import { MarcadorCasa } from '../../core/models/marcadores.models';
 import { MarcadoresService } from '../../core/services/marcadores.service';
 
@@ -53,6 +55,7 @@ export class DinamicasPageComponent {
 
   readonly auth = inject(AuthService);
   readonly dinamicasService = inject(DinamicasService);
+  readonly iaService = inject(IaService);
   readonly marcadoresService = inject(MarcadoresService);
   readonly agendaTypes = [
     'Dinámica por puntos',
@@ -74,6 +77,12 @@ export class DinamicasPageComponent {
   readonly pointsHouses = signal<EditablePointsHouse[]>([]);
   readonly automaticPointsAnalysis = signal<AutomaticPointsAnalysis | null>(null);
   readonly dracoinsCounterAnalysis = signal<AutomaticDracoinsAnalysis | null>(null);
+  readonly formatCorrectionPreview = signal<{
+    type: FormatCorrectionType;
+    originalText: string;
+    suggestedText: string;
+    warning: string;
+  } | null>(null);
   readonly selectedAgenda = signal<AgendaDinamica | null>(null);
   readonly agendaRows = signal<AgendaDraftRow[]>([{ hora: '', idAlumno: null, titulo: '' }]);
   readonly loadingList = signal(false);
@@ -87,6 +96,7 @@ export class DinamicasPageComponent {
   readonly dracoinsCounterOpen = signal(false);
   readonly dracoinsCounterShowTotals = signal(false);
   readonly dracoinsCounterCopied = signal(false);
+  readonly suggestingFormatCorrection = signal(false);
   readonly submittingPoints = signal(false);
   readonly analyzingAutomaticPoints = signal(false);
   readonly submittingAutomaticPoints = signal(false);
@@ -528,6 +538,62 @@ export class DinamicasPageComponent {
     this.automaticPointsObservation = '';
     this.automaticPointsAnalysis.set(null);
     this.automaticPointsRequestId = this.createRequestId();
+  }
+
+  suggestFormatCorrection(type: FormatCorrectionType): void {
+    const originalText = type === 'puntos' ? this.automaticPointsText : this.dracoinsCounterText;
+    if (!originalText.trim()) {
+      return;
+    }
+
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.suggestingFormatCorrection.set(true);
+
+    this.iaService
+      .correctFormat({
+        texto: originalText,
+        tipo: type
+      })
+      .pipe(
+        finalize(() => this.suggestingFormatCorrection.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (response) =>
+          this.formatCorrectionPreview.set({
+            type,
+            originalText,
+            suggestedText: response.textoCorregido,
+            warning: response.advertencia
+          }),
+        error: (error) =>
+          this.errorMessage.set(
+            this.readErrorMessage(error, 'No fue posible generar una sugerencia en este momento.')
+          )
+      });
+  }
+
+  applyFormatCorrection(): void {
+    const preview = this.formatCorrectionPreview();
+    if (!preview) {
+      return;
+    }
+
+    if (preview.type === 'puntos') {
+      this.automaticPointsText = preview.suggestedText;
+      this.automaticPointsAnalysis.set(null);
+    } else {
+      this.dracoinsCounterText = preview.suggestedText;
+      this.dracoinsCounterAnalysis.set(null);
+      this.dracoinsCounterShowTotals.set(false);
+    }
+
+    this.formatCorrectionPreview.set(null);
+  }
+
+  cancelFormatCorrection(): void {
+    this.formatCorrectionPreview.set(null);
   }
 
   submitDracoinsDinamica(): void {
