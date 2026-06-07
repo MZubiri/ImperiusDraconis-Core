@@ -179,6 +179,41 @@ public sealed class GeminiFormatCorrectionService
         Conserva lechuzas con formato:
         Casa🦉Dueño - Nombre
 
+        Una lechuza tambien puede quedar como:
+        Casa🦉 TextoLechuza
+
+        Regla para lechuzas sin casa antes:
+        Si detectas 🦉 sin un emoji de casa inmediatamente antes, busca el primer emoji de casa disponible despues de 🦉 en esa misma ronda.
+        Casas validas para esta regla:
+        ❤️
+        ❤
+        💚
+        💙
+        💛
+
+        Si encuentras una casa despues de 🦉:
+        Mueve esa casa antes de 🦉.
+        Quita esa misma aparicion de su posicion original.
+        No dupliques la casa.
+        Conserva el resto de emojis en el mismo orden.
+        No inventes casa.
+        No cambies el nombre ni el texto de la lechuza.
+
+        Ejemplo:
+        9. 🦉 Arquimedez Criiz 💙💙💛💚
+        debe convertirse en:
+        9. 💙🦉 Arquimedez Criiz 💙💛💚
+
+        Ejemplo:
+        9. 🦉 Ale - Piper 💚💙💛❤️
+        debe convertirse en:
+        9. 💚🦉 Ale - Piper 💙💛❤️
+
+        Si la lechuza ya tiene casa antes, no modifiques esa parte:
+        9. 💚🦉 Ale - Piper 💙💛❤️
+
+        Si no hay ninguna casa despues de 🦉 en la misma ronda, deja el texto como esta y no inventes nada.
+
         Conserva multiplicadores:
         doble
         dobles
