@@ -68,7 +68,7 @@ public sealed partial class AutomaticHousePointsService
         {
             DetectedName = detectedName,
             Frogs = frogs,
-            Owls = owls,
+            LechuzasDetectadas = owls,
             Rounds = rounds,
             Totals = totals,
             Warnings = warnings.Distinct().ToArray()
@@ -214,13 +214,13 @@ public sealed partial class AutomaticHousePointsService
             owls.Add(new AutomaticPointsOwlDto
             {
                 Index = index,
-                HouseEmoji = emoji,
+                EmojiCasa = emoji,
                 IdCasa = house.IdCasa,
-                HouseName = house.Name,
-                Owner = match.Groups["owner"].Value.Trim(),
-                Name = match.Groups["name"].Value.Trim(),
+                Casa = house.Name,
+                Duenio = match.Groups["owner"].Value.Trim(),
+                Nombre = match.Groups["name"].Value.Trim(),
                 DetectedRoundNumber = roundNumber,
-                RoundNumber = adjustments.GetValueOrDefault(index)?.RoundNumber ?? roundNumber
+                Ronda = adjustments.GetValueOrDefault(index)?.RoundNumber ?? roundNumber
             });
 
             return emoji;

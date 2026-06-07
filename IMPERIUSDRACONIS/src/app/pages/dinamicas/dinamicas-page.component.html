@@ -608,6 +608,15 @@
                 </section>
               }
 
+              @if (analysis.lechuzasDetectadas.length > 0) {
+                <section class="automatic-preview-section">
+                  <h3>Lechuzas detectadas</h3>
+                  @for (owl of analysis.lechuzasDetectadas; track owl.index) {
+                    <p>🦉 {{ owl.casa }} — {{ owl.duenio }} - {{ owl.nombre }} — Ronda {{ owl.ronda }}</p>
+                  }
+                </section>
+              }
+
               <section class="automatic-preview-section">
                 <h3>Rondas detectadas</h3>
                 <div class="automatic-rounds">

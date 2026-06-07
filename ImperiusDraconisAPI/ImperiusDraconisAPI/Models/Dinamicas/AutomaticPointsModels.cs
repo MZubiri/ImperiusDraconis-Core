@@ -68,7 +68,7 @@ public sealed class AutomaticPointsAnalysisDto
 
     public IReadOnlyCollection<AutomaticPointsFrogDto> Frogs { get; init; } = [];
 
-    public IReadOnlyCollection<AutomaticPointsOwlDto> Owls { get; init; } = [];
+    public IReadOnlyCollection<AutomaticPointsOwlDto> LechuzasDetectadas { get; init; } = [];
 
     public IReadOnlyCollection<AutomaticPointsRoundDto> Rounds { get; init; } = [];
 
@@ -96,19 +96,19 @@ public sealed class AutomaticPointsOwlDto
 {
     public int Index { get; init; }
 
-    public string HouseEmoji { get; init; } = string.Empty;
+    public string EmojiCasa { get; init; } = string.Empty;
 
     public int IdCasa { get; init; }
 
-    public string HouseName { get; init; } = string.Empty;
+    public string Casa { get; init; } = string.Empty;
 
-    public string Owner { get; init; } = string.Empty;
+    public string Duenio { get; init; } = string.Empty;
 
-    public string Name { get; init; } = string.Empty;
+    public string Nombre { get; init; } = string.Empty;
 
     public int DetectedRoundNumber { get; init; }
 
-    public int RoundNumber { get; init; }
+    public int Ronda { get; init; }
 }
 
 public sealed class AutomaticPointsRoundDto

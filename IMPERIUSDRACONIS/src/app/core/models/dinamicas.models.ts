@@ -118,6 +118,17 @@ export interface AutomaticPointsFrog {
   startRound: number;
 }
 
+export interface AutomaticPointsOwl {
+  index: number;
+  emojiCasa: string;
+  idCasa: number;
+  casa: string;
+  duenio: string;
+  nombre: string;
+  detectedRoundNumber: number;
+  ronda: number;
+}
+
 export interface AutomaticPointsRound {
   roundNumber: number;
   detectedMultiplier: number;
@@ -132,6 +143,7 @@ export interface AutomaticPointsRound {
 export interface AutomaticPointsAnalysis {
   detectedName: string;
   frogs: AutomaticPointsFrog[];
+  lechuzasDetectadas: AutomaticPointsOwl[];
   rounds: AutomaticPointsRound[];
   totals: AutomaticPointsHouseTotal[];
   warnings: string[];
