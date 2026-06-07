@@ -11,6 +11,8 @@ public class AutomaticPointsAnalyzeRequest
     public List<AutomaticPointsRoundAdjustmentRequest> RoundAdjustments { get; set; } = [];
 
     public List<AutomaticPointsFrogAdjustmentRequest> FrogAdjustments { get; set; } = [];
+
+    public List<AutomaticPointsOwlAdjustmentRequest> OwlAdjustments { get; set; } = [];
 }
 
 public sealed class AutomaticPointsRegisterRequest : AutomaticPointsAnalyzeRequest
@@ -51,11 +53,22 @@ public sealed class AutomaticPointsFrogAdjustmentRequest
     public int StartRound { get; set; }
 }
 
+public sealed class AutomaticPointsOwlAdjustmentRequest
+{
+    [Range(0, int.MaxValue)]
+    public int Index { get; set; }
+
+    [Range(1, int.MaxValue)]
+    public int RoundNumber { get; set; }
+}
+
 public sealed class AutomaticPointsAnalysisDto
 {
     public string DetectedName { get; init; } = string.Empty;
 
     public IReadOnlyCollection<AutomaticPointsFrogDto> Frogs { get; init; } = [];
+
+    public IReadOnlyCollection<AutomaticPointsOwlDto> Owls { get; init; } = [];
 
     public IReadOnlyCollection<AutomaticPointsRoundDto> Rounds { get; init; } = [];
 
@@ -77,6 +90,25 @@ public sealed class AutomaticPointsFrogDto
     public string Description { get; init; } = string.Empty;
 
     public int StartRound { get; init; }
+}
+
+public sealed class AutomaticPointsOwlDto
+{
+    public int Index { get; init; }
+
+    public string HouseEmoji { get; init; } = string.Empty;
+
+    public int IdCasa { get; init; }
+
+    public string HouseName { get; init; } = string.Empty;
+
+    public string Owner { get; init; } = string.Empty;
+
+    public string Name { get; init; } = string.Empty;
+
+    public int DetectedRoundNumber { get; init; }
+
+    public int RoundNumber { get; init; }
 }
 
 public sealed class AutomaticPointsRoundDto

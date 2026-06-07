@@ -38,7 +38,11 @@ public sealed partial class AutomaticHousePointsService
         var adjustments = request.RoundAdjustments
             .GroupBy(item => item.RoundNumber)
             .ToDictionary(group => group.Key, group => group.Last());
+        var owlAdjustments = request.OwlAdjustments
+            .GroupBy(item => item.Index)
+            .ToDictionary(group => group.Key, group => group.Last());
         var rounds = new List<AutomaticPointsRoundDto>();
+        var owls = new List<AutomaticPointsOwlDto>();
 
         for (var index = 0; index < roundMatches.Count; index++)
         {
@@ -46,7 +50,15 @@ public sealed partial class AutomaticHousePointsService
             var end = index + 1 < roundMatches.Count ? roundMatches[index + 1].Index : text.Length;
             var segment = text[match.Index..end];
             var roundNumber = ParseRoundNumber(match);
-            rounds.Add(ParseRound(segment, roundNumber, frogs, houseLookup, adjustments.GetValueOrDefault(roundNumber), warnings));
+            rounds.Add(ParseRound(
+                segment,
+                roundNumber,
+                frogs,
+                owls,
+                houseLookup,
+                owlAdjustments,
+                adjustments.GetValueOrDefault(roundNumber),
+                warnings));
         }
 
         AddSequenceWarnings(rounds, warnings);
@@ -56,6 +68,7 @@ public sealed partial class AutomaticHousePointsService
         {
             DetectedName = detectedName,
             Frogs = frogs,
+            Owls = owls,
             Rounds = rounds,
             Totals = totals,
             Warnings = warnings.Distinct().ToArray()
@@ -66,7 +79,9 @@ public sealed partial class AutomaticHousePointsService
         string segment,
         int roundNumber,
         IReadOnlyCollection<AutomaticPointsFrogDto> frogs,
+        List<AutomaticPointsOwlDto> owls,
         IReadOnlyDictionary<string, HouseInfo> houseLookup,
+        IReadOnlyDictionary<int, AutomaticPointsOwlAdjustmentRequest> owlAdjustments,
         AutomaticPointsRoundAdjustmentRequest? adjustment,
         List<string> warnings)
     {
@@ -75,6 +90,7 @@ public sealed partial class AutomaticHousePointsService
         var multiplier = adjustment?.Multiplier ?? detectedMultiplier;
         var cancelled = adjustment?.Cancelled ?? detectedCancelled;
         var content = RoundStartRegex().Replace(segment, string.Empty, 1).Trim();
+        content = ExtractOwls(content, roundNumber, owls, houseLookup, owlAdjustments, warnings);
         var groups = HouseGroupRegex().Matches(content)
             .Select(match => MatchHouseEmojis(match.Value))
             .Where(group => group.Count > 0)
@@ -175,6 +191,40 @@ public sealed partial class AutomaticHousePointsService
         }
 
         return frogs;
+    }
+
+    private static string ExtractOwls(
+        string content,
+        int roundNumber,
+        List<AutomaticPointsOwlDto> owls,
+        IReadOnlyDictionary<string, HouseInfo> houseLookup,
+        IReadOnlyDictionary<int, AutomaticPointsOwlAdjustmentRequest> adjustments,
+        List<string> warnings)
+    {
+        return OwlRegex().Replace(content, match =>
+        {
+            var index = owls.Count;
+            var emoji = NormalizeHeart(match.Groups["house"].Value);
+            if (!houseLookup.TryGetValue(emoji, out var house))
+            {
+                warnings.Add($"Lechuza {index + 1}: casa no reconocida.");
+                return emoji;
+            }
+
+            owls.Add(new AutomaticPointsOwlDto
+            {
+                Index = index,
+                HouseEmoji = emoji,
+                IdCasa = house.IdCasa,
+                HouseName = house.Name,
+                Owner = match.Groups["owner"].Value.Trim(),
+                Name = match.Groups["name"].Value.Trim(),
+                DetectedRoundNumber = roundNumber,
+                RoundNumber = adjustments.GetValueOrDefault(index)?.RoundNumber ?? roundNumber
+            });
+
+            return emoji;
+        });
     }
 
     private static Dictionary<string, HouseInfo> BuildHouseLookup(
@@ -333,6 +383,9 @@ public sealed partial class AutomaticHousePointsService
 
     [GeneratedRegex(@"(?<house>\S+)[ \t]*🐸[ \t]*(?<description>.*?)(?=\S+[ \t]*🐸|$)", RegexOptions.Singleline)]
     private static partial Regex FrogRegex();
+
+    [GeneratedRegex(@"(?<house>❤️|❤|💚|💙|💛)[ \t]*🦉[ \t]*(?<owner>.*?)[ \t]*-[ \t]*(?<name>.*?)(?=❤️|❤|💚|💙|💛|\b(?:x[23]|dobles?|triples?)\b|❌|//|\r?\n|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex OwlRegex();
 
     [GeneratedRegex(@"(?:❤️|❤|💚|💙|💛)+")]
     private static partial Regex HouseGroupRegex();
