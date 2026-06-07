@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Collections.Concurrent;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Models.Dinamicas;
 using ImperiusDraconisAPI.Security;
@@ -10,18 +11,113 @@ namespace ImperiusDraconisAPI.Controllers;
 
 [ApiController]
 [Authorize]
-[Route("api/[controller]")]
+[Route("api/dinamicas")]
 public sealed class DinamicasController : ControllerBase
 {
     private const string AgendaPermission = "Dinamicas:AgendaIndex";
     private const string DeletePermission = "Dinamicas:Eliminar";
     private const string RegistrarDinamicaPorDracoinsPermission = "Dinamicas:RegistrarDin\u00E1micaPorDracoins";
+    private const string RegistrarPuntosPermission = "Marcadores:ActualizarMarcador";
+    private static readonly ConcurrentDictionary<string, DateTimeOffset> AutomaticRegistrations = new();
+    private static readonly TimeSpan AutomaticRegistrationRetention = TimeSpan.FromHours(24);
 
     private readonly DinamicasService _dinamicasService;
+    private readonly MarcadoresService _marcadoresService;
+    private readonly AutomaticHousePointsService _automaticHousePointsService;
+    private readonly ILogger<DinamicasController> _logger;
 
-    public DinamicasController(DinamicasService dinamicasService)
+    public DinamicasController(
+        DinamicasService dinamicasService,
+        MarcadoresService marcadoresService,
+        AutomaticHousePointsService automaticHousePointsService,
+        ILogger<DinamicasController> logger)
     {
         _dinamicasService = dinamicasService;
+        _marcadoresService = marcadoresService;
+        _automaticHousePointsService = automaticHousePointsService;
+        _logger = logger;
+    }
+
+    [HttpPost("puntos-automaticos/analizar")]
+    [HasPermission(RegistrarPuntosPermission)]
+    [ProducesResponseType(typeof(AutomaticPointsAnalysisDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<AutomaticPointsAnalysisDto>> AnalyzeAutomaticPoints(
+        [FromBody] AutomaticPointsAnalyzeRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var houses = await _marcadoresService.GetCurrentAsync(cancellationToken);
+            return Ok(_automaticHousePointsService.Analyze(request, houses));
+        }
+        catch (BusinessRuleException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Error interno al analizar puntos automaticos.");
+            throw;
+        }
+    }
+
+    [HttpPost("puntos-automaticos/registrar")]
+    [HasPermission(RegistrarPuntosPermission)]
+    [ProducesResponseType(typeof(Models.Marcadores.MarcadorUpdateResultDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<Models.Marcadores.MarcadorUpdateResultDto>> RegisterAutomaticPoints(
+        [FromBody] AutomaticPointsRegisterRequest request,
+        CancellationToken cancellationToken)
+    {
+        var requestId = request.ClientRequestId.Trim();
+        var now = DateTimeOffset.UtcNow;
+        foreach (var registration in AutomaticRegistrations.Where(item => now - item.Value > AutomaticRegistrationRetention))
+        {
+            AutomaticRegistrations.TryRemove(registration.Key, out _);
+        }
+
+        if (!AutomaticRegistrations.TryAdd(requestId, now))
+        {
+            return Conflict(new { message = "Esta dinamica automatica ya fue registrada." });
+        }
+
+        try
+        {
+            var houses = await _marcadoresService.GetCurrentAsync(cancellationToken);
+            var analysis = _automaticHousePointsService.Analyze(request, houses);
+            var result = await _marcadoresService.CreateUpdateAsync(
+                GetCurrentUserId(),
+                new Models.Marcadores.MarcadorUpdateRequest
+                {
+                    NombreDinamica = request.Name,
+                    SubtipoDinamica = request.Subtype,
+                    Observacion = request.Observation,
+                    PuntosPorCasa = analysis.Totals.Select(item => new Models.Marcadores.MarcadorUpdateItemRequest
+                    {
+                        IdCasa = item.IdCasa,
+                        Puntos = item.Points
+                    }).ToList()
+                },
+                cancellationToken);
+
+            return CreatedAtAction(nameof(GetPointsDetail), new { id = result.IdDinamica }, result);
+        }
+        catch (BusinessRuleException exception)
+        {
+            AutomaticRegistrations.TryRemove(requestId, out _);
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (Exception exception)
+        {
+            AutomaticRegistrations.TryRemove(requestId, out _);
+            _logger.LogError(
+                exception,
+                "Error interno al analizar o registrar puntos automaticos para la solicitud {RequestId}.",
+                requestId);
+            throw;
+        }
     }
 
     [HttpGet]
