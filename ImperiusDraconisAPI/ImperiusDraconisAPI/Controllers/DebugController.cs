@@ -77,6 +77,8 @@ public sealed class DebugController : ControllerBase
 
             using var response = await _httpClientFactory.CreateClient().SendAsync(httpRequest, cancellationToken);
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogInformation("Gemini status code: {StatusCode}.", (int)response.StatusCode);
+            _logger.LogInformation("Gemini body bruto: {Body}", Truncate(content, 1000));
             if (!response.IsSuccessStatusCode)
             {
                 var error = ReadGeminiErrorSummary(content);
@@ -87,8 +89,19 @@ public sealed class DebugController : ControllerBase
                 return StatusCode(StatusCodes.Status502BadGateway, new { error });
             }
 
-            var answer = ReadGeminiAnswer(content);
-            _logger.LogInformation("Gemini respondio correctamente.");
+            if (!TryReadGeminiAnswer(content, out var answer, out var parsedText))
+            {
+                _logger.LogWarning(
+                    "No se pudo parsear candidates[0].content.parts[0].text. Parseado={ParsedText}.",
+                    parsedText);
+                return StatusCode(
+                    StatusCodes.Status502BadGateway,
+                    new { error = "Gemini no devolvió contenido." });
+            }
+
+            _logger.LogInformation(
+                "Gemini respondio correctamente. candidates[0].content.parts[0].text parseado={ParsedText}.",
+                parsedText);
             return Ok(new { respuesta = answer });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -102,36 +115,48 @@ public sealed class DebugController : ControllerBase
         }
     }
 
-    private static string ReadGeminiAnswer(string content)
+    private static bool TryReadGeminiAnswer(string content, out string answer, out bool parsedText)
     {
-        using var document = JsonDocument.Parse(content);
-        var root = document.RootElement;
-        if (!root.TryGetProperty("candidates", out var candidates) ||
-            candidates.ValueKind != JsonValueKind.Array ||
-            candidates.GetArrayLength() == 0)
-        {
-            return string.Empty;
-        }
+        answer = string.Empty;
+        parsedText = false;
 
-        var builder = new List<string>();
-        if (candidates[0].TryGetProperty("content", out var candidateContent) &&
-            candidateContent.TryGetProperty("parts", out var parts) &&
-            parts.ValueKind == JsonValueKind.Array)
+        try
         {
-            foreach (var part in parts.EnumerateArray())
+            using var document = JsonDocument.Parse(content);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("candidates", out var candidates) ||
+                candidates.ValueKind != JsonValueKind.Array ||
+                candidates.GetArrayLength() == 0)
             {
-                if (part.TryGetProperty("text", out var textProperty))
+                return false;
+            }
+
+            var builder = new List<string>();
+            if (candidates[0].TryGetProperty("content", out var candidateContent) &&
+                candidateContent.TryGetProperty("parts", out var parts) &&
+                parts.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var part in parts.EnumerateArray())
                 {
-                    var text = textProperty.GetString();
-                    if (!string.IsNullOrEmpty(text))
+                    if (part.TryGetProperty("text", out var textProperty))
                     {
-                        builder.Add(text);
+                        parsedText = true;
+                        var text = textProperty.GetString();
+                        if (!string.IsNullOrWhiteSpace(text))
+                        {
+                            builder.Add(text);
+                        }
                     }
                 }
             }
-        }
 
-        return string.Concat(builder).Trim();
+            answer = string.Concat(builder).Trim();
+            return !string.IsNullOrWhiteSpace(answer);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private static string ReadGeminiErrorSummary(string content)
@@ -143,12 +168,12 @@ public sealed class DebugController : ControllerBase
             {
                 if (error.TryGetProperty("message", out var message))
                 {
-                    return Truncate(message.GetString() ?? "Gemini devolvio un error.");
+                    return Truncate(message.GetString() ?? "Gemini devolvio un error.", 300);
                 }
 
                 if (error.TryGetProperty("status", out var status))
                 {
-                    return Truncate(status.GetString() ?? "Gemini devolvio un error.");
+                    return Truncate(status.GetString() ?? "Gemini devolvio un error.", 300);
                 }
             }
         }
@@ -157,12 +182,11 @@ public sealed class DebugController : ControllerBase
             // Fallback below.
         }
 
-        return Truncate(string.IsNullOrWhiteSpace(content) ? "Gemini devolvio un error." : content);
+        return Truncate(string.IsNullOrWhiteSpace(content) ? "Gemini devolvio un error." : content, 300);
     }
 
-    private static string Truncate(string value)
+    private static string Truncate(string value, int maxLength)
     {
-        const int maxLength = 300;
         var trimmed = value.Trim();
         return trimmed.Length <= maxLength ? trimmed : $"{trimmed[..maxLength]}...";
     }
