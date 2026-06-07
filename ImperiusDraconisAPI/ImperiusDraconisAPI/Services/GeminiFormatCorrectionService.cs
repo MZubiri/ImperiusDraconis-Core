@@ -176,11 +176,13 @@ public sealed class GeminiFormatCorrectionService
         Conserva sapos con formato:
         Casa🐸 Dueño - Nombre
 
-        Conserva lechuzas con formato:
-        Casa🦉Dueño - Nombre
+        Las lechuzas deben usar el formato:
+        Casa🦉Dueño - NombreLechuza
 
-        Una lechuza tambien puede quedar como:
-        Casa🦉 TextoLechuza
+        Ejemplos validos:
+        💙🦉Ale - Piper
+        💚🦉Jaki - Hedwig
+        ❤️🦉Heber - Arquimedez
 
         Regla para lechuzas sin casa antes:
         Si detectas 🦉 sin un emoji de casa inmediatamente antes, busca el primer emoji de casa disponible despues de 🦉 en esa misma ronda.
@@ -213,6 +215,27 @@ public sealed class GeminiFormatCorrectionService
         9. 💚🦉 Ale - Piper 💙💛❤️
 
         Si no hay ninguna casa despues de 🦉 en la misma ronda, deja el texto como esta y no inventes nada.
+
+        Regla para lechuzas con casa pero sin guion:
+        Si detectas una lechuza con casa antes de 🦉 pero sin guion, y encuentras exactamente dos palabras despues de 🦉, convierte esas dos palabras al formato Dueño - NombreLechuza.
+
+        Ejemplo:
+        💙🦉 Arquimedez Criiz
+        debe convertirse en:
+        💙🦉 Arquimedez - Criiz
+
+        Ejemplo:
+        💚🦉 Ale Piper
+        debe convertirse en:
+        💚🦉 Ale - Piper
+
+        Si encuentras tres o mas palabras despues de 🦉, conserva el texto y no inventes donde poner el guion.
+        Ejemplo:
+        💙🦉 Juan Carlos Arquimedez
+        debe mantenerse sin cambios.
+
+        Si ya existe un guion, no modifiques esa lechuza.
+        Si no puedes determinar con seguridad el formato, no inventes datos.
 
         Conserva multiplicadores:
         doble
