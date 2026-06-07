@@ -79,8 +79,7 @@ public sealed partial class AutomaticHousePointsService
             .Select(match => MatchHouseEmojis(match.Value))
             .Where(group => group.Count > 0)
             .ToList();
-        var top = groups.FirstOrDefault() ?? [];
-        var responses = groups.Skip(1).SelectMany(group => group).ToList();
+        var (top, responses) = SplitTopAndResponses(groups.SelectMany(group => group));
 
         if (UnknownHouseEmojiRegex().IsMatch(content))
         {
@@ -94,11 +93,7 @@ public sealed partial class AutomaticHousePointsService
 
         if (top.Count < 4)
         {
-            warnings.Add($"Ronda {roundNumber}: el top tiene menos de 4 casas.");
-        }
-        else if (top.Count > 4)
-        {
-            warnings.Add($"Ronda {roundNumber}: el top tiene mas de 4 casas; solo se usan las primeras 4.");
+            warnings.Add($"Ronda {roundNumber}: el top tiene menos de 4 casas distintas.");
         }
 
         if (detectedCancelled)
@@ -228,6 +223,26 @@ public sealed partial class AutomaticHousePointsService
 
     private static List<string> MatchHouseEmojis(string value) =>
         HouseEmojiRegex().Matches(value).Select(match => NormalizeHeart(match.Value)).ToList();
+
+    private static (List<string> Top, List<string> Responses) SplitTopAndResponses(IEnumerable<string> emojis)
+    {
+        var top = new List<string>(4);
+        var topHouses = new HashSet<string>(StringComparer.Ordinal);
+        var responses = new List<string>();
+
+        foreach (var emoji in emojis)
+        {
+            if (top.Count < 4 && topHouses.Add(emoji))
+            {
+                top.Add(emoji);
+                continue;
+            }
+
+            responses.Add(emoji);
+        }
+
+        return (top, responses);
+    }
 
     private static string DetectName(string prefix)
     {

@@ -3,3 +3,6 @@ npm start
 
 cd /home/guss/Documentos/IDNUEVO/ImperiusDraconisAPI/ImperiusDraconisAPI
 dotnet run --launch-profile production-http
+
+
+
