@@ -29,6 +29,7 @@ builder.Services.AddScoped<TiendaService>();
 builder.Services.AddScoped<RinconService>();
 builder.Services.AddScoped<UserPreferencesService>();
 
+builder.Services.AddHttpClient();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
