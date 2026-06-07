@@ -142,6 +142,126 @@
       </article>
     }
 
+    @if (dracoinsCounterOpen()) {
+      <div class="dinamicas-modal-backdrop" (click)="closeDracoinsCounterModal()"></div>
+      <article class="dinamicas-modal detail-modal panel" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <div>
+            <span class="pill success">Calculadora</span>
+            <h2>Contador de Dracoins</h2>
+          </div>
+          <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeDracoinsCounterModal()">×</button>
+        </div>
+
+        <div class="create-form">
+          <label class="field">
+            <span>Mensaje completo de la dinámica</span>
+            <textarea
+              name="dracoinsCounterText"
+              [(ngModel)]="dracoinsCounterText"
+              rows="10"
+              placeholder="Pega aquí la dinámica completa..."
+            ></textarea>
+          </label>
+
+          <div class="actions">
+            <button
+              class="primary-button"
+              type="button"
+              [disabled]="analyzingDracoinsCounter() || !dracoinsCounterText.trim()"
+              (click)="analyzeDracoinsCounter()"
+            >
+              {{ analyzingDracoinsCounter() ? 'Analizando...' : 'Analizar' }}
+            </button>
+          </div>
+
+          @if (dracoinsCounterAnalysis(); as counter) {
+            <div class="detail-meta compact-detail-meta">
+              <div>
+                <span>Nombre detectado</span>
+                <strong>{{ counter.detectedName || 'Sin nombre detectado' }}</strong>
+              </div>
+              <div>
+                <span>Rondas detectadas</span>
+                <strong>{{ counter.rounds.length }}</strong>
+              </div>
+            </div>
+
+            @if (counter.warnings.length > 0) {
+              <section class="automatic-warning-list">
+                <strong>Advertencias</strong>
+                @for (warning of counter.warnings; track warning) {
+                  <p>{{ warning }}</p>
+                }
+              </section>
+            }
+
+            @if (counter.rounds.length > 0) {
+              <section class="automatic-preview-section">
+                <h3>Rondas detectadas</h3>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Ronda</th>
+                        <th>Multiplicador</th>
+                        <th>Top</th>
+                        <th>Otros</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (round of counter.rounds; track round.roundNumber) {
+                        <tr>
+                          <td>{{ round.roundNumber }}</td>
+                          <td>
+                            <select
+                              [value]="round.multiplier"
+                              (change)="updateDracoinsCounterRound(round.roundNumber, coerceNullableNumber($any($event.target).value) ?? 1)"
+                            >
+                              <option [value]="1">Normal x1</option>
+                              <option [value]="2">Doble x2</option>
+                              <option [value]="3">Triple x3</option>
+                            </select>
+                          </td>
+                          <td>{{ round.topParticipants.join(' ') || '-' }}</td>
+                          <td>{{ round.otherParticipants.join(' ') || '-' }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <div class="actions">
+                <button class="primary-button" type="button" [disabled]="analyzingDracoinsCounter()" (click)="countDracoinsCounter()">
+                  {{ analyzingDracoinsCounter() ? 'Contando...' : 'Contar' }}
+                </button>
+              </div>
+            }
+
+            @if (dracoinsCounterShowTotals()) {
+              <section class="automatic-preview-section">
+                <h3>Total acumulado por participante</h3>
+                @if (counter.totals.length === 0) {
+                  <p class="empty-state">No se detectaron participantes.</p>
+                } @else {
+                  <label class="field">
+                    <span>Resultado para copiar</span>
+                    <textarea readonly rows="8" [value]="counter.copyText"></textarea>
+                  </label>
+                  <div class="actions">
+                    <button class="ghost-button" type="button" (click)="copyDracoinsCounterResult()">
+                      {{ dracoinsCounterCopied() ? 'Copiado' : 'Copiar resultado' }}
+                    </button>
+                  </div>
+                }
+              </section>
+            }
+          }
+        </div>
+      </article>
+    }
+
     <nav class="section-tabs panel" aria-label="Secciones de Dinámicas">
       @if (canViewListSection()) {
         <button
@@ -326,6 +446,10 @@
             <h2>Dinámica por dracoins</h2>
           </div>
           <p>Busca alumnos activos, asigna dracoins y registra la dinámica en una sola operación.</p>
+        </div>
+
+        <div class="actions">
+          <button class="ghost-button" type="button" (click)="openDracoinsCounterModal()">Contador de Dracoins</button>
         </div>
 
         <form class="create-form" (ngSubmit)="submitDracoinsDinamica()">

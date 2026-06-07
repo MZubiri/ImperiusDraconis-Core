@@ -149,6 +149,39 @@ export interface AutomaticPointsAnalysis {
   warnings: string[];
 }
 
+export interface AutomaticDracoinsRoundAdjustment {
+  roundNumber: number;
+  multiplier: number;
+}
+
+export interface AutomaticDracoinsAnalyzeRequest {
+  text: string;
+  roundAdjustments: AutomaticDracoinsRoundAdjustment[];
+}
+
+export interface AutomaticDracoinsParticipantResult {
+  participant: string;
+  dracoins: number;
+}
+
+export interface AutomaticDracoinsRound {
+  roundNumber: number;
+  detectedMultiplier: number;
+  multiplier: number;
+  topParticipants: string[];
+  otherParticipants: string[];
+  ignoredParticipants: string[];
+  pointsByParticipant: AutomaticDracoinsParticipantResult[];
+}
+
+export interface AutomaticDracoinsAnalysis {
+  detectedName: string;
+  rounds: AutomaticDracoinsRound[];
+  totals: AutomaticDracoinsParticipantResult[];
+  warnings: string[];
+  copyText: string;
+}
+
 export interface AgendaDinamica {
   idAgenda: number;
   fecha: string;

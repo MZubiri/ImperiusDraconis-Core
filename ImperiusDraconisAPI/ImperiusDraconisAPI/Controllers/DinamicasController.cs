@@ -24,18 +24,43 @@ public sealed class DinamicasController : ControllerBase
     private readonly DinamicasService _dinamicasService;
     private readonly MarcadoresService _marcadoresService;
     private readonly AutomaticHousePointsService _automaticHousePointsService;
+    private readonly AutomaticDracoinsCounterService _automaticDracoinsCounterService;
     private readonly ILogger<DinamicasController> _logger;
 
     public DinamicasController(
         DinamicasService dinamicasService,
         MarcadoresService marcadoresService,
         AutomaticHousePointsService automaticHousePointsService,
+        AutomaticDracoinsCounterService automaticDracoinsCounterService,
         ILogger<DinamicasController> logger)
     {
         _dinamicasService = dinamicasService;
         _marcadoresService = marcadoresService;
         _automaticHousePointsService = automaticHousePointsService;
+        _automaticDracoinsCounterService = automaticDracoinsCounterService;
         _logger = logger;
+    }
+
+    [HttpPost("dracoins-contador/analizar")]
+    [HasPermission(RegistrarDinamicaPorDracoinsPermission)]
+    [ProducesResponseType(typeof(AutomaticDracoinsAnalyzeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult<AutomaticDracoinsAnalyzeResponse> AnalyzeDracoinsCounter(
+        [FromBody] AutomaticDracoinsAnalyzeRequest request)
+    {
+        try
+        {
+            return Ok(_automaticDracoinsCounterService.Analyze(request));
+        }
+        catch (BusinessRuleException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Error interno al analizar contador de Dracoins.");
+            throw;
+        }
     }
 
     [HttpPost("puntos-automaticos/analizar")]

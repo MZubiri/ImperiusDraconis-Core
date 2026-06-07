@@ -9,6 +9,8 @@ import {
   AgendaResponsable,
   AgendaUpdateRequest,
   AlumnoActivo,
+  AutomaticDracoinsAnalysis,
+  AutomaticDracoinsAnalyzeRequest,
   AutomaticPointsAnalysis,
   AutomaticPointsAnalyzeRequest,
   AutomaticPointsRegisterRequest,
@@ -108,6 +110,13 @@ export class DinamicasService {
     payload: RegistrarDinamicaDracoinsRequest
   ): Observable<DinamicaDracoinsDetail> {
     return this.http.post<DinamicaDracoinsDetail>(`${this.runtimeConfig.apiUrl}/dinamicas/dracoins`, payload);
+  }
+
+  analyzeDracoinsCounter(payload: AutomaticDracoinsAnalyzeRequest): Observable<AutomaticDracoinsAnalysis> {
+    return this.http.post<AutomaticDracoinsAnalysis>(
+      `${this.runtimeConfig.apiUrl}/dinamicas/dracoins-contador/analizar`,
+      payload
+    );
   }
 
   analyzeAutomaticPoints(payload: AutomaticPointsAnalyzeRequest): Observable<AutomaticPointsAnalysis> {

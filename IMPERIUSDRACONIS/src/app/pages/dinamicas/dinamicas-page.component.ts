@@ -9,6 +9,7 @@ import {
   AgendaDinamica,
   AgendaResponsable,
   AlumnoActivo,
+  AutomaticDracoinsAnalysis,
   AutomaticPointsAnalysis,
   DinamicaDracoinsDetail,
   DinamicaListItem,
@@ -72,6 +73,7 @@ export class DinamicasPageComponent {
   readonly agendaResponsables = signal<AgendaResponsable[]>([]);
   readonly pointsHouses = signal<EditablePointsHouse[]>([]);
   readonly automaticPointsAnalysis = signal<AutomaticPointsAnalysis | null>(null);
+  readonly dracoinsCounterAnalysis = signal<AutomaticDracoinsAnalysis | null>(null);
   readonly selectedAgenda = signal<AgendaDinamica | null>(null);
   readonly agendaRows = signal<AgendaDraftRow[]>([{ hora: '', idAlumno: null, titulo: '' }]);
   readonly loadingList = signal(false);
@@ -81,6 +83,10 @@ export class DinamicasPageComponent {
   readonly loadingAgendaResponsables = signal(false);
   readonly loadingPointsHouses = signal(false);
   readonly submitting = signal(false);
+  readonly analyzingDracoinsCounter = signal(false);
+  readonly dracoinsCounterOpen = signal(false);
+  readonly dracoinsCounterShowTotals = signal(false);
+  readonly dracoinsCounterCopied = signal(false);
   readonly submittingPoints = signal(false);
   readonly analyzingAutomaticPoints = signal(false);
   readonly submittingAutomaticPoints = signal(false);
@@ -147,6 +153,7 @@ export class DinamicasPageComponent {
 
   nombreDinamica = '';
   observacionDinamica = '';
+  dracoinsCounterText = '';
   nombreDinamicaPuntos = '';
   subtipoDinamicaPuntos = 'Normal';
   observacionDinamicaPuntos = '';
@@ -589,6 +596,59 @@ export class DinamicasPageComponent {
       });
   }
 
+  openDracoinsCounterModal(): void {
+    if (!this.canRegisterDracoins()) {
+      return;
+    }
+
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.dracoinsCounterOpen.set(true);
+  }
+
+  closeDracoinsCounterModal(): void {
+    this.dracoinsCounterOpen.set(false);
+    this.dracoinsCounterCopied.set(false);
+  }
+
+  analyzeDracoinsCounter(): void {
+    this.runDracoinsCounter(false);
+  }
+
+  countDracoinsCounter(): void {
+    this.runDracoinsCounter(true);
+  }
+
+  updateDracoinsCounterRound(roundNumber: number, multiplier: number): void {
+    const analysis = this.dracoinsCounterAnalysis();
+    if (!analysis) {
+      return;
+    }
+
+    this.dracoinsCounterAnalysis.set({
+      ...analysis,
+      rounds: analysis.rounds.map((round) =>
+        round.roundNumber === roundNumber ? { ...round, multiplier } : round
+      )
+    });
+    this.runDracoinsCounter(this.dracoinsCounterShowTotals());
+  }
+
+  async copyDracoinsCounterResult(): Promise<void> {
+    const text = this.dracoinsCounterAnalysis()?.copyText ?? '';
+    if (!text.trim()) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      this.dracoinsCounterCopied.set(true);
+      setTimeout(() => this.dracoinsCounterCopied.set(false), 2000);
+    } catch {
+      this.errorMessage.set('No se pudo copiar el resultado al portapapeles.');
+    }
+  }
+
   deleteDinamica(item: DinamicaListItem): void {
     if (!this.canDeleteDinamica()) {
       return;
@@ -936,6 +996,40 @@ export class DinamicasPageComponent {
         startRound: frog.startRound
       }))
     };
+  }
+
+  private runDracoinsCounter(showTotals: boolean): void {
+    if (!this.canRegisterDracoins()) {
+      return;
+    }
+
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.dracoinsCounterCopied.set(false);
+    this.analyzingDracoinsCounter.set(true);
+
+    this.dinamicasService
+      .analyzeDracoinsCounter({
+        text: this.dracoinsCounterText,
+        roundAdjustments: (this.dracoinsCounterAnalysis()?.rounds ?? []).map((round) => ({
+          roundNumber: round.roundNumber,
+          multiplier: round.multiplier
+        }))
+      })
+      .pipe(
+        finalize(() => this.analyzingDracoinsCounter.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (analysis) => {
+          this.dracoinsCounterAnalysis.set(analysis);
+          this.dracoinsCounterShowTotals.set(showTotals);
+        },
+        error: (error) =>
+          this.errorMessage.set(
+            this.readErrorMessage(error, 'No se pudo analizar el contador de Dracoins.')
+          )
+      });
   }
 
   private createRequestId(): string {
