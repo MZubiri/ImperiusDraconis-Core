@@ -9,12 +9,16 @@ import {
   AgendaResponsable,
   AgendaUpdateRequest,
   AlumnoActivo,
+  AutomaticPointsAnalysis,
+  AutomaticPointsAnalyzeRequest,
+  AutomaticPointsRegisterRequest,
   DinamicaDracoinsDetail,
   DinamicaListItem,
   DinamicaPuntosDetail,
   DinamicasFilters,
   RegistrarDinamicaDracoinsRequest
 } from '../models/dinamicas.models';
+import { MarcadorUpdateResult } from '../models/marcadores.models';
 
 @Injectable({ providedIn: 'root' })
 export class DinamicasService {
@@ -104,6 +108,20 @@ export class DinamicasService {
     payload: RegistrarDinamicaDracoinsRequest
   ): Observable<DinamicaDracoinsDetail> {
     return this.http.post<DinamicaDracoinsDetail>(`${this.runtimeConfig.apiUrl}/dinamicas/dracoins`, payload);
+  }
+
+  analyzeAutomaticPoints(payload: AutomaticPointsAnalyzeRequest): Observable<AutomaticPointsAnalysis> {
+    return this.http.post<AutomaticPointsAnalysis>(
+      `${this.runtimeConfig.apiUrl}/dinamicas/puntos-automaticos/analizar`,
+      payload
+    );
+  }
+
+  registerAutomaticPoints(payload: AutomaticPointsRegisterRequest): Observable<MarcadorUpdateResult> {
+    return this.http.post<MarcadorUpdateResult>(
+      `${this.runtimeConfig.apiUrl}/dinamicas/puntos-automaticos/registrar`,
+      payload
+    );
   }
 
   deleteDinamica(idDinamica: number): Observable<void> {

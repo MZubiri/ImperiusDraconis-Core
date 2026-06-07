@@ -78,6 +78,65 @@ export interface RegistrarDinamicaDracoinsRequest {
   asignaciones: RegistrarDinamicaDracoinsItemRequest[];
 }
 
+export interface AutomaticPointsRoundAdjustment {
+  roundNumber: number;
+  multiplier: number;
+  cancelled: boolean;
+}
+
+export interface AutomaticPointsFrogAdjustment {
+  index: number;
+  startRound: number;
+}
+
+export interface AutomaticPointsAnalyzeRequest {
+  text: string;
+  roundAdjustments: AutomaticPointsRoundAdjustment[];
+  frogAdjustments: AutomaticPointsFrogAdjustment[];
+}
+
+export interface AutomaticPointsRegisterRequest extends AutomaticPointsAnalyzeRequest {
+  name: string;
+  subtype: string;
+  observation?: string | null;
+  clientRequestId: string;
+}
+
+export interface AutomaticPointsHouseTotal {
+  houseEmoji: string;
+  idCasa: number;
+  houseName: string;
+  points: number;
+}
+
+export interface AutomaticPointsFrog {
+  index: number;
+  houseEmoji: string;
+  idCasa: number;
+  houseName: string;
+  description: string;
+  startRound: number;
+}
+
+export interface AutomaticPointsRound {
+  roundNumber: number;
+  detectedMultiplier: number;
+  multiplier: number;
+  detectedCancelled: boolean;
+  cancelled: boolean;
+  top: string[];
+  responses: string[];
+  pointsByHouse: AutomaticPointsHouseTotal[];
+}
+
+export interface AutomaticPointsAnalysis {
+  detectedName: string;
+  frogs: AutomaticPointsFrog[];
+  rounds: AutomaticPointsRound[];
+  totals: AutomaticPointsHouseTotal[];
+  warnings: string[];
+}
+
 export interface AgendaDinamica {
   idAgenda: number;
   fecha: string;

@@ -9,6 +9,7 @@ import {
   AgendaDinamica,
   AgendaResponsable,
   AlumnoActivo,
+  AutomaticPointsAnalysis,
   DinamicaDracoinsDetail,
   DinamicaListItem,
   DinamicaPuntosDetail
@@ -36,6 +37,7 @@ interface EditablePointsHouse extends MarcadorCasa {
 }
 
 type DinamicasSection = 'listado' | 'registrar' | 'puntos' | 'agenda';
+type PointsRegistrationMode = 'manual' | 'automatic';
 type AgendaModalMode = 'create' | 'edit' | null;
 
 @Component({
@@ -69,6 +71,7 @@ export class DinamicasPageComponent {
   readonly agendaItems = signal<AgendaDinamica[]>([]);
   readonly agendaResponsables = signal<AgendaResponsable[]>([]);
   readonly pointsHouses = signal<EditablePointsHouse[]>([]);
+  readonly automaticPointsAnalysis = signal<AutomaticPointsAnalysis | null>(null);
   readonly selectedAgenda = signal<AgendaDinamica | null>(null);
   readonly agendaRows = signal<AgendaDraftRow[]>([{ hora: '', idAlumno: null, titulo: '' }]);
   readonly loadingList = signal(false);
@@ -79,6 +82,8 @@ export class DinamicasPageComponent {
   readonly loadingPointsHouses = signal(false);
   readonly submitting = signal(false);
   readonly submittingPoints = signal(false);
+  readonly analyzingAutomaticPoints = signal(false);
+  readonly submittingAutomaticPoints = signal(false);
   readonly submittingAgenda = signal(false);
   readonly deletingDinamicaId = signal<number | null>(null);
   readonly deletingAgendaId = signal<number | null>(null);
@@ -145,6 +150,12 @@ export class DinamicasPageComponent {
   nombreDinamicaPuntos = '';
   subtipoDinamicaPuntos = 'Normal';
   observacionDinamicaPuntos = '';
+  pointsRegistrationMode: PointsRegistrationMode = 'manual';
+  automaticPointsText = '';
+  automaticPointsName = '';
+  automaticPointsSubtype = 'Normal';
+  automaticPointsObservation = '';
+  automaticPointsRequestId = this.createRequestId();
   studentSearch = '';
 
   agendaFilterDate = '';
@@ -406,6 +417,110 @@ export class DinamicasPageComponent {
             this.readErrorMessage(error, 'No se pudo registrar la dinámica por puntos.')
           )
       });
+  }
+
+  analyzeAutomaticPoints(): void {
+    if (!this.canRegisterPoints()) {
+      return;
+    }
+
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.analyzingAutomaticPoints.set(true);
+
+    this.dinamicasService
+      .analyzeAutomaticPoints(this.buildAutomaticAnalyzePayload())
+      .pipe(
+        finalize(() => this.analyzingAutomaticPoints.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (analysis) => {
+          this.automaticPointsAnalysis.set(analysis);
+          if (!this.automaticPointsName.trim()) {
+            this.automaticPointsName = analysis.detectedName;
+          }
+        },
+        error: (error) =>
+          this.errorMessage.set(
+            this.readErrorMessage(error, 'No se pudo analizar el contador automático.')
+          )
+      });
+  }
+
+  updateAutomaticRound(roundNumber: number, multiplier: number, cancelled: boolean): void {
+    const analysis = this.automaticPointsAnalysis();
+    if (!analysis) {
+      return;
+    }
+
+    this.automaticPointsAnalysis.set({
+      ...analysis,
+      rounds: analysis.rounds.map((round) =>
+        round.roundNumber === roundNumber ? { ...round, multiplier, cancelled } : round
+      )
+    });
+    this.analyzeAutomaticPoints();
+  }
+
+  updateAutomaticFrog(index: number, startRound: number): void {
+    const analysis = this.automaticPointsAnalysis();
+    if (!analysis || !Number.isFinite(startRound)) {
+      return;
+    }
+
+    this.automaticPointsAnalysis.set({
+      ...analysis,
+      frogs: analysis.frogs.map((frog) =>
+        frog.index === index ? { ...frog, startRound: Math.max(1, startRound) } : frog
+      )
+    });
+    this.analyzeAutomaticPoints();
+  }
+
+  submitAutomaticPoints(): void {
+    if (!this.canRegisterPoints() || !this.automaticPointsAnalysis()) {
+      return;
+    }
+
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.submittingAutomaticPoints.set(true);
+
+    this.dinamicasService
+      .registerAutomaticPoints({
+        ...this.buildAutomaticAnalyzePayload(),
+        name: this.automaticPointsName.trim(),
+        subtype: this.automaticPointsSubtype,
+        observation: this.automaticPointsObservation.trim() || null,
+        clientRequestId: this.automaticPointsRequestId
+      })
+      .pipe(
+        finalize(() => this.submittingAutomaticPoints.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (response) => {
+          this.successMessage.set(`Dinámica automática #${response.idDinamica} registrada correctamente.`);
+          this.resetAutomaticPoints();
+          if (this.canViewIndex()) {
+            this.loadDinamicas(1);
+          }
+        },
+        error: (error) =>
+          this.errorMessage.set(
+            this.readErrorMessage(error, 'No se pudo registrar la dinámica automática.')
+          )
+      });
+  }
+
+  resetAutomaticPoints(): void {
+    this.automaticPointsText = '';
+    this.automaticPointsName = '';
+    this.automaticPointsSubtype = 'Normal';
+    this.automaticPointsObservation = '';
+    this.automaticPointsAnalysis.set(null);
+    this.automaticPointsRequestId = this.createRequestId();
   }
 
   submitDracoinsDinamica(): void {
@@ -805,6 +920,26 @@ export class DinamicasPageComponent {
 
     const parsed = Number(trimmed);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private buildAutomaticAnalyzePayload() {
+    const analysis = this.automaticPointsAnalysis();
+    return {
+      text: this.automaticPointsText,
+      roundAdjustments: (analysis?.rounds ?? []).map((round) => ({
+        roundNumber: round.roundNumber,
+        multiplier: round.multiplier,
+        cancelled: round.cancelled
+      })),
+      frogAdjustments: (analysis?.frogs ?? []).map((frog) => ({
+        index: frog.index,
+        startRound: frog.startRound
+      }))
+    };
+  }
+
+  private createRequestId(): string {
+    return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
   }
 
   private todayString(): string {

@@ -166,6 +166,89 @@
   margin-top: 1rem;
 }
 
+.points-mode-selector {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.points-mode-selector label,
+.automatic-cancel-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 42px;
+  padding: 0 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-strong);
+}
+
+.points-mode-selector input,
+.automatic-cancel-toggle input {
+  width: auto;
+  min-height: auto;
+}
+
+.automatic-warning-list,
+.automatic-preview-section,
+.automatic-round-card {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.automatic-warning-list {
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(229, 101, 101, 0.35);
+  border-radius: 6px;
+  background: rgba(229, 101, 101, 0.1);
+}
+
+.automatic-warning-list p,
+.automatic-round-card p {
+  color: var(--text-soft);
+}
+
+.automatic-rounds,
+.automatic-total-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.automatic-round-card,
+.automatic-total-grid article {
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-strong);
+}
+
+.automatic-round-card header,
+.automatic-round-controls,
+.automatic-house-points,
+.automatic-total-grid article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.automatic-round-controls .field {
+  min-width: 170px;
+}
+
+.automatic-house-points span {
+  color: var(--gold-strong);
+  font-weight: 700;
+}
+
+.cancelled-round {
+  color: var(--danger);
+}
+
 .selection-summary,
 .agenda-toolbar {
   display: flex;
@@ -452,7 +535,9 @@ tr.selected {
   .filters-grid,
   .points-form-grid,
   .compact-detail-meta,
-  .agenda-row {
+  .agenda-row,
+  .automatic-rounds,
+  .automatic-total-grid {
     width: 100%;
     grid-template-columns: 1fr;
     gap: 0.65rem;
