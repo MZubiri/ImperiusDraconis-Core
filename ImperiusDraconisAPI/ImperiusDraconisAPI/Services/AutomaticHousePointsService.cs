@@ -10,7 +10,7 @@ namespace ImperiusDraconisAPI.Services;
 public sealed partial class AutomaticHousePointsService
 {
     private static readonly string[] HouseEmojis = ["❤️", "💚", "💙", "💛"];
-    private static readonly int[] TopPoints = [30, 25, 20, 15];
+    private static readonly int[] TopPoints = [1000, 900, 800, 700];
     private const int ResponsePoints = 20;
 
     public AutomaticPointsAnalysisDto Analyze(
