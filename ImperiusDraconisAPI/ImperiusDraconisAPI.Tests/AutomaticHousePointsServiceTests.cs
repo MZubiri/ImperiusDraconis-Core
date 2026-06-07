@@ -120,6 +120,37 @@ public sealed class AutomaticHousePointsServiceTests
         Assert.Equal(10, owl.GetProperty("ronda").GetInt32());
     }
 
+    [Fact]
+    public void Analyze_GivesMissingTopHousesThreeHundredFiftyPoints()
+    {
+        var result = Analyze("6. ❤️💚💙❤️💚");
+
+        var round = Assert.Single(result.Rounds);
+        Assert.Equal(["❤️", "💚", "💙"], round.Top);
+        Assert.Equal(1020, PointsFor(round, "❤️"));
+        Assert.Equal(920, PointsFor(round, "💚"));
+        Assert.Equal(800, PointsFor(round, "💙"));
+        Assert.Equal(350, PointsFor(round, "💛"));
+    }
+
+    [Fact]
+    public void Analyze_AppliesMultiplierToMissingTopHousePoints()
+    {
+        var result = Analyze("7. ❤️💚💙 x2");
+
+        var round = Assert.Single(result.Rounds);
+        Assert.Equal(700, PointsFor(round, "💛"));
+    }
+
+    [Fact]
+    public void Analyze_DoesNotGiveMissingTopPointsInCancelledRounds()
+    {
+        var result = Analyze("8. ❤️💚💙 ❌");
+
+        var round = Assert.Single(result.Rounds);
+        Assert.All(round.PointsByHouse, item => Assert.Equal(0, item.Points));
+    }
+
     private AutomaticPointsAnalysisDto Analyze(string text) =>
         _service.Analyze(new AutomaticPointsAnalyzeRequest { Text = text }, Houses);
 

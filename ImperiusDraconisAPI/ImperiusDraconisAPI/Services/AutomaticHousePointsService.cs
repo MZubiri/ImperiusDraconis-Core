@@ -12,6 +12,7 @@ public sealed partial class AutomaticHousePointsService
     private static readonly string[] HouseEmojis = ["❤️", "💚", "💙", "💛"];
     private static readonly int[] TopPoints = [1000, 900, 800, 700];
     private const int ResponsePoints = 20;
+    private const int MissingTopHousePoints = 350;
 
     public AutomaticPointsAnalysisDto Analyze(
         AutomaticPointsAnalyzeRequest request,
@@ -123,6 +124,11 @@ public sealed partial class AutomaticHousePointsService
             for (var index = 0; index < Math.Min(4, top.Count); index++)
             {
                 AddPoints(scores, top[index], TopPoints[index] * multiplier);
+            }
+
+            foreach (var emoji in HouseEmojis.Where(emoji => houseLookup.ContainsKey(emoji) && !top.Contains(emoji)))
+            {
+                AddPoints(scores, emoji, MissingTopHousePoints * multiplier);
             }
 
             foreach (var emoji in responses)
