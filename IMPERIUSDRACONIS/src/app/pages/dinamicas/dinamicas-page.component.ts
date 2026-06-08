@@ -64,7 +64,9 @@ export class DinamicasPageComponent {
     'Actividad por Dracoins',
     'Clase',
     'Karaoke',
+    'Club de lectura',
     'Especial'
+
   ] as const;
 
   readonly result = signal<PagedResult<DinamicaListItem> | null>(null);
