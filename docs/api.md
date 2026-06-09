@@ -128,7 +128,16 @@ Respuesta:
     "maxCapacity": 10,
     "availableSlots": 1
   },
-  "eggs": [],
+  "eggs": [
+    {
+      "id": 42,
+      "rarity": "RARE",
+      "acquiredAt": "2026-06-09T18:00:00Z",
+      "incubationStartedAt": null,
+      "incubationEndsAt": null,
+      "status": "OWNED"
+    }
+  ],
   "dragons": [],
   "selectedDragon": null,
   "ranking": null
@@ -138,10 +147,14 @@ Respuesta:
 Errores relevantes: `BUSINESS_RULE_ERROR`, `NOT_LINKED`, `PLAYER_INACTIVE`,
 `PLAYER_DATA_INCOMPLETE`.
 
+Los huevos persistidos se incluyen en `eggs`. Un huevo `INCUBATING` cuyo tiempo ya
+vencio se presenta como `READY_TO_HATCH`. `availableSlots` resta huevos no
+eclosionados.
+
 ## Endpoints no implementados
 
-No existen endpoints de huevos, dragones, capacidad comprable, misiones, combate o
-ranking.
+No existen endpoints publicos de huevos, compra, incubacion, eclosion, dragones,
+capacidad comprable, misiones, combate o ranking.
 
 ## Prueba manual
 

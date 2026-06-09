@@ -69,7 +69,7 @@ Falta para completar su alcance declarado:
 
 | Issue | Epic | Estado |
 |---|---|---|
-| #2 | Huevos e Incubacion | Abierta, no implementada |
+| #2 | Huevos e Incubacion | Abierta; persistencia minima implementada localmente |
 | #3 | Dragon Acompanante | Abierta, no implementada |
 | #4 | Necesidades y Crecimiento | Abierta, no implementada |
 | #5 | Misiones y Recompensas | Abierta, no implementada |
@@ -87,4 +87,5 @@ Objetivo: cerrar la lectura inicial del jugador sin adelantar sistemas futuros.
 3. Aclarar/cerrar el alcance restante de US-1.2.2.
 4. Actualizar issue #1 cuando bootstrap este desplegado.
 
-No incluir huevos, dragones ni UI Roblox en este sprint.
+La persistencia minima de huevos fue adelantada como incremento tecnico aislado. Aun
+no incluye adquisición publica, incubacion, eclosion, dragones ni UI Roblox.

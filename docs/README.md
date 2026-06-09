@@ -13,9 +13,10 @@ Roblox ↔ Imperius:
 - Crear vinculo, capacidad inicial y recompensa de bienvenida.
 - Registrar ledger e idempotencia del consumo.
 
-El bootstrap inicial del jugador esta implementado localmente y pendiente de
-despliegue y prueba en produccion. No existen todavia endpoints ni tablas Game para
-huevos, dragones, misiones, combate o ranking.
+El bootstrap inicial y la persistencia minima de huevos estan implementados
+localmente. La migracion `004_create_game_eggs.sql` esta pendiente de aplicar. No
+existen todavia endpoints publicos de huevos ni persistencia Game para dragones,
+misiones, combate o ranking.
 
 ## Fuente de verdad
 
@@ -28,6 +29,7 @@ Para continuar el proyecto, leer en este orden:
 5. [game-design-document.md](game-design-document.md): diseño del juego y estado real.
 6. [audit-report-2026-06-09.md](audit-report-2026-06-09.md): inconsistencias detectadas.
 7. [sprint-2-us-1.2.1-design.md](sprint-2-us-1.2.1-design.md): diseño e implementacion de bootstrap.
+8. [game-eggs-persistence.md](game-eggs-persistence.md): persistencia minima de huevos.
 
 ## Documentos de referencia
 
@@ -65,5 +67,5 @@ dotnet test ImperiusDraconisAPI/ImperiusDraconisAPI.Tests/ImperiusDraconisAPI.Te
 Resultado de la auditoria:
 
 - Build: `0` errores, `0` advertencias.
-- Tests existentes: `21/21` aprobados.
+- Tests existentes: `30/30` aprobados.
 - `main` local coincide con `origin/main`.

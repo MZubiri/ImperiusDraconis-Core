@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ImperiusDraconisAPI.Models.Game.Eggs;
 using ImperiusDraconisAPI.Services.Game;
 using Xunit;
 
@@ -67,6 +68,47 @@ public sealed class GamePlayerBootstrapMapperTests
 
         Assert.Equal(8, result.Capacity.TotalSlots);
         Assert.Equal(8, result.Capacity.AvailableSlots);
+    }
+
+    [Fact]
+    public void Map_IncludesEggsAndSubtractsOnlyActiveEggsFromCapacity()
+    {
+        var acquiredAt = new DateTime(2026, 6, 9, 12, 0, 0, DateTimeKind.Utc);
+        var result = GamePlayerBootstrapMapper.Map(
+            "1.0.0",
+            1,
+            123,
+            "Harry",
+            "Gryffindor",
+            400m,
+            2,
+            10,
+            [
+                new GameEgg
+                {
+                    Id = 10,
+                    IdAlumno = 3,
+                    Rarity = "RARE",
+                    AcquiredAt = acquiredAt,
+                    Status = "OWNED"
+                },
+                new GameEgg
+                {
+                    Id = 11,
+                    IdAlumno = 3,
+                    Rarity = "COMMON",
+                    AcquiredAt = acquiredAt,
+                    IncubationStartedAt = acquiredAt,
+                    IncubationEndsAt = acquiredAt.AddHours(1),
+                    Status = "HATCHED"
+                }
+            ]);
+
+        Assert.Equal(2, result.Eggs.Count);
+        Assert.Equal(2, result.Capacity.AvailableSlots);
+        var egg = Assert.Single(result.Eggs, item => item.Id == 10);
+        Assert.Equal("RARE", egg.Rarity);
+        Assert.Equal("OWNED", egg.Status);
     }
 
     [Fact]

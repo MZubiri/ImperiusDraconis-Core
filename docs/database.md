@@ -6,6 +6,8 @@ Ultima auditoria: **9 de junio de 2026**
 
 - Migracion: `SQLMigrar/003_create_game_epic1.sql`
 - Estado informado: aplicada correctamente en produccion.
+- Migracion: `SQLMigrar/004_create_game_eggs.sql`
+- Estado: creada localmente, pendiente de aplicar.
 - ORM: ninguno; acceso mediante `Microsoft.Data.SqlClient`.
 
 No se consulto directamente el catalogo de produccion durante esta auditoria. La
@@ -19,6 +21,7 @@ erDiagram
     Alumnos ||--|| GameRobloxLinks : vincula
     Alumnos ||--|| GameDragonCapacity : posee
     Alumnos ||--o{ GameDracoinLedger : registra
+    Alumnos ||--o{ GameEggs : posee
 
     GameRobloxLinks {
         bigint Id PK
@@ -121,6 +124,26 @@ Actualmente solo se usa la operacion:
 GAME_LINK_CONSUME
 ```
 
+### `GameEggs`
+
+Persistencia minima de huevos propiedad de un alumno.
+
+Campos: `Id`, `IdAlumno`, `Rarity`, `AcquiredAt`, `IncubationStartedAt`,
+`IncubationEndsAt`, `Status`, `UpdatedAt`, `RowVersion`.
+
+Restricciones clave:
+
+- FK a `Alumnos.IdAlumno`.
+- Rarezas permitidas: `COMMON`, `RARE`, `EPIC`, `LEGENDARY`, `MYTHIC`.
+- Estados permitidos: `OWNED`, `INCUBATING`, `READY_TO_HATCH`, `HATCHED`.
+- `OWNED` exige fechas de incubacion nulas.
+- Los demas estados exigen ambas fechas y un fin posterior al inicio.
+- Indice por alumno y estado para Bootstrap y validacion de capacidad.
+- Indice filtrado por `IncubationEndsAt` para futuras operaciones de incubacion.
+
+La tabla permite `HATCHED` para mantener estable el contrato futuro, pero el servicio
+actual no implementa la eclosion.
+
 ## Flujo transaccional de consumo
 
 Todas estas escrituras ocurren en una sola transaccion:
@@ -141,10 +164,9 @@ Un fallo produce rollback completo.
 
 No existen tablas Game para:
 
-- Huevos o catalogo de huevos.
+- Catalogo o tipos de huevos.
 - Dragones o temperamentos.
 - Misiones.
 - Combates o dragones salvajes.
 - Ranking.
 - Configuracion administrativa Game.
-

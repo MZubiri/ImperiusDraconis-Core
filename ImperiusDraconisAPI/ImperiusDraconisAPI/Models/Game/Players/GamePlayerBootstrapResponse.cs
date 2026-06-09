@@ -46,7 +46,20 @@ public sealed class GameBootstrapCapacityDto
     public int AvailableSlots { get; init; }
 }
 
-public sealed class GameBootstrapEggDto;
+public sealed class GameBootstrapEggDto
+{
+    public long Id { get; init; }
+
+    public string Rarity { get; init; } = string.Empty;
+
+    public DateTime AcquiredAt { get; init; }
+
+    public DateTime? IncubationStartedAt { get; init; }
+
+    public DateTime? IncubationEndsAt { get; init; }
+
+    public string Status { get; init; } = string.Empty;
+}
 
 public sealed class GameBootstrapDragonDto;
 

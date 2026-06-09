@@ -25,7 +25,8 @@ La base disponible es:
 | Vinculacion | Si | Si | Si | No |
 | Dracoins bienvenida | Si | Si | Si | No |
 | Bootstrap | Si | Si, pendiente de despliegue | Usa tablas existentes | No |
-| Huevos/incubacion | Si | No | No | No |
+| Persistencia de huevos | Si | Si, CRUD interno | Migracion pendiente | No |
+| Compra/incubacion/eclosion | Si | No | No adicional | No |
 | Dragon acompanante | Si | No | No | No |
 | Hambre/felicidad/vida | Si | No | No | No |
 | Misiones | Si | No | No | No |

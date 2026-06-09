@@ -143,7 +143,7 @@ mindmap
 * **Criterios de Aceptación:**
   * El catálogo de huevos (Hogar, Elemental, Emblema, Arcano) debe consumirse de `GameEggDefinitions`.
   * Valida que el jugador tenga al menos un espacio disponible en su capacidad total antes de proceder.
-  * Descuenta el precio del huevo del saldo del alumno y guarda el registro del nuevo huevo en `GameEggs` con estado `Pending`.
+  * Descuenta el precio del huevo del saldo del alumno y guarda el registro del nuevo huevo en `GameEggs` con estado `OWNED`.
   * La operación debe ser transaccional e incluir la idempotencia.
 * **Dependencias:** `[US-1.2.2]`, tabla `GameEggDefinitions`, tabla `GameEggs`.
 * **Estimación de Complejidad:** M (Medium)
@@ -157,9 +157,9 @@ mindmap
 #### [US-2.2.2] Iniciar incubación de huevo
 * **Descripción:** Como jugador, quiero colocar un huevo en mi pedestal de incubación para iniciar la cuenta regresiva que me permita abrirlo.
 * **Criterios de Aceptación:**
-  * El huevo debe tener el estado `Pending`.
+  * El huevo debe tener el estado `OWNED`.
   * Al iniciar, se calcula `HatchReadyAt = ahora + IncubationMinutes` del catálogo.
-  * El estado cambia a `Hatching`.
+  * El estado cambia a `INCUBATING`.
 * **Dependencias:** `[US-2.2.1]`.
 * **Estimación de Complejidad:** S (Small)
 * **Tareas Técnicas:**
@@ -206,7 +206,7 @@ mindmap
 #### [US-2.4.1] Regalar huevo a otro jugador
 * **Descripción:** Como jugador, quiero regalar un huevo sin abrir a otro miembro de la comunidad mediante su código Imperius para interactuar socialmente.
 * **Criterios de Aceptación:**
-  * Solo se pueden regalar huevos en estado `Pending` o `Hatching`.
+  * Solo se pueden regalar huevos en estado `OWNED` o `INCUBATING`.
   * No se permite regalarse un huevo a uno mismo.
   * La solicitud de regalo se crea con estado `Pending` en `GameEggTransfers`, bloqueando el huevo para que no sea incubado ni transferido nuevamente.
   * El destinatario debe aceptar el regalo para concretar el cambio de propiedad.

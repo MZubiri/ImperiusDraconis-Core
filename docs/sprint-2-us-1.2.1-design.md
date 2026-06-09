@@ -2,6 +2,10 @@
 
 Estado: **implementado localmente; pendiente de despliegue y prueba en produccion**
 
+> **Nota posterior:** la persistencia minima de huevos se agrego en un incremento
+> separado. Bootstrap ya no devuelve siempre `eggs: []`; consultar
+> [`game-eggs-persistence.md`](game-eggs-persistence.md).
+
 ## Objetivo
 
 Permitir que el servidor Roblox cargue en una sola llamada el estado persistente

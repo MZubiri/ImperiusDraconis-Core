@@ -1,4 +1,5 @@
 using ImperiusDraconisAPI.Models.Game.Players;
+using ImperiusDraconisAPI.Models.Game.Eggs;
 
 namespace ImperiusDraconisAPI.Services.Game;
 
@@ -12,9 +13,13 @@ internal static class GamePlayerBootstrapMapper
         string houseName,
         decimal dracoins,
         int purchasedSlots,
-        int maxCapacity)
+        int maxCapacity,
+        IReadOnlyCollection<GameEgg>? eggs = null)
     {
+        eggs ??= [];
         var totalSlots = Math.Min(maxCapacity, baseSlots + purchasedSlots);
+        var occupiedSlots = eggs.Count(egg => egg.Status != "HATCHED");
+        var availableSlots = Math.Max(0, totalSlots - occupiedSlots);
 
         return new GamePlayerBootstrapResponse
         {
@@ -35,9 +40,17 @@ internal static class GamePlayerBootstrapMapper
                 PurchasedSlots = purchasedSlots,
                 TotalSlots = totalSlots,
                 MaxCapacity = maxCapacity,
-                AvailableSlots = totalSlots
+                AvailableSlots = availableSlots
             },
-            Eggs = [],
+            Eggs = eggs.Select(egg => new GameBootstrapEggDto
+            {
+                Id = egg.Id,
+                Rarity = egg.Rarity,
+                AcquiredAt = egg.AcquiredAt,
+                IncubationStartedAt = egg.IncubationStartedAt,
+                IncubationEndsAt = egg.IncubationEndsAt,
+                Status = egg.Status
+            }).ToArray(),
             Dragons = [],
             SelectedDragon = null,
             Ranking = null

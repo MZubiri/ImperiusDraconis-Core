@@ -11,11 +11,16 @@ namespace ImperiusDraconisAPI.Services.Game;
 public sealed class GamePlayerService
 {
     private readonly SqlConnectionFactory _connectionFactory;
+    private readonly GameEggService _gameEggService;
     private readonly GameOptions _options;
 
-    public GamePlayerService(SqlConnectionFactory connectionFactory, IOptions<GameOptions> options)
+    public GamePlayerService(
+        SqlConnectionFactory connectionFactory,
+        GameEggService gameEggService,
+        IOptions<GameOptions> options)
     {
         _connectionFactory = connectionFactory;
+        _gameEggService = gameEggService;
         _options = options.Value;
 
         if (string.IsNullOrWhiteSpace(_options.Version))
@@ -47,6 +52,7 @@ public sealed class GamePlayerService
         await using var command = new SqlCommand(
             """
             SELECT
+                L.IdAlumno,
                 L.RobloxUserId,
                 A.Nombre AS DisplayName,
                 ISNULL(C.Nombre, N'') AS HouseName,
@@ -73,7 +79,7 @@ public sealed class GamePlayerService
                 StatusCodes.Status404NotFound);
         }
 
-        if (!reader.GetBoolean(4))
+        if (!reader.GetBoolean(5))
         {
             throw new GameBusinessRuleException(
                 "PLAYER_INACTIVE",
@@ -81,7 +87,7 @@ public sealed class GamePlayerService
                 StatusCodes.Status403Forbidden);
         }
 
-        if (reader.IsDBNull(5) || reader.IsDBNull(6))
+        if (reader.IsDBNull(6) || reader.IsDBNull(7))
         {
             throw new GameBusinessRuleException(
                 "PLAYER_DATA_INCOMPLETE",
@@ -89,14 +95,26 @@ public sealed class GamePlayerService
                 StatusCodes.Status500InternalServerError);
         }
 
+        var idAlumno = reader.GetInt32(0);
+        var robloxId = reader.GetInt64(1);
+        var displayName = reader.GetString(2);
+        var houseName = reader.GetString(3);
+        var dracoins = reader.GetDecimal(4);
+        var purchasedSlots = reader.GetByte(6);
+        var maxCapacity = reader.GetByte(7);
+        await reader.CloseAsync();
+
+        var eggs = await _gameEggService.ListByPlayerAsync(idAlumno, cancellationToken);
+
         return GamePlayerBootstrapMapper.Map(
             _options.Version,
             _options.BaseDragonSlots,
-            reader.GetInt64(0),
-            reader.GetString(1),
-            reader.GetString(2),
-            reader.GetDecimal(3),
-            reader.GetByte(5),
-            reader.GetByte(6));
+            robloxId,
+            displayName,
+            houseName,
+            dracoins,
+            purchasedSlots,
+            maxCapacity,
+            eggs);
     }
 }

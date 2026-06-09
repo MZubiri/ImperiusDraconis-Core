@@ -24,7 +24,7 @@ public sealed class GamePlayersController : ControllerBase
     /// Obtiene el estado inicial persistente de un jugador Roblox vinculado.
     /// </summary>
     /// <remarks>
-    /// Los sistemas de huevos, dragones y ranking se devuelven vacios hasta sus epicos correspondientes.
+    /// Incluye los huevos persistidos. Dragones y ranking permanecen vacios hasta sus epicos correspondientes.
     /// </remarks>
     [HttpGet("by-roblox/{robloxUserId:long}")]
     [ProducesResponseType(typeof(GamePlayerBootstrapResponse), StatusCodes.Status200OK)]

@@ -5,7 +5,8 @@ Ultima auditoria: **9 de junio de 2026**
 ## Alcance implementado
 
 La arquitectura Game implementada cubre la vinculacion de cuenta, la infraestructura
-economica usada por esa vinculacion y la lectura bootstrap del jugador.
+economica usada por esa vinculacion, la lectura bootstrap y persistencia minima de
+huevos.
 
 ```mermaid
 flowchart LR
@@ -24,7 +25,7 @@ flowchart LR
 | Angular | Existente | Portal Imperius; no incluye aun interfaz Game confirmada en este repositorio. |
 | Nginx frontend | Existente | Sirve Angular y hace fallback a `index.html`; no proxyfica `/api`. |
 | ASP.NET Core 8 | Implementado | Aloja portal API y modulo Game en un solo monolito. |
-| SQL Server | Produccion | Aloja tablas heredadas de Imperius y cinco tablas Game. |
+| SQL Server | Produccion | Aloja cinco tablas Game; `GameEggs` espera aplicar migracion. |
 | Coolify | Produccion | Publica frontend y API bajo dominios separados. |
 | Roblox Studio | Fuera del repositorio | Consume la API desde scripts de servidor. |
 
@@ -92,8 +93,16 @@ En una transaccion SQL serializable:
 
 1. El servidor Roblox se autentica con `X-Game-Api-Key`.
 2. Se busca el vínculo activo por `RobloxUserId`.
-3. Se obtiene perfil, casa, saldo y capacidad en una consulta SQL.
-4. Se devuelve el contrato versionado con placeholders vacios para sistemas futuros.
+3. Se obtiene perfil, casa, saldo y capacidad.
+4. Se consultan huevos mediante `GameEggService`.
+5. Se devuelve el contrato versionado y se calcula capacidad disponible.
+
+### Persistencia de huevos
+
+- `GameEggService` contiene CRUD interno; no existe controlador publico de huevos.
+- Crear valida alumno activo y capacidad dentro de una transaccion serializable.
+- El estado listo se deriva al leer un `INCUBATING` vencido, sin Redis ni Worker.
+- Eclosion, compra, regalos y dragones no estan implementados.
 
 ## Despliegue y routing
 

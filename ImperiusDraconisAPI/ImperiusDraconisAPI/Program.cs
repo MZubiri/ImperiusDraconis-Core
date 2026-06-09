@@ -36,6 +36,7 @@ builder.Services.AddScoped<UserPreferencesService>();
 builder.Services.AddScoped<GameIdempotencyService>();
 builder.Services.AddScoped<DracoinGameService>();
 builder.Services.AddScoped<GameLinkService>();
+builder.Services.AddScoped<GameEggService>();
 builder.Services.AddScoped<GamePlayerService>();
 
 builder.Services.AddHttpClient();
