@@ -1,8 +1,10 @@
 using System.Text;
 using ImperiusDraconisAPI.Configuration;
 using ImperiusDraconisAPI.Data;
+using ImperiusDraconisAPI.Security;
 using ImperiusDraconisAPI.Services;
 using ImperiusDraconisAPI.Services.Game;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -31,6 +33,8 @@ builder.Services.AddScoped<TrabajosService>();
 builder.Services.AddScoped<TiendaService>();
 builder.Services.AddScoped<RinconService>();
 builder.Services.AddScoped<UserPreferencesService>();
+builder.Services.AddScoped<GameIdempotencyService>();
+builder.Services.AddScoped<DracoinGameService>();
 builder.Services.AddScoped<GameLinkService>();
 
 builder.Services.AddHttpClient();
@@ -45,7 +49,7 @@ builder.Services.AddSwaggerGen(options =>
         Description = "API base para migrar la logica del proyecto legado a Angular + ASP.NET Core."
     });
 
-    var securityScheme = new OpenApiSecurityScheme
+    var bearerSecurityScheme = new OpenApiSecurityScheme
     {
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
@@ -59,11 +63,17 @@ builder.Services.AddSwaggerGen(options =>
         }
     };
 
-    options.AddSecurityDefinition(securityScheme.Reference.Id, securityScheme);
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        [securityScheme] = Array.Empty<string>()
-    });
+    options.AddSecurityDefinition(bearerSecurityScheme.Reference.Id, bearerSecurityScheme);
+    options.AddSecurityDefinition(
+        GameApiKeyAuthenticationDefaults.AuthenticationScheme,
+        new OpenApiSecurityScheme
+        {
+            Name = GameApiKeyAuthenticationDefaults.HeaderName,
+            Type = SecuritySchemeType.ApiKey,
+            In = ParameterLocation.Header,
+            Description = "API Key para llamadas servidor Roblox a Imperius."
+        });
+    options.OperationFilter<AuthorizeOperationFilter>();
 
     options.IncludeXmlComments(Path.Combine(
         AppContext.BaseDirectory,
@@ -110,7 +120,10 @@ builder.Services
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(2)
         };
-    });
+    })
+    .AddScheme<AuthenticationSchemeOptions, GameApiKeyAuthenticationHandler>(
+        GameApiKeyAuthenticationDefaults.AuthenticationScheme,
+        _ => { });
 
 builder.Services.AddAuthorization();
 
