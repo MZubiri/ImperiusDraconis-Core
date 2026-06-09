@@ -2,6 +2,7 @@ using System.Text;
 using ImperiusDraconisAPI.Configuration;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Services;
+using ImperiusDraconisAPI.Services.Game;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -11,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 builder.Services.Configure<AuthRecoveryOptions>(builder.Configuration.GetSection(AuthRecoveryOptions.SectionName));
+builder.Services.Configure<GameOptions>(builder.Configuration.GetSection(GameOptions.SectionName));
 builder.Services.AddSingleton<SqlConnectionFactory>();
 builder.Services.AddSingleton<LegacyAssetStorage>();
 builder.Services.AddScoped<AuthService>();
@@ -29,6 +31,7 @@ builder.Services.AddScoped<TrabajosService>();
 builder.Services.AddScoped<TiendaService>();
 builder.Services.AddScoped<RinconService>();
 builder.Services.AddScoped<UserPreferencesService>();
+builder.Services.AddScoped<GameLinkService>();
 
 builder.Services.AddHttpClient();
 builder.Services.AddControllers();
@@ -61,6 +64,10 @@ builder.Services.AddSwaggerGen(options =>
     {
         [securityScheme] = Array.Empty<string>()
     });
+
+    options.IncludeXmlComments(Path.Combine(
+        AppContext.BaseDirectory,
+        "ImperiusDraconisAPI.xml"));
 });
 
 builder.Services.AddCors(options =>

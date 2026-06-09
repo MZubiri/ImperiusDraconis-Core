@@ -23,4 +23,6 @@ dist/
 .DS_Store
 Thumbs.db
 *.sql
+!SQLMigrar/
+!SQLMigrar/*.sql
 *.log
