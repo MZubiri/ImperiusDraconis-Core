@@ -25,7 +25,7 @@ flowchart LR
 | Angular | Existente | Portal Imperius; no incluye aun interfaz Game confirmada en este repositorio. |
 | Nginx frontend | Existente | Sirve Angular y hace fallback a `index.html`; no proxyfica `/api`. |
 | ASP.NET Core 8 | Implementado | Aloja portal API y modulo Game en un solo monolito. |
-| SQL Server | Produccion | Aloja cinco tablas Game; `GameEggs` espera aplicar migracion. |
+| SQL Server | Produccion | Aloja seis tablas Game; `GameEggs` existe y espera ampliacion `005`. |
 | Coolify | Produccion | Publica frontend y API bajo dominios separados. |
 | Roblox Studio | Fuera del repositorio | Consume la API desde scripts de servidor. |
 
@@ -101,6 +101,7 @@ En una transaccion SQL serializable:
 
 - `GameEggService` contiene CRUD interno; no existe controlador publico de huevos.
 - Crear valida alumno activo y capacidad dentro de una transaccion serializable.
+- Cada huevo nuevo requiere `EggDefinitionCode`; huevos legacy pueden devolverlo nulo.
 - El estado listo se deriva al leer un `INCUBATING` vencido, sin Redis ni Worker.
 - Eclosion, compra, regalos y dragones no estan implementados.
 

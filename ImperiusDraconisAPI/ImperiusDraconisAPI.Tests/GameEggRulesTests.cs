@@ -7,6 +7,27 @@ namespace ImperiusDraconisAPI.Tests;
 public sealed class GameEggRulesTests
 {
     [Theory]
+    [InlineData("home", "HOME")]
+    [InlineData(" elemental_fire ", "ELEMENTAL_FIRE")]
+    [InlineData("HOUSE_GRYFFINDOR", "HOUSE_GRYFFINDOR")]
+    public void NormalizeDefinitionCode_ReturnsCanonicalValue(string value, string expected)
+    {
+        Assert.Equal(expected, GameEggRules.NormalizeDefinitionCode(value));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("ELEMENTAL-FIRE")]
+    [InlineData("HUEVO_ÁGUA")]
+    public void NormalizeDefinitionCode_RejectsInvalidValue(string value)
+    {
+        var exception = Assert.Throws<GameBusinessRuleException>(
+            () => GameEggRules.NormalizeDefinitionCode(value));
+
+        Assert.Equal("INVALID_EGG_STATE", exception.Code);
+    }
+
+    [Theory]
     [InlineData("common", "COMMON")]
     [InlineData(" RARE ", "RARE")]
     [InlineData("MYTHIC", "MYTHIC")]

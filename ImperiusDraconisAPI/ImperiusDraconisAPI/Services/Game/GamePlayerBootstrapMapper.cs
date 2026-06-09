@@ -45,6 +45,7 @@ internal static class GamePlayerBootstrapMapper
             Eggs = eggs.Select(egg => new GameBootstrapEggDto
             {
                 Id = egg.Id,
+                EggDefinitionCode = egg.EggDefinitionCode,
                 Rarity = egg.Rarity,
                 AcquiredAt = egg.AcquiredAt,
                 IncubationStartedAt = egg.IncubationStartedAt,

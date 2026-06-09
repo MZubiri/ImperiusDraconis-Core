@@ -88,6 +88,7 @@ public sealed class GamePlayerBootstrapMapperTests
                 {
                     Id = 10,
                     IdAlumno = 3,
+                    EggDefinitionCode = "ELEMENTAL_FIRE",
                     Rarity = "RARE",
                     AcquiredAt = acquiredAt,
                     Status = "OWNED"
@@ -107,8 +108,10 @@ public sealed class GamePlayerBootstrapMapperTests
         Assert.Equal(2, result.Eggs.Count);
         Assert.Equal(2, result.Capacity.AvailableSlots);
         var egg = Assert.Single(result.Eggs, item => item.Id == 10);
+        Assert.Equal("ELEMENTAL_FIRE", egg.EggDefinitionCode);
         Assert.Equal("RARE", egg.Rarity);
         Assert.Equal("OWNED", egg.Status);
+        Assert.Null(Assert.Single(result.Eggs, item => item.Id == 11).EggDefinitionCode);
     }
 
     [Fact]

@@ -131,6 +131,7 @@ Respuesta:
   "eggs": [
     {
       "id": 42,
+      "eggDefinitionCode": "ELEMENTAL_FIRE",
       "rarity": "RARE",
       "acquiredAt": "2026-06-09T18:00:00Z",
       "incubationStartedAt": null,
@@ -149,7 +150,8 @@ Errores relevantes: `BUSINESS_RULE_ERROR`, `NOT_LINKED`, `PLAYER_INACTIVE`,
 
 Los huevos persistidos se incluyen en `eggs`. Un huevo `INCUBATING` cuyo tiempo ya
 vencio se presenta como `READY_TO_HATCH`. `availableSlots` resta huevos no
-eclosionados.
+eclosionados. `eggDefinitionCode` identifica el tipo; puede ser `null` únicamente
+para registros legacy anteriores a la migracion `005`.
 
 ## Endpoints no implementados
 

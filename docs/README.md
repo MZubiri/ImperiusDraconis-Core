@@ -14,9 +14,10 @@ Roblox ↔ Imperius:
 - Registrar ledger e idempotencia del consumo.
 
 El bootstrap inicial y la persistencia minima de huevos estan implementados
-localmente. La migracion `004_create_game_eggs.sql` esta pendiente de aplicar. No
-existen todavia endpoints publicos de huevos ni persistencia Game para dragones,
-misiones, combate o ranking.
+localmente. La migracion `004_create_game_eggs.sql` fue aplicada en produccion y
+`005_add_egg_definition_to_game_eggs.sql` espera aplicarse. No existen todavia
+endpoints publicos de huevos ni persistencia Game para dragones, misiones, combate o
+ranking.
 
 ## Fuente de verdad
 
@@ -67,5 +68,5 @@ dotnet test ImperiusDraconisAPI/ImperiusDraconisAPI.Tests/ImperiusDraconisAPI.Te
 Resultado de la auditoria:
 
 - Build: `0` errores, `0` advertencias.
-- Tests existentes: `30/30` aprobados.
+- Tests existentes: `36/36` aprobados.
 - `main` local coincide con `origin/main`.

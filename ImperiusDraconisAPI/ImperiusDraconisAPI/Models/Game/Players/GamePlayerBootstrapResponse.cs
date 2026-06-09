@@ -50,6 +50,8 @@ public sealed class GameBootstrapEggDto
 {
     public long Id { get; init; }
 
+    public string? EggDefinitionCode { get; init; }
+
     public string Rarity { get; init; } = string.Empty;
 
     public DateTime AcquiredAt { get; init; }

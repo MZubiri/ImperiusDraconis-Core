@@ -4,6 +4,8 @@ namespace ImperiusDraconisAPI.Services.Game;
 
 internal static class GameEggRules
 {
+    private const int MaxDefinitionCodeLength = 50;
+
     private static readonly HashSet<string> Rarities =
     [
         "COMMON",
@@ -32,6 +34,23 @@ internal static class GameEggRules
         if (!Rarities.Contains(normalized))
         {
             throw Invalid("La rareza del huevo no es valida.");
+        }
+
+        return normalized;
+    }
+
+    public static string NormalizeDefinitionCode(string definitionCode)
+    {
+        if (string.IsNullOrWhiteSpace(definitionCode))
+        {
+            throw Invalid("El codigo de definicion del huevo es obligatorio.");
+        }
+
+        var normalized = definitionCode.Trim().ToUpperInvariant();
+        if (normalized.Length > MaxDefinitionCodeLength
+            || normalized.Any(character => character != '_' && !char.IsAsciiLetterOrDigit(character)))
+        {
+            throw Invalid("El codigo de definicion del huevo no es valido.");
         }
 
         return normalized;

@@ -69,7 +69,7 @@ Falta para completar su alcance declarado:
 
 | Issue | Epic | Estado |
 |---|---|---|
-| #2 | Huevos e Incubacion | Abierta; persistencia minima implementada localmente |
+| #2 | Huevos e Incubacion | Abierta; persistencia minima y código de definición implementados localmente |
 | #3 | Dragon Acompanante | Abierta, no implementada |
 | #4 | Necesidades y Crecimiento | Abierta, no implementada |
 | #5 | Misiones y Recompensas | Abierta, no implementada |
@@ -89,3 +89,6 @@ Objetivo: cerrar la lectura inicial del jugador sin adelantar sistemas futuros.
 
 La persistencia minima de huevos fue adelantada como incremento tecnico aislado. Aun
 no incluye adquisición publica, incubacion, eclosion, dragones ni UI Roblox.
+
+La migracion `004_create_game_eggs.sql` fue aplicada en produccion. La ampliacion
+aditiva `005_add_egg_definition_to_game_eggs.sql` queda pendiente de aplicar.

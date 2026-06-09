@@ -1,6 +1,6 @@
 # Persistencia de Huevos Game
 
-Estado: **implementada localmente; migracion pendiente de aplicar**
+Estado: **migracion 004 aplicada en produccion; migracion 005 pendiente de aplicar**
 
 ## Alcance
 
@@ -10,14 +10,37 @@ eclosion, dragones ni interfaz Roblox.
 
 ## Migracion
 
-Ejecutar despues de `003_create_game_epic1.sql`:
+Migraciones:
 
 ```text
-SQLMigrar/004_create_game_eggs.sql
+004_create_game_eggs.sql                     Aplicada en produccion
+005_add_egg_definition_to_game_eggs.sql      Pendiente de aplicar
 ```
 
-La migracion crea exclusivamente `dbo.GameEggs`. Es repetible: si la tabla ya existe,
-finaliza sin modificarla.
+La migracion `005` agrega `EggDefinitionCode NVARCHAR(50) NULL` sin modificar `004`.
+Los registros existentes conservan sus datos y quedan con código nulo.
+
+Aplicar `005` antes de desplegar el backend que lee `EggDefinitionCode`.
+
+## Tipo y rareza
+
+`Rarity` no identifica el tipo del huevo. Huevos Hogar, Arcanos, de casa o
+elementales pueden compartir rareza, pero difieren en apariencia, pool futuro,
+duracion y origen.
+
+`EggDefinitionCode` conserva esa identidad sin requerir todavía un catalogo:
+
+```text
+HOME
+ARCANE
+HOUSE_GRYFFINDOR
+ELEMENTAL_FIRE
+ELEMENTAL_WATER
+CONSTELLATION
+```
+
+El código es nullable exclusivamente para huevos legacy creados antes de `005`.
+`GameEggService.CreateAsync` lo exige y normaliza para todos los huevos nuevos.
 
 ## Estados
 
@@ -71,6 +94,7 @@ creacion del dragon.
 "eggs": [
   {
     "id": 42,
+    "eggDefinitionCode": "ELEMENTAL_FIRE",
     "rarity": "RARE",
     "acquiredAt": "2026-06-09T18:00:00Z",
     "incubationStartedAt": null,
@@ -85,7 +109,9 @@ creacion del dragon.
 
 ## Pendiente
 
-- Aplicar `004_create_game_eggs.sql`.
+- Aplicar `005_add_egg_definition_to_game_eggs.sql`.
 - Validar Bootstrap contra SQL Server desplegado.
+- Definir cómo clasificar manualmente huevos legacy con `EggDefinitionCode = NULL`,
+  si existen.
 - Diseñar compra/adquisicion publica e idempotente.
 - Diseñar incubacion y eclosion como historias separadas.

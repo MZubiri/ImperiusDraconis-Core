@@ -7,6 +7,8 @@ Ultima auditoria: **9 de junio de 2026**
 - Migracion: `SQLMigrar/003_create_game_epic1.sql`
 - Estado informado: aplicada correctamente en produccion.
 - Migracion: `SQLMigrar/004_create_game_eggs.sql`
+- Estado: aplicada en produccion.
+- Migracion: `SQLMigrar/005_add_egg_definition_to_game_eggs.sql`
 - Estado: creada localmente, pendiente de aplicar.
 - ORM: ninguno; acceso mediante `Microsoft.Data.SqlClient`.
 
@@ -128,12 +130,16 @@ GAME_LINK_CONSUME
 
 Persistencia minima de huevos propiedad de un alumno.
 
-Campos: `Id`, `IdAlumno`, `Rarity`, `AcquiredAt`, `IncubationStartedAt`,
+Campos: `Id`, `IdAlumno`, `EggDefinitionCode`, `Rarity`, `AcquiredAt`, `IncubationStartedAt`,
 `IncubationEndsAt`, `Status`, `UpdatedAt`, `RowVersion`.
 
 Restricciones clave:
 
 - FK a `Alumnos.IdAlumno`.
+- `EggDefinitionCode NVARCHAR(50) NULL` identifica el tipo sin crear un catalogo.
+- El código es nulo solo para preservar huevos legacy anteriores a migracion `005`.
+- Los nuevos huevos requieren código desde `GameEggService`.
+- Los códigos no nulos solo aceptan `A-Z`, `0-9` y guion bajo.
 - Rarezas permitidas: `COMMON`, `RARE`, `EPIC`, `LEGENDARY`, `MYTHIC`.
 - Estados permitidos: `OWNED`, `INCUBATING`, `READY_TO_HATCH`, `HATCHED`.
 - `OWNED` exige fechas de incubacion nulas.
@@ -164,7 +170,7 @@ Un fallo produce rollback completo.
 
 No existen tablas Game para:
 
-- Catalogo o tipos de huevos.
+- Catalogo administrable de definiciones de huevos.
 - Dragones o temperamentos.
 - Misiones.
 - Combates o dragones salvajes.

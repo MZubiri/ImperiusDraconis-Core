@@ -81,14 +81,14 @@ Estructura recomendada:
 | `GameBootstrapPlayerDto` | `RobloxUserId`, `DisplayName`, `HouseName` |
 | `GameBootstrapEconomyDto` | `Dracoins` |
 | `GameBootstrapCapacityDto` | `BaseSlots`, `PurchasedSlots`, `TotalSlots`, `MaxCapacity`, `AvailableSlots` |
-| `GameBootstrapEggDto` | Reservado para Epic 2; Sprint 2 devuelve lista vacia |
+| `GameBootstrapEggDto` | `Id`, `EggDefinitionCode`, `Rarity`, `AcquiredAt`, `IncubationStartedAt`, `IncubationEndsAt`, `Status` |
 | `GameBootstrapDragonDto` | Reservado para Epic 2/3; Sprint 2 devuelve lista vacia |
 | `GameBootstrapRankingDto` | Reservado para Epic 6; Sprint 2 devuelve `null` |
 
-Las propiedades reservadas deben ser tipos nominales, no `object` ni diccionarios.
-Sus clases pueden quedar vacias en Sprint 2 y ampliarse agregando propiedades cuando
-se implementen los sistemas correspondientes. Agregar propiedades JSON es compatible
-con clientes que ignoran campos desconocidos.
+Las propiedades todavía reservadas deben ser tipos nominales, no `object` ni
+diccionarios. `GameBootstrapEggDto` fue ampliado posteriormente por la persistencia
+de huevos. Agregar propiedades JSON es compatible con clientes que ignoran campos
+desconocidos.
 
 ## Configuracion
 

@@ -22,6 +22,7 @@ public sealed class GameEggService
             throw Invalid("IdAlumno debe ser mayor a cero.");
         }
 
+        var definitionCode = GameEggRules.NormalizeDefinitionCode(request.EggDefinitionCode);
         var rarity = GameEggRules.NormalizeRarity(request.Rarity);
 
         await using var connection = _connectionFactory.CreateConnection();
@@ -36,7 +37,7 @@ public sealed class GameEggService
 
             await using var command = new SqlCommand(
                 """
-                INSERT INTO dbo.GameEggs (IdAlumno, Rarity)
+                INSERT INTO dbo.GameEggs (IdAlumno, EggDefinitionCode, Rarity)
                 OUTPUT
                     INSERTED.Id,
                     INSERTED.IdAlumno,
@@ -44,12 +45,14 @@ public sealed class GameEggService
                     INSERTED.AcquiredAt,
                     INSERTED.IncubationStartedAt,
                     INSERTED.IncubationEndsAt,
-                    INSERTED.Status
-                VALUES (@IdAlumno, @Rarity);
+                    INSERTED.Status,
+                    INSERTED.EggDefinitionCode
+                VALUES (@IdAlumno, @EggDefinitionCode, @Rarity);
                 """,
                 connection,
                 transaction);
             command.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = request.IdAlumno;
+            command.Parameters.Add("@EggDefinitionCode", SqlDbType.NVarChar, 50).Value = definitionCode;
             command.Parameters.Add("@Rarity", SqlDbType.NVarChar, 20).Value = rarity;
 
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -166,7 +169,8 @@ public sealed class GameEggService
                 INSERTED.AcquiredAt,
                 INSERTED.IncubationStartedAt,
                 INSERTED.IncubationEndsAt,
-                INSERTED.Status
+                INSERTED.Status,
+                INSERTED.EggDefinitionCode
             WHERE Id = @Id;
             """,
             connection);
@@ -222,7 +226,8 @@ public sealed class GameEggService
                 AcquiredAt,
                 IncubationStartedAt,
                 IncubationEndsAt,
-                Status
+                Status,
+                EggDefinitionCode
             FROM dbo.GameEggs
             {whereClause}
             """,
@@ -238,6 +243,7 @@ public sealed class GameEggService
         {
             Id = reader.GetInt64(0),
             IdAlumno = reader.GetInt32(1),
+            EggDefinitionCode = reader.IsDBNull(7) ? null : reader.GetString(7),
             Rarity = reader.GetString(2),
             AcquiredAt = AsUtc(reader.GetDateTime(3)),
             IncubationStartedAt = reader.IsDBNull(4) ? null : AsUtc(reader.GetDateTime(4)),
