@@ -33,6 +33,33 @@ public sealed class GameEggService
 
         try
         {
+            // Validar definicion de huevo
+            await using var defCommand = new SqlCommand(
+                "SELECT Active FROM dbo.GameEggDefinitions WHERE Code = @Code;",
+                connection,
+                transaction);
+            defCommand.Parameters.Add("@Code", SqlDbType.NVarChar, 50).Value = definitionCode;
+
+            await using var defReader = await defCommand.ExecuteReaderAsync(cancellationToken);
+            if (!await defReader.ReadAsync(cancellationToken))
+            {
+                throw new GameBusinessRuleException(
+                    "EGG_DEFINITION_NOT_FOUND",
+                    "La definicion de huevo especificada no existe.",
+                    StatusCodes.Status404NotFound);
+            }
+
+            var isActive = defReader.GetBoolean(0);
+            await defReader.CloseAsync();
+
+            if (!isActive)
+            {
+                throw new GameBusinessRuleException(
+                    "EGG_DEFINITION_INACTIVE",
+                    "La definicion de huevo especificada no esta activa.",
+                    StatusCodes.Status400BadRequest);
+            }
+
             await ValidateAvailableCapacityAsync(connection, transaction, request.IdAlumno, cancellationToken);
 
             await using var command = new SqlCommand(
@@ -315,5 +342,48 @@ public sealed class GameEggService
             "INVALID_EGG_STATE",
             message,
             StatusCodes.Status400BadRequest);
+    }
+
+    public async Task<IReadOnlyCollection<GameEggDefinition>> GetActiveDefinitionsAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(
+            """
+            SELECT
+                Code,
+                DisplayName,
+                Description,
+                PriceDracoins,
+                IncubationMinutes,
+                DefaultRarity,
+                Active,
+                Purchasable,
+                SortOrder
+            FROM dbo.GameEggDefinitions
+            WHERE Active = 1
+            ORDER BY SortOrder;
+            """,
+            connection);
+
+        var definitions = new List<GameEggDefinition>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            definitions.Add(new GameEggDefinition
+            {
+                Code = reader.GetString(0),
+                DisplayName = reader.GetString(1),
+                Description = reader.GetString(2),
+                PriceDracoins = reader.GetInt32(3),
+                IncubationMinutes = reader.GetInt32(4),
+                DefaultRarity = reader.GetString(5),
+                Active = reader.GetBoolean(6),
+                Purchasable = reader.GetBoolean(7),
+                SortOrder = reader.GetInt32(8)
+            });
+        }
+
+        return definitions;
     }
 }
