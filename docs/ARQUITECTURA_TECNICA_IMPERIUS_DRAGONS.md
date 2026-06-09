@@ -1,5 +1,9 @@
 # Imperius Dragons
 
+> **Estado documental:** diseño objetivo del MVP, no inventario de funcionalidad
+> implementada. Para arquitectura real y actualizada consultar
+> [`architecture.md`](architecture.md).
+
 ## Documento técnico MVP realista
 
 **Versión:** 2.1

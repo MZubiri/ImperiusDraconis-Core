@@ -1,5 +1,9 @@
 # Imperius Dragons
 
+> **Estado documental:** diseño UX objetivo para Roblox. No confirma pantallas
+> implementadas en este repositorio. Consultar
+> [`game-design-document.md`](game-design-document.md) para el estado real.
+
 ## Documento de UX y Pantallas del MVP
 
 **Versión:** 1.0

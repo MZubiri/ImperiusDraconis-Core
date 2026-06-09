@@ -1,5 +1,10 @@
 # Imperius Dragons - Plan técnico Sprint 1 / Epic 1
 
+> **Estado documental:** plan historico. US-1.1.1 y US-1.1.2 fueron implementadas y
+> probadas en produccion; US-1.2.1 Bootstrap fue implementada localmente despues de
+> este plan y espera despliegue. Consultar
+> [`backlog.md`](backlog.md) y [`sprint-2-us-1.2.1-design.md`](sprint-2-us-1.2.1-design.md).
+
 ## 1. Objetivo
 
 Implementar la vinculación segura entre una cuenta existente de Imperius y una cuenta de Roblox, junto con la base económica mínima necesaria para que Roblox pueda consultar al jugador y otorgarle la recompensa inicial.

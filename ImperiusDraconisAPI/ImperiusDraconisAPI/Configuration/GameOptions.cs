@@ -4,6 +4,8 @@ public sealed class GameOptions
 {
     public const string SectionName = "Game";
 
+    public string Version { get; set; } = "1.0.0";
+
     public string ApiKey { get; set; } = string.Empty;
 
     public int LinkCodeExpirationMinutes { get; set; } = 10;

@@ -1,5 +1,9 @@
 # Imperius Dragons - Product Backlog MVP
 
+> **Estado documental:** backlog conceptual original. Contiene estados, checkboxes y
+> numeracion de epicos obsoletos. Consultar [`backlog.md`](backlog.md) para el estado
+> verificado contra GitHub Issues y codigo.
+
 Este backlog ha sido diseñado a partir de los documentos técnicos, de contenido y de UX para la implementación del MVP del juego. Está estructurado de forma que cada **User Story** pueda ser copiada y pegada directamente como un **GitHub Issue**, incluyendo su descripción, criterios de aceptación, dependencias, complejidad estimada y tareas técnicas específicas.
 
 ---

@@ -1,5 +1,9 @@
 # Imperius Dragons
 
+> **Estado documental:** diseño de contenido futuro. La mayoria de estos sistemas no
+> esta implementada. Consultar [`game-design-document.md`](game-design-document.md)
+> para conocer el estado real.
+
 ## Game Content Design del MVP
 
 **Versión:** 1.1

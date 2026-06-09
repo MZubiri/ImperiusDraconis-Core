@@ -1,5 +1,11 @@
 # Despliegue En Oracle VPS Con Coolify
 
+> **Estado verificado el 9 de junio de 2026:** el entorno beta usa
+> `https://beta.imperiusdraconis.lat` para Angular y
+> `https://api-beta.imperiusdraconis.lat` para ASP.NET Core. Los dominios sin
+> `beta` descritos abajo representan el objetivo de produccion y no deben usarse para
+> probar el entorno beta.
+
 ## Arquitectura
 
 - Frontend Angular: `https://imperiusdraconis.lat`
@@ -30,6 +36,13 @@ ASPNETCORE_ENVIRONMENT=Production
 ASPNETCORE_URLS=http://+:8080
 ConnectionStrings__DefaultConnection=CADENA_SQLSERVER_SMARTASP
 Jwt__SecretKey=SECRETO_ALEATORIO_DE_AL_MENOS_32_CARACTERES
+Game__ApiKey=SECRETO_PARA_SERVIDOR_ROBLOX
+Game__Version=1.0.0
+Game__LinkCodePepper=SECRETO_HMAC_DIFERENTE
+Game__LinkCodeExpirationMinutes=10
+Game__WelcomeDracoins=400
+Game__BaseDragonSlots=1
+Game__MaxDragonCapacity=10
 ```
 
 La cadena SQL Server debe incluir los parametros requeridos por SmartASP. Ejemplo de
@@ -132,6 +145,10 @@ puertos publicados correspondientes.
 3. Iniciar sesion con una cuenta valida.
 4. Verificar que las imagenes servidas desde la API carguen correctamente.
 5. Confirmar que los archivos subidos persisten tras reconstruir la API.
+
+Para beta, sustituir el dominio API por `https://api-beta.imperiusdraconis.lat`.
+`https://beta.imperiusdraconis.lat/api/...` no llega al backend porque el Nginx del
+frontend no configura `proxy_pass`.
 
 ## Desarrollo Local
 
