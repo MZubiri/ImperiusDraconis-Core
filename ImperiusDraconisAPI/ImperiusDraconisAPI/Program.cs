@@ -3,9 +3,11 @@ using ImperiusDraconisAPI.Configuration;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Security;
 using ImperiusDraconisAPI.Services;
+using ImperiusDraconisAPI.Services.Auditoria;
 using ImperiusDraconisAPI.Services.Game;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -39,6 +41,8 @@ builder.Services.AddScoped<GameLinkService>();
 builder.Services.AddScoped<GameEggService>();
 builder.Services.AddScoped<GamePlayerService>();
 builder.Services.AddScoped<GameDragonService>();
+builder.Services.AddSingleton<IGeoLocationService, GeoLocationService>();
+builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
 
 
 builder.Services.AddHttpClient();
@@ -132,6 +136,11 @@ builder.Services
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 if (app.Environment.IsDevelopment())
 {

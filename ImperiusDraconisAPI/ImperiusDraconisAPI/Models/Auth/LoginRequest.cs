@@ -9,4 +9,6 @@ public sealed class LoginRequest
 
     [Required]
     public string Contrasena { get; set; } = string.Empty;
+
+    public string? FingerprintHash { get; set; }
 }

@@ -467,6 +467,18 @@ public sealed class AuthService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
+    public async Task<int?> ObtenerIdAlumnoPorCodigoAsync(string codigo, CancellationToken cancellationToken)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        using var command = new SqlCommand("SELECT IdAlumno FROM Alumnos WHERE Codigo = @Codigo", connection);
+        command.Parameters.AddWithValue("@Codigo", codigo.Trim());
+
+        object? result = await command.ExecuteScalarAsync(cancellationToken);
+        return result == DBNull.Value || result == null ? null : Convert.ToInt32(result);
+    }
+
     private static string GetString(SqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? string.Empty : reader[columnName]?.ToString() ?? string.Empty;
 

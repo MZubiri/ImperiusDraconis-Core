@@ -2,6 +2,7 @@ using System.Security.Claims;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Models.Auth;
 using ImperiusDraconisAPI.Services;
+using ImperiusDraconisAPI.Services.Auditoria;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,10 +13,12 @@ namespace ImperiusDraconisAPI.Controllers;
 public sealed class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
+    private readonly IAuditoriaService _auditoriaService;
 
-    public AuthController(AuthService authService)
+    public AuthController(AuthService authService, IAuditoriaService auditoriaService)
     {
         _authService = authService;
+        _auditoriaService = auditoriaService;
     }
 
     [AllowAnonymous]
@@ -27,10 +30,25 @@ public sealed class AuthController : ControllerBase
         CancellationToken cancellationToken)
     {
         var response = await _authService.LoginAsync(request, cancellationToken);
+
+        string ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "0.0.0.0";
+        string userAgent = HttpContext.Request.Headers["User-Agent"].ToString() ?? "Desconocido";
+        string fingerprint = request.FingerprintHash ?? "Desconocido";
+
         if (response is null)
         {
+            // Intentar buscar el IdAlumno por código para registrar el intento fallido
+            int? idAlumno = await _authService.ObtenerIdAlumnoPorCodigoAsync(request.Codigo, cancellationToken);
+            if (idAlumno.HasValue)
+            {
+                await _auditoriaService.RegistrarAccesoAsync(idAlumno.Value, ipAddress, userAgent, fingerprint, exito: false);
+            }
+
             return Unauthorized(new { message = "Credenciales invalidas o usuario inactivo." });
         }
+
+        // Registrar acceso exitoso
+        await _auditoriaService.RegistrarAccesoAsync(response.User.IdAlumno, ipAddress, userAgent, fingerprint, exito: true);
 
         return Ok(response);
     }
