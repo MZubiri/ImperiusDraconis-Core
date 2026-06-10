@@ -49,6 +49,14 @@ public sealed class GamePlayersController : ControllerBase
                 Message = exception.Message
             });
         }
+        catch (Exception exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new GameErrorResponse
+            {
+                Code = "INTERNAL_SERVER_ERROR",
+                Message = exception.Message
+            });
+        }
     }
 
     /// <summary>
@@ -95,6 +103,14 @@ public sealed class GamePlayersController : ControllerBase
             return BadRequest(new GameErrorResponse
             {
                 Code = "BUSINESS_RULE_ERROR",
+                Message = exception.Message
+            });
+        }
+        catch (Exception exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new GameErrorResponse
+            {
+                Code = "INTERNAL_SERVER_ERROR",
                 Message = exception.Message
             });
         }

@@ -749,7 +749,7 @@ public sealed class GameEggService
         {
             // 0. Validar vinculación del usuario que eclosiona
             await using var linkCommand = new SqlCommand(
-                "SELECT IdAlumno, CONVERT(BIT, ISNULL(A.Activo, 0)) FROM dbo.GameRobloxLinks L INNER JOIN dbo.Alumnos A ON A.IdAlumno = L.IdAlumno WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;",
+                "SELECT L.IdAlumno, CONVERT(BIT, ISNULL(A.Activo, 0)) FROM dbo.GameRobloxLinks L INNER JOIN dbo.Alumnos A ON A.IdAlumno = L.IdAlumno WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;",
                 connection,
                 transaction);
             linkCommand.Parameters.Add("@RobloxUserId", SqlDbType.BigInt).Value = request.RobloxUserId;
@@ -779,9 +779,9 @@ public sealed class GameEggService
             // 1. Obtener huevo con UPDLOCK, HOLDLOCK
             await using var eggCommand = new SqlCommand(
                 """
-                SELECT IdAlumno, Rarity, Status, IncubationEndsAt
-                FROM dbo.GameEggs WITH (UPDLOCK, HOLDLOCK)
-                WHERE Id = @Id;
+                SELECT E.IdAlumno, E.Rarity, E.Status, E.IncubationEndsAt
+                FROM dbo.GameEggs E WITH (UPDLOCK, HOLDLOCK)
+                WHERE E.Id = @Id;
                 """,
                 connection,
                 transaction);

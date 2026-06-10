@@ -84,6 +84,14 @@ public sealed class GameEggsController : ControllerBase
                 Message = exception.Message
             });
         }
+        catch (Exception exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new GameErrorResponse
+            {
+                Code = "INTERNAL_SERVER_ERROR",
+                Message = exception.Message
+            });
+        }
     }
 
     /// <summary>
@@ -119,6 +127,14 @@ public sealed class GameEggsController : ControllerBase
             return BadRequest(new GameErrorResponse
             {
                 Code = "BUSINESS_RULE_ERROR",
+                Message = exception.Message
+            });
+        }
+        catch (Exception exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new GameErrorResponse
+            {
+                Code = "INTERNAL_SERVER_ERROR",
                 Message = exception.Message
             });
         }
@@ -158,6 +174,14 @@ public sealed class GameEggsController : ControllerBase
             return BadRequest(new GameErrorResponse
             {
                 Code = "BUSINESS_RULE_ERROR",
+                Message = exception.Message
+            });
+        }
+        catch (Exception exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new GameErrorResponse
+            {
+                Code = "INTERNAL_SERVER_ERROR",
                 Message = exception.Message
             });
         }
@@ -208,6 +232,14 @@ public sealed class GameEggsController : ControllerBase
             return BadRequest(new GameErrorResponse
             {
                 Code = "BUSINESS_RULE_ERROR",
+                Message = exception.Message
+            });
+        }
+        catch (Exception exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new GameErrorResponse
+            {
+                Code = "INTERNAL_SERVER_ERROR",
                 Message = exception.Message
             });
         }
