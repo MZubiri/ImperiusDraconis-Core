@@ -38,6 +38,8 @@ builder.Services.AddScoped<DracoinGameService>();
 builder.Services.AddScoped<GameLinkService>();
 builder.Services.AddScoped<GameEggService>();
 builder.Services.AddScoped<GamePlayerService>();
+builder.Services.AddScoped<GameDragonService>();
+
 
 builder.Services.AddHttpClient();
 builder.Services.AddControllers();

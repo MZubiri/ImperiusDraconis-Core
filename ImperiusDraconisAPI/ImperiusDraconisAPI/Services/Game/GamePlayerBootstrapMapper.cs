@@ -1,5 +1,6 @@
 using ImperiusDraconisAPI.Models.Game.Players;
 using ImperiusDraconisAPI.Models.Game.Eggs;
+using System.Linq;
 
 namespace ImperiusDraconisAPI.Services.Game;
 
@@ -14,11 +15,14 @@ internal static class GamePlayerBootstrapMapper
         decimal dracoins,
         int purchasedSlots,
         int maxCapacity,
-        IReadOnlyCollection<GameEgg>? eggs = null)
+        IReadOnlyCollection<GameEgg>? eggs = null,
+        IReadOnlyCollection<GameBootstrapDragonDto>? dragons = null)
     {
         eggs ??= [];
+        dragons ??= [];
+
         var totalSlots = Math.Min(maxCapacity, baseSlots + purchasedSlots);
-        var occupiedSlots = eggs.Count(egg => egg.Status != "HATCHED");
+        var occupiedSlots = eggs.Count(egg => egg.Status != "HATCHED") + dragons.Count(d => d.Status != "FLED");
         var availableSlots = Math.Max(0, totalSlots - occupiedSlots);
 
         return new GamePlayerBootstrapResponse
@@ -52,9 +56,10 @@ internal static class GamePlayerBootstrapMapper
                 IncubationEndsAt = egg.IncubationEndsAt,
                 Status = egg.Status
             }).ToArray(),
-            Dragons = [],
-            SelectedDragon = null,
+            Dragons = dragons,
+            SelectedDragon = dragons.FirstOrDefault(d => d.Selected),
             Ranking = null
         };
     }
 }
+

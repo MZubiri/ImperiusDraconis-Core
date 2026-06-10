@@ -63,6 +63,38 @@ public sealed class GameBootstrapEggDto
     public string Status { get; init; } = string.Empty;
 }
 
-public sealed class GameBootstrapDragonDto;
+public sealed class GameBootstrapDragonDto
+{
+    public long Id { get; init; }
+
+    public string Name { get; init; } = string.Empty;
+
+    public string Rarity { get; init; } = string.Empty;
+
+    public string Temperament { get; init; } = string.Empty;
+
+    public string SpeciesCode { get; init; } = string.Empty;
+
+    public int Level { get; init; }
+
+    public string Stage { get; init; } = string.Empty;
+
+    public DateTime HatchedAt { get; init; }
+
+    public int Life { get; init; }
+
+    public int Happiness { get; init; }
+
+    public int Hunger { get; init; }
+
+    public int Experience { get; init; }
+
+    public string Status { get; init; } = string.Empty;
+
+    public bool Selected { get; init; }
+
+    public DateTime LastNeedsUpdateAt { get; init; }
+}
 
 public sealed class GameBootstrapRankingDto;
+

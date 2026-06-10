@@ -17,6 +17,7 @@ public sealed class GamePlayerService
 {
     private readonly SqlConnectionFactory _connectionFactory;
     private readonly GameEggService _gameEggService;
+    private readonly GameDragonService _gameDragonService;
     private readonly GameIdempotencyService _idempotencyService;
     private readonly DracoinGameService _dracoinGameService;
     private readonly GameOptions _options;
@@ -24,12 +25,14 @@ public sealed class GamePlayerService
     public GamePlayerService(
         SqlConnectionFactory connectionFactory,
         GameEggService gameEggService,
+        GameDragonService gameDragonService,
         GameIdempotencyService idempotencyService,
         DracoinGameService dracoinGameService,
         IOptions<GameOptions> options)
     {
         _connectionFactory = connectionFactory;
         _gameEggService = gameEggService;
+        _gameDragonService = gameDragonService;
         _idempotencyService = idempotencyService;
         _dracoinGameService = dracoinGameService;
         _options = options.Value;
@@ -116,6 +119,7 @@ public sealed class GamePlayerService
         await reader.CloseAsync();
 
         var eggs = await _gameEggService.ListByPlayerAsync(idAlumno, cancellationToken);
+        var dragons = await _gameDragonService.ListByPlayerAsync(idAlumno, cancellationToken);
 
         return GamePlayerBootstrapMapper.Map(
             _options.Version,
@@ -126,7 +130,8 @@ public sealed class GamePlayerService
             dracoins,
             purchasedSlots,
             maxCapacity,
-            eggs);
+            eggs,
+            dragons);
     }
 
     public async Task<PurchaseDragonCapacityResponse> PurchaseCapacityAsync(

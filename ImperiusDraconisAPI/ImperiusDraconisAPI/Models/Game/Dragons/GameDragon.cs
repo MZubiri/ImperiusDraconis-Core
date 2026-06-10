@@ -34,3 +34,16 @@ public sealed class HatchGameEggResponse
 
     public GameDragon Dragon { get; init; } = new();
 }
+
+public sealed class SelectDragonRequest
+{
+    public long RobloxUserId { get; init; }
+}
+
+public sealed class SelectDragonResponse
+{
+    public long DragonId { get; init; }
+
+    public bool Selected { get; init; }
+}
+

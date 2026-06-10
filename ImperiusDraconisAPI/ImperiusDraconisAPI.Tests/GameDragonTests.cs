@@ -57,4 +57,42 @@ public sealed class GameDragonTests
         Assert.Equal(12345678, request.RobloxUserId);
         Assert.Equal("Saphira", request.Name);
     }
+
+    [Fact]
+    public void SelectDragonRequest_CanBeInitializedAndSerialized()
+    {
+        var request = new SelectDragonRequest
+        {
+            RobloxUserId = 87654321
+        };
+
+        Assert.Equal(87654321, request.RobloxUserId);
+
+        var json = JsonSerializer.Serialize(request, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+
+        Assert.Equal(87654321, root.GetProperty("robloxUserId").GetInt64());
+    }
+
+    [Fact]
+    public void SelectDragonResponse_CanBeInitializedAndSerialized()
+    {
+        var response = new SelectDragonResponse
+        {
+            DragonId = 123,
+            Selected = true
+        };
+
+        Assert.Equal(123, response.DragonId);
+        Assert.True(response.Selected);
+
+        var json = JsonSerializer.Serialize(response, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+
+        Assert.Equal(123, root.GetProperty("dragonId").GetInt64());
+        Assert.True(root.GetProperty("selected").GetBoolean());
+    }
 }
+
