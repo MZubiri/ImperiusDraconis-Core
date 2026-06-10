@@ -68,6 +68,11 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                     return (null, null, null);
                 }
 
+                if (ip.IsIPv4MappedToIPv6)
+                {
+                    ip = ip.MapToIPv4();
+                }
+
                 // Omitir IPs locales y de red privada para evitar excepciones en MaxMind DatabaseReader
                 if (IPAddress.IsLoopback(ip) || EsIpPrivada(ip))
                 {
@@ -115,6 +120,11 @@ namespace ImperiusDraconisAPI.Services.Auditoria
 
         private bool EsIpPrivada(IPAddress ip)
         {
+            if (ip.IsIPv4MappedToIPv6)
+            {
+                ip = ip.MapToIPv4();
+            }
+
             byte[] bytes = ip.GetAddressBytes();
             if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
             {
