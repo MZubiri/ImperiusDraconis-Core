@@ -36,3 +36,23 @@ public sealed class UpdateGameEggCommand
 
     public string Status { get; init; } = string.Empty;
 }
+
+public sealed class PurchaseGameEggRequest
+{
+    public long RobloxUserId { get; init; }
+
+    public string EggDefinitionCode { get; init; } = string.Empty;
+}
+
+public sealed class PurchaseGameEggResponse
+{
+    public long Id { get; init; }
+
+    public string EggDefinitionCode { get; init; } = string.Empty;
+
+    public string Rarity { get; init; } = string.Empty;
+
+    public int PricePaid { get; init; }
+
+    public decimal BalanceAfter { get; init; }
+}

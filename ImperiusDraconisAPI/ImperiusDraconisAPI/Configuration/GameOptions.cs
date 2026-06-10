@@ -17,4 +17,6 @@ public sealed class GameOptions
     public int BaseDragonSlots { get; set; } = 1;
 
     public int MaxDragonCapacity { get; set; } = 10;
+
+    public int BaseSlotPrice { get; set; } = 150;
 }
