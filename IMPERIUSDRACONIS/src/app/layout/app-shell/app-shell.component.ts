@@ -167,6 +167,12 @@ export class AppShellComponent {
       icon: 'shield-check',
       route: '/permisos',
       permission: ['Permisos:Index', 'Permisos:Guardar']
+    },
+    {
+      label: 'Auditoría',
+      icon: 'eye',
+      route: '/auditoria',
+      permission: ['Auditoria:VerResumen']
     }
   ] as const;
 

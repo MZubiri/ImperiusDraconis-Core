@@ -17,6 +17,7 @@ export interface AuthenticatedUser {
 export interface LoginRequest {
   codigo: string;
   contrasena: string;
+  fingerprintHash?: string;
 }
 
 export interface RecoverPasswordRequest {

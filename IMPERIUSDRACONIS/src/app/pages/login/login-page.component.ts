@@ -7,6 +7,7 @@ import { finalize } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { ActivatedRoute } from '@angular/router';
 import { readHttpErrorMessage } from '../../core/utils/http-error.utils';
+import { getBrowserFingerprint } from '../../core/utils/fingerprint.utils';
 
 @Component({
   selector: 'app-login-page',
@@ -48,7 +49,7 @@ export class LoginPageComponent {
     this.errorMessage.set('');
   }
 
-  submit(): void {
+  async submit(): Promise<void> {
     this.errorMessage.set('');
 
     if (!this.credentials.codigo.trim() || !this.credentials.contrasena.trim()) {
@@ -57,10 +58,14 @@ export class LoginPageComponent {
     }
 
     this.loading.set(true);
+
+    const fingerprintHash = await getBrowserFingerprint();
+
     this.auth
       .login({
         codigo: this.credentials.codigo.trim(),
-        contrasena: this.credentials.contrasena
+        contrasena: this.credentials.contrasena,
+        fingerprintHash
       })
       .pipe(
         finalize(() => {

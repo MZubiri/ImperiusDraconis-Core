@@ -18,6 +18,11 @@ namespace ImperiusDraconisAPI.Services.Auditoria
         Task EvaluarAuditoriaAlumnoAsync(int idAlumno);
         Task RegistrarExcepcionAsync(ExcepcionAuditoria excepcion);
         Task<RelacionAccesoNodoDto> ObtenerArbolRelacionesAsync(int idAlumno);
+        Task RegistrarDecisionAsync(DecisionAdministrativa decision);
+        Task<List<DecisionAdministrativa>> ObtenerHistorialDecisionesAsync(int idAlumno);
+        Task RegistrarCuentaEspecialAsync(CuentaEspecial cuentaEspecial);
+        Task<List<ExcepcionAuditoria>> ObtenerExcepcionesAsync();
+        Task<List<ResumenAuditoriaListadoDto>> ObtenerTodosResumenesAsync();
     }
 
     public class AuditoriaService : IAuditoriaService
@@ -157,8 +162,8 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                 raiz.Valor = idAlumno.ToString();
             }
 
-            // Ramas de Dispositivos
-            var nodoDispositivos = new RelacionAccesoNodoDto { Label = "Dispositivos Registrados", Tipo = "GRUPO" };
+            // 1. Obtener Dispositivos
+            var dispositivos = new List<(string Hash, string Alias)>();
             using (var cmdDev = new SqlCommand(@"
                 SELECT FingerprintHash, NombreDispositivoManual 
                 FROM dbo.DispositivosAlumno 
@@ -170,16 +175,92 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                 {
                     string hash = reader.GetString(0);
                     string alias = reader.IsDBNull(1) ? $"Huella {hash.Substring(0, 8)}" : reader.GetString(1);
-
-                    nodoDispositivos.Hijos.Add(new RelacionAccesoNodoDto
-                    {
-                        Label = alias,
-                        Tipo = "DISPOSITIVO",
-                        Valor = hash
-                    });
+                    dispositivos.Add((hash, alias));
                 }
             }
+
+            var nodoDispositivos = new RelacionAccesoNodoDto { Label = "Dispositivos (Huellas)", Tipo = "GRUPO" };
+            foreach (var dev in dispositivos)
+            {
+                var devNode = new RelacionAccesoNodoDto
+                {
+                    Label = dev.Alias,
+                    Tipo = "DISPOSITIVO",
+                    Valor = dev.Hash
+                };
+
+                // Buscar otras cuentas que usaron este fingerprint
+                using (var cmdShared = new SqlCommand(@"
+                    SELECT DISTINCT A.IdAlumno, A.Nombre 
+                    FROM dbo.HistorialAccesos H
+                    INNER JOIN dbo.Alumnos A ON A.IdAlumno = H.IdAlumno
+                    WHERE H.FingerprintHash = @FP AND H.IdAlumno <> @IdAlumno AND H.Exito = 1", conn))
+                {
+                    cmdShared.Parameters.AddWithValue("@FP", dev.Hash);
+                    cmdShared.Parameters.AddWithValue("@IdAlumno", idAlumno);
+                    using var readerShared = await cmdShared.ExecuteReaderAsync();
+                    while (await readerShared.ReadAsync())
+                    {
+                        devNode.Hijos.Add(new RelacionAccesoNodoDto
+                        {
+                            Label = $"{readerShared.GetString(1)} (ID: {readerShared.GetInt32(0)})",
+                            Tipo = "ALUMNO_RELACIONADO",
+                            Valor = readerShared.GetInt32(0).ToString()
+                        });
+                    }
+                }
+                nodoDispositivos.Hijos.Add(devNode);
+            }
             if (nodoDispositivos.Hijos.Count > 0) raiz.Hijos.Add(nodoDispositivos);
+
+            // 2. Obtener Direcciones IP
+            var ips = new List<string>();
+            using (var cmdIp = new SqlCommand(@"
+                SELECT DISTINCT DireccionIP 
+                FROM dbo.HistorialAccesos 
+                WHERE IdAlumno = @Id AND Exito = 1", conn))
+            {
+                cmdIp.Parameters.AddWithValue("@Id", idAlumno);
+                using var reader = await cmdIp.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    ips.Add(reader.GetString(0));
+                }
+            }
+
+            var nodoIps = new RelacionAccesoNodoDto { Label = "Direcciones IP Utilizadas", Tipo = "GRUPO" };
+            foreach (var ip in ips)
+            {
+                var ipNode = new RelacionAccesoNodoDto
+                {
+                    Label = ip,
+                    Tipo = "IP",
+                    Valor = ip
+                };
+
+                // Buscar otras cuentas que usaron esta IP
+                using (var cmdSharedIp = new SqlCommand(@"
+                    SELECT DISTINCT A.IdAlumno, A.Nombre 
+                    FROM dbo.HistorialAccesos H
+                    INNER JOIN dbo.Alumnos A ON A.IdAlumno = H.IdAlumno
+                    WHERE H.DireccionIP = @IP AND H.IdAlumno <> @IdAlumno AND H.Exito = 1", conn))
+                {
+                    cmdSharedIp.Parameters.AddWithValue("@IP", ip);
+                    cmdSharedIp.Parameters.AddWithValue("@IdAlumno", idAlumno);
+                    using var readerSharedIp = await cmdSharedIp.ExecuteReaderAsync();
+                    while (await readerSharedIp.ReadAsync())
+                    {
+                        ipNode.Hijos.Add(new RelacionAccesoNodoDto
+                        {
+                            Label = $"{readerSharedIp.GetString(1)} (ID: {readerSharedIp.GetInt32(0)})",
+                            Tipo = "ALUMNO_RELACIONADO",
+                            Valor = readerSharedIp.GetInt32(0).ToString()
+                        });
+                    }
+                }
+                nodoIps.Hijos.Add(ipNode);
+            }
+            if (nodoIps.Hijos.Count > 0) raiz.Hijos.Add(nodoIps);
 
             return raiz;
         }
@@ -410,6 +491,162 @@ namespace ImperiusDraconisAPI.Services.Auditoria
             if (ua.Contains("mobile") || ua.Contains("android") || ua.Contains("iphone")) return "Mobile";
             if (ua.Contains("ipad") || ua.Contains("tablet")) return "Tablet";
             return "Desktop";
+        }
+
+        public async Task RegistrarDecisionAsync(DecisionAdministrativa decision)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(@"
+                INSERT INTO dbo.DecisionesAdministrativas 
+                (IdAlumno, IdAlumnoRelacionado, Decision, Motivo, NotasInternas, IdAdministrador, FechaDecision) 
+                VALUES 
+                (@IdAlumno, @IdAlumnoRelacionado, @Decision, @Motivo, @Notas, @IdAdmin, GETDATE())", conn);
+
+            cmd.Parameters.AddWithValue("@IdAlumno", decision.IdAlumno);
+            cmd.Parameters.AddWithValue("@IdAlumnoRelacionado", decision.IdAlumnoRelacionado ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@Decision", decision.Decision);
+            cmd.Parameters.AddWithValue("@Motivo", decision.Motivo ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@Notas", decision.NotasInternas ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@IdAdmin", decision.IdAdministrador);
+
+            await conn.OpenAsync();
+            await cmd.ExecuteNonQueryAsync();
+
+            using (var cmdEvent = new SqlCommand(@"
+                INSERT INTO dbo.AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, IdAlumnoRelacionado, ValorNuevo, DetallesJson, FechaEvento)
+                VALUES ('DECISION_REGISTRADA', 'ADMINISTRADOR', 'MEDIUM', @Id, @RelId, @Decision, @Detalles, GETDATE())", conn))
+            {
+                cmdEvent.Parameters.AddWithValue("@Id", decision.IdAlumno);
+                cmdEvent.Parameters.AddWithValue("@RelId", decision.IdAlumnoRelacionado ?? (object)DBNull.Value);
+                cmdEvent.Parameters.AddWithValue("@Decision", decision.Decision);
+                cmdEvent.Parameters.AddWithValue("@Detalles", JsonSerializer.Serialize(decision));
+                await cmdEvent.ExecuteNonQueryAsync();
+            }
+
+            await EvaluarAuditoriaInternaAsync(decision.IdAlumno, conn);
+        }
+
+        public async Task<List<DecisionAdministrativa>> ObtenerHistorialDecisionesAsync(int idAlumno)
+        {
+            var historial = new List<DecisionAdministrativa>();
+
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(@"
+                SELECT Id, IdAlumno, IdAlumnoRelacionado, Decision, Motivo, NotasInternas, IdAdministrador, FechaDecision 
+                FROM dbo.DecisionesAdministrativas 
+                WHERE IdAlumno = @IdAlumno 
+                ORDER BY FechaDecision DESC", conn);
+            cmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
+
+            await conn.OpenAsync();
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                historial.Add(new DecisionAdministrativa
+                {
+                    Id = reader.GetInt32(0),
+                    IdAlumno = reader.GetInt32(1),
+                    IdAlumnoRelacionado = reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                    Decision = reader.GetString(3),
+                    Motivo = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    NotasInternas = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    IdAdministrador = reader.GetInt32(6),
+                    FechaDecision = reader.GetDateTime(7)
+                });
+            }
+            return historial;
+        }
+
+        public async Task RegistrarCuentaEspecialAsync(CuentaEspecial cuentaEspecial)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(@"
+                MERGE dbo.CuentasEspeciales AS Target
+                USING (SELECT @IdAlumno AS Id, @Tipo AS Tipo, @Desc AS [Desc], @Mult AS Mult) AS Source
+                ON (Target.IdAlumno = Source.Id)
+                WHEN MATCHED THEN
+                    UPDATE SET TipoCuenta = Source.Tipo, Descripcion = Source.[Desc], MultiplicadorAuditoria = Source.Mult
+                WHEN NOT MATCHED THEN
+                    INSERT (IdAlumno, TipoCuenta, Descripcion, MultiplicadorAuditoria, FechaRegistro)
+                    VALUES (Source.Id, Source.Tipo, Source.[Desc], Source.Mult, GETDATE());", conn);
+
+            cmd.Parameters.AddWithValue("@IdAlumno", cuentaEspecial.IdAlumno);
+            cmd.Parameters.AddWithValue("@Tipo", cuentaEspecial.TipoCuenta);
+            cmd.Parameters.AddWithValue("@Desc", cuentaEspecial.Descripcion ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@Mult", cuentaEspecial.MultiplicadorAuditoria);
+
+            await conn.OpenAsync();
+            await cmd.ExecuteNonQueryAsync();
+
+            using (var cmdEvent = new SqlCommand(@"
+                INSERT INTO dbo.AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, ValorNuevo, DetallesJson, FechaEvento)
+                VALUES ('CUENTA_ESPECIAL_REGISTRADA', 'ADMINISTRADOR', 'LOW', @Id, @Tipo, @Detalles, GETDATE())", conn))
+            {
+                cmdEvent.Parameters.AddWithValue("@Id", cuentaEspecial.IdAlumno);
+                cmdEvent.Parameters.AddWithValue("@Tipo", cuentaEspecial.TipoCuenta);
+                cmdEvent.Parameters.AddWithValue("@Detalles", JsonSerializer.Serialize(cuentaEspecial));
+                await cmdEvent.ExecuteNonQueryAsync();
+            }
+
+            await EvaluarAuditoriaInternaAsync(cuentaEspecial.IdAlumno, conn);
+        }
+
+        public async Task<List<ExcepcionAuditoria>> ObtenerExcepcionesAsync()
+        {
+            var excepciones = new List<ExcepcionAuditoria>();
+
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(@"
+                SELECT Id, TipoExcepcion, ValorA, ValorB, Motivo, FechaCreado, IdAdministrador, Activa 
+                FROM dbo.ExcepcionesAuditoria 
+                WHERE Activa = 1
+                ORDER BY FechaCreado DESC", conn);
+
+            await conn.OpenAsync();
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                excepciones.Add(new ExcepcionAuditoria
+                {
+                    Id = reader.GetInt32(0),
+                    TipoExcepcion = reader.GetString(1),
+                    ValorA = reader.GetString(2),
+                    ValorB = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    Motivo = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    FechaCreado = reader.GetDateTime(5),
+                    IdAdministrador = reader.GetInt32(6),
+                    Activa = reader.GetBoolean(7)
+                });
+            }
+            return excepciones;
+        }
+
+        public async Task<List<ResumenAuditoriaListadoDto>> ObtenerTodosResumenesAsync()
+        {
+            var resumenes = new List<ResumenAuditoriaListadoDto>();
+
+            using var conn = new SqlConnection(_connectionString);
+            using var cmd = new SqlCommand(@"
+                SELECT R.IdAlumno, A.Nombre, R.RelevanciaAuditoria, R.MotivosDetalle, R.EvidenciasJson, R.UltimaEvaluacion 
+                FROM dbo.ResumenAuditoriaAccesos R
+                INNER JOIN dbo.Alumnos A ON A.IdAlumno = R.IdAlumno
+                ORDER BY R.RelevanciaAuditoria DESC, R.UltimaEvaluacion DESC", conn);
+
+            await conn.OpenAsync();
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                resumenes.Add(new ResumenAuditoriaListadoDto
+                {
+                    IdAlumno = reader.GetInt32(0),
+                    NombreAlumno = reader.GetString(1),
+                    RelevanciaAuditoria = reader.GetInt32(2),
+                    MotivosDetalle = reader.GetString(3),
+                    EvidenciasJson = reader.GetString(4),
+                    UltimaEvaluacion = reader.GetDateTime(5)
+                });
+            }
+            return resumenes;
         }
     }
 }

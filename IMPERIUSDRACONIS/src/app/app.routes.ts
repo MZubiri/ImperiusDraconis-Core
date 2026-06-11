@@ -29,6 +29,8 @@ const loadRinconPage = () =>
   import('./pages/rincon/rincon-page.component').then((module) => module.RinconPageComponent);
 const loadTiendaPage = () =>
   import('./pages/tienda/tienda-page.component').then((module) => module.TiendaPageComponent);
+const loadAuditoriaPage = () =>
+  import('./pages/auditoria/auditoria-page.component').then((module) => module.AuditoriaPageComponent);
 
 export const routes: Routes = [
   {
@@ -219,6 +221,14 @@ export const routes: Routes = [
       {
         path: 'Permisos',
         loadComponent: loadPermisosPage
+      },
+      {
+        path: 'auditoria',
+        loadComponent: loadAuditoriaPage
+      },
+      {
+        path: 'Auditoria',
+        loadComponent: loadAuditoriaPage
       },
       {
         path: 'productos',

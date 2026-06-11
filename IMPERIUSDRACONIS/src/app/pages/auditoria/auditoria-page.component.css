@@ -1,0 +1,318 @@
+/* Layout general */
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 450px minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+@media (max-width: 1200px) {
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Buscador y select de prioridad */
+.filters-row {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.search-input {
+  flex: 1;
+}
+
+/* Fila seleccionada en la tabla */
+.selected-row {
+  background: var(--accent-soft) !important;
+  border-left: 3px solid var(--gold);
+}
+
+.text-ellipsis {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Insignias de prioridad */
+.badge {
+  display: inline-flex;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.badge.critical {
+  color: #fee2e2;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.badge.high {
+  color: #ffedd5;
+  background: rgba(249, 115, 22, 0.2);
+  border: 1px solid rgba(249, 115, 22, 0.4);
+}
+
+.badge.medium {
+  color: #fef9c3;
+  background: rgba(234, 179, 8, 0.2);
+  border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.badge.low {
+  color: #d1fae5;
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+/* Detalle cabecera */
+.detail-header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.relevance-score-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  text-align: center;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
+}
+
+.relevance-score-badge.critical {
+  border: 2px solid var(--danger);
+  box-shadow: 0 0 15px rgba(229, 101, 101, 0.2);
+  background: rgba(229, 101, 101, 0.08);
+}
+
+.relevance-score-badge.high {
+  border: 2px solid #f97316;
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.2);
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.relevance-score-badge.medium {
+  border: 2px solid #eab308;
+  box-shadow: 0 0 15px rgba(234, 179, 8, 0.2);
+  background: rgba(234, 179, 8, 0.08);
+}
+
+.relevance-score-badge.low {
+  border: 2px solid var(--accent-secondary);
+  box-shadow: 0 0 15px rgba(99, 185, 108, 0.2);
+  background: rgba(99, 185, 108, 0.08);
+}
+
+.score-num {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.score-lbl {
+  font-size: 0.65rem;
+  color: var(--text-soft);
+  text-transform: uppercase;
+}
+
+/* Caja de motivos */
+.motivos-box {
+  padding: 1rem;
+  background: rgba(168, 85, 247, 0.05);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
+}
+
+.motivo-text {
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+/* Tabs / Secciones internas */
+.detail-tabs {
+  display: grid;
+  gap: 2rem;
+}
+
+.tab-section {
+  border-top: 1px solid var(--border);
+  padding-top: 1.5rem;
+}
+
+.tab-section h3 {
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-box {
+  background: var(--panel-strong);
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* Árbol de relaciones CSS */
+.tree-container {
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  margin-top: 1rem;
+}
+
+.tree-root, .tree-root ul {
+  list-style: none;
+  padding-left: 1.5rem;
+  margin: 0;
+  position: relative;
+}
+
+.tree-root ul::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0.5rem;
+  border-left: 1px dashed var(--border-strong);
+}
+
+.tree-root li {
+  position: relative;
+  margin: 0.5rem 0;
+  padding-left: 0.5rem;
+}
+
+.tree-root li::before {
+  content: "";
+  position: absolute;
+  top: 0.75rem;
+  left: -1rem;
+  width: 1.5rem;
+  border-top: 1px dashed var(--border-strong);
+}
+
+.tree-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  font-size: 0.88rem;
+  transition: all 150ms ease;
+}
+
+.node-alumno {
+  background: var(--accent-soft);
+  border-color: var(--gold);
+}
+
+.node-grupo {
+  font-weight: 600;
+  background: rgba(148, 163, 184, 0.04);
+}
+
+.node-item {
+  font-family: monospace;
+}
+
+.node-relacionado {
+  background: rgba(229, 101, 101, 0.06);
+  border-color: rgba(229, 101, 101, 0.25);
+  cursor: pointer;
+}
+
+.node-relacionado:hover {
+  background: rgba(229, 101, 101, 0.15);
+  border-color: var(--danger);
+  transform: translateX(4px);
+}
+
+.link-label {
+  color: #fee2e2;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.muted-value {
+  color: var(--text-soft);
+}
+
+/* Historial / Timeline */
+.timeline-container {
+  display: grid;
+  gap: 1rem;
+  max-height: 350px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.timeline-item {
+  padding: 0.9rem;
+  border-left: 3px solid var(--gold);
+  background: rgba(255, 255, 255, 0.02);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.timeline-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.timeline-meta .badge.en_observacion {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.timeline-meta .badge.permitida_familiar {
+  color: #9ae6b4;
+  background: rgba(79, 185, 130, 0.1);
+  border-color: rgba(79, 185, 130, 0.2);
+}
+
+.timeline-motive, .timeline-notes {
+  font-size: 0.82rem;
+  margin: 0.25rem 0;
+}
+
+.multiplier-info {
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: rgba(168, 85, 247, 0.05);
+  border-radius: 4px;
+  text-align: center;
+  font-size: 0.88rem;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+}
