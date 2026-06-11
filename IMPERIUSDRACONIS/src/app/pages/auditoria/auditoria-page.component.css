@@ -5,6 +5,14 @@
   gap: 1.25rem;
 }
 
+.directory-card,
+.detail-card {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
 @media (max-width: 1200px) {
   .workspace-grid {
     grid-template-columns: 1fr;
@@ -142,13 +150,13 @@
 
 /* Tabs / Secciones internas */
 .detail-tabs {
-  display: grid;
-  gap: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .tab-section {
-  border-top: 1px solid var(--border);
-  padding-top: 1.5rem;
+  padding-top: 1rem;
 }
 
 .tab-section h3 {
@@ -362,6 +370,12 @@
 @media (max-width: 768px) {
   .workspace-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  .directory-card,
+  .detail-card {
+    padding: 1rem;
+    gap: 1rem;
   }
 
   /* Mostrar la fila de volver atrás */

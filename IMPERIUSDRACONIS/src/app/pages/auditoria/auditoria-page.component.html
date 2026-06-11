@@ -73,11 +73,8 @@
         <table>
           <thead>
             <tr>
-              <th>ID</th>
               <th>Alumno</th>
-              <th>Relevancia</th>
-              <th>Motivos principales</th>
-              <th>Evaluación</th>
+              <th style="text-align: right; width: 110px;">Relevancia</th>
             </tr>
           </thead>
           <tbody>
@@ -87,20 +84,30 @@
                 (click)="selectAlumno(item.idAlumno)"
                 style="cursor: pointer;"
               >
-                <td>{{ item.idAlumno }}</td>
-                <td><strong>{{ item.nombreAlumno }}</strong></td>
                 <td>
-                  <span class="badge" [class]="getPriorityClass(item.relevanciaAuditoria)">
-                    {{ item.relevanciaAuditoria }}% ({{ getPriorityLabel(item.relevanciaAuditoria) }})
+                  <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <strong>{{ item.nombreAlumno }}</strong>
+                    <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-soft);" class="text-xs">
+                      <span>ID: {{ item.idAlumno }}</span>
+                      @if (item.motivosDetalle) {
+                        <span>•</span>
+                        <span class="text-ellipsis" style="max-width: 200px;" [title]="item.motivosDetalle">
+                          {{ item.motivosDetalle }}
+                        </span>
+                      }
+                    </div>
+                  </div>
+                </td>
+                <td style="text-align: right; vertical-align: middle;">
+                  <span class="badge" [class]="getPriorityClass(item.relevanciaAuditoria)" style="white-space: nowrap;">
+                    {{ item.relevanciaAuditoria }}%
                   </span>
                 </td>
-                <td class="muted text-ellipsis">{{ item.motivosDetalle || 'Sin alertas' }}</td>
-                <td>{{ item.ultimaEvaluacion | date:'dd/MM HH:mm' }}</td>
               </tr>
             }
             @if (filteredResumenes().length === 0) {
               <tr>
-                <td colspan="5" class="empty-state">No se encontraron resúmenes con los filtros seleccionados.</td>
+                <td colspan="2" class="empty-state">No se encontraron resúmenes con los filtros seleccionados.</td>
               </tr>
             }
           </tbody>
