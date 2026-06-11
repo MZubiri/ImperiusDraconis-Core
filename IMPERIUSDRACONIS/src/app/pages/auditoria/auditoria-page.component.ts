@@ -46,6 +46,8 @@ export class AuditoriaPageComponent {
   readonly errorMessage = signal('');
   readonly successMessage = signal('');
 
+  readonly activeTab = signal<'arbol' | 'decisiones' | 'configuraciones'>('arbol');
+
   // Filtros
   readonly searchQuery = signal('');
   readonly selectedPriority = signal<'TODAS' | 'CRITICA' | 'ALTA' | 'MEDIA' | 'BAJA'>('TODAS');
@@ -128,6 +130,7 @@ export class AuditoriaPageComponent {
 
   selectAlumno(idAlumno: number): void {
     this.selectedAlumnoId.set(idAlumno);
+    this.activeTab.set('arbol');
     this.loadAlumnoDetail(idAlumno);
   }
 

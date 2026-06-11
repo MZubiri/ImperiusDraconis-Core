@@ -38,7 +38,7 @@
   }
 
   <!-- Distribución principal del Panel -->
-  <div class="workspace-grid">
+  <div class="workspace-grid" [class.alumno-selected]="selectedAlumnoId() !== null">
     
     <!-- Columna Izquierda: Listado de Alumnos y Filtros -->
     <article class="directory-card panel">
@@ -119,6 +119,12 @@
         </div>
       } @else {
         <!-- Ficha de Detalles del Alumno -->
+        <div class="mobile-back-row">
+          <button class="ghost-button mobile-back-btn" (click)="selectedAlumnoId.set(null); selectedResumen.set(null)">
+            ← Volver al listado
+          </button>
+        </div>
+
         <div class="detail-header-section">
           <div>
             <span class="pill">Detalles de Auditoría</span>
@@ -146,245 +152,277 @@
         <!-- Secciones e Interacciones del Administrador -->
         <div class="detail-tabs">
           
-          <!-- SECCIÓN 1: ÁRBOL DE RELACIONES -->
-          <div class="tab-section">
-            <h3>Árbol de Relaciones (Nivel 1)</h3>
-            <p class="muted">Visualiza las coincidencias técnicas y haz clic en las cuentas relacionadas para inspeccionarlas.</p>
-            
-            <div class="tree-container">
-              <ul class="tree-root">
-                <li>
-                  <div class="tree-node node-alumno">
-                    <span class="icon">👤</span>
-                    <strong>{{ arbolRelaciones()?.label }} (Este Alumno)</strong>
-                  </div>
-                  
-                  <ul>
-                    @for (grupo of arbolRelaciones()?.hijos; track grupo.label) {
-                      <li>
-                        <div class="tree-node node-grupo">
-                          <span class="icon">📁</span>
-                          <span>{{ grupo.label }}</span>
-                        </div>
-                        
-                        <ul>
-                          @for (item of grupo.hijos; track item.valor) {
-                            <li>
-                              <div class="tree-node node-item">
-                                <span class="icon">{{ grupo.label.includes('IP') ? '🌐' : '📱' }}</span>
-                                <span class="muted-value">{{ item.label }}</span>
-                              </div>
-                              
-                              @if (item.hijos && item.hijos.length > 0) {
-                                <ul>
-                                  @for (relacion of item.hijos; track relacion.valor) {
-                                    <li>
-                                      <div 
-                                        class="tree-node node-relacionado highlight-hover"
-                                        (click)="selectAlumno(+relacion.valor)"
-                                        title="Hacer clic para auditar esta cuenta"
-                                      >
-                                        <span class="icon">⚠️</span>
-                                        <span class="link-label">{{ relacion.label }}</span>
-                                      </div>
-                                    </li>
-                                  }
-                                </ul>
-                              }
-                            </li>
-                          }
-                        </ul>
-                      </li>
-                    }
-                    @if (!arbolRelaciones()?.hijos || arbolRelaciones()?.hijos?.length === 0) {
-                      <li>
-                        <div class="tree-node node-empty muted">No se registraron accesos exitosos con huella digital o IP aún.</div>
-                      </li>
-                    }
-                  </ul>
-                </li>
-              </ul>
-            </div>
+          <!-- Botones de Pestañas (Tabs) -->
+          <div class="tab-buttons-row">
+            <button 
+              type="button" 
+              class="tab-btn" 
+              [class.active]="activeTab() === 'arbol'"
+              (click)="activeTab.set('arbol')"
+            >
+              🌳 Relaciones de Red
+            </button>
+            <button 
+              type="button" 
+              class="tab-btn" 
+              [class.active]="activeTab() === 'decisiones'"
+              (click)="activeTab.set('decisiones')"
+            >
+              ⚖️ Resoluciones y Notas
+            </button>
+            <button 
+              type="button" 
+              class="tab-btn" 
+              [class.active]="activeTab() === 'configuraciones'"
+              (click)="activeTab.set('configuraciones')"
+            >
+              ⚙️ Ajustes y Excepciones
+            </button>
           </div>
-
-          <!-- SECCIÓN 2: DECISIONES ADMINISTRATIVAS Y NOTAS -->
-          <div class="tab-section grid-2">
-            <div>
-              <h3>Historial de Decisiones</h3>
-              <div class="timeline-container">
-                @for (dec of decisionesHistorial(); track dec.id) {
-                  <div class="timeline-item">
-                    <div class="timeline-meta">
-                      <span class="badge" [class]="dec.decision.toLowerCase()">
-                        {{ getDecisionLabel(dec.decision) }}
-                      </span>
-                      <span class="muted text-xs">{{ dec.fechaDecision | date:'dd/MM/yy HH:mm' }}</span>
+          
+          <!-- SECCIÓN 1: ÁRBOL DE RELACIONES -->
+          @if (activeTab() === 'arbol') {
+            <div class="tab-section">
+              <h3>Árbol de Relaciones (Nivel 1)</h3>
+              <p class="muted">Visualiza las coincidencias técnicas y haz clic en las cuentas relacionadas para inspeccionarlas.</p>
+              
+              <div class="tree-container">
+                <ul class="tree-root">
+                  <li>
+                    <div class="tree-node node-alumno">
+                      <span class="icon">👤</span>
+                      <strong>{{ arbolRelaciones()?.label }} (Este Alumno)</strong>
                     </div>
-                    <p class="timeline-motive"><strong>Motivo:</strong> {{ dec.motivo }}</p>
-                    @if (dec.notasInternas) {
-                      <p class="timeline-notes"><strong>Notas:</strong> {{ dec.notasInternas }}</p>
-                    }
-                    <span class="muted text-xs">Administrador ID: {{ dec.idAdministrador }}</span>
-                  </div>
-                }
-                @if (decisionesHistorial().length === 0) {
-                  <div class="empty-state">No hay decisiones administrativas tomadas para esta cuenta.</div>
-                }
+                    
+                    <ul>
+                      @for (grupo of arbolRelaciones()?.hijos; track grupo.label) {
+                        <li>
+                          <div class="tree-node node-grupo">
+                            <span class="icon">📁</span>
+                            <span>{{ grupo.label }}</span>
+                          </div>
+                          
+                          <ul>
+                            @for (item of grupo.hijos; track item.valor) {
+                              <li>
+                                <div class="tree-node node-item">
+                                  <span class="icon">{{ grupo.label.includes('IP') ? '🌐' : '📱' }}</span>
+                                  <span class="muted-value">{{ item.label }}</span>
+                                </div>
+                                
+                                @if (item.hijos && item.hijos.length > 0) {
+                                  <ul>
+                                    @for (relacion of item.hijos; track relacion.valor) {
+                                      <li>
+                                        <div 
+                                          class="tree-node node-relacionado highlight-hover"
+                                          (click)="selectAlumno(+relacion.valor)"
+                                          title="Hacer clic para auditar esta cuenta"
+                                        >
+                                          <span class="icon">⚠️</span>
+                                          <span class="link-label">{{ relacion.label }}</span>
+                                        </div>
+                                      </li>
+                                    }
+                                  </ul>
+                                }
+                              </li>
+                            }
+                          </ul>
+                        </li>
+                      }
+                      @if (!arbolRelaciones()?.hijos || arbolRelaciones()?.hijos?.length === 0) {
+                        <li>
+                          <div class="tree-node node-empty muted">No se registraron accesos exitosos con huella digital o IP aún.</div>
+                        </li>
+                      }
+                    </ul>
+                  </li>
+                </ul>
               </div>
             </div>
+          }
 
-            <!-- Formulario Nueva Decisión -->
-            @if (canManage()) {
+          <!-- SECCIÓN 2: DECISIONES ADMINISTRATIVAS Y NOTAS -->
+          @if (activeTab() === 'decisiones') {
+            <div class="tab-section grid-2">
+              <div>
+                <h3>Historial de Decisiones</h3>
+                <div class="timeline-container">
+                  @for (dec of decisionesHistorial(); track dec.id) {
+                    <div class="timeline-item">
+                      <div class="timeline-meta">
+                        <span class="badge" [class]="dec.decision.toLowerCase()">
+                          {{ getDecisionLabel(dec.decision) }}
+                        </span>
+                        <span class="muted text-xs">{{ dec.fechaDecision | date:'dd/MM/yy HH:mm' }}</span>
+                      </div>
+                      <p class="timeline-motive"><strong>Motivo:</strong> {{ dec.motivo }}</p>
+                      @if (dec.notasInternas) {
+                        <p class="timeline-notes"><strong>Notas:</strong> {{ dec.notasInternas }}</p>
+                      }
+                      <span class="muted text-xs">Administrador ID: {{ dec.idAdministrador }}</span>
+                    </div>
+                  }
+                  @if (decisionesHistorial().length === 0) {
+                    <div class="empty-state">No hay decisiones administrativas tomadas para esta cuenta.</div>
+                  }
+                </div>
+              </div>
+
+              <!-- Formulario Nueva Decisión -->
+              @if (canManage()) {
+                <div class="form-box">
+                  <h3>Nueva Decisión</h3>
+                  <form class="form-grid" (ngSubmit)="submitDecision()">
+                    <label>
+                      Resolución Administrativa
+                      <select [(ngModel)]="decisionModel.decision" name="decision">
+                        <option value="EN_OBSERVACION">En Observación</option>
+                        <option value="PERMITIDA_FAMILIAR">Permitida (Familiar Autorizado)</option>
+                        <option value="SOSPECHOSA_CONFIRMADA">Sospechosa Confirmada</option>
+                        <option value="ACCION_MANUAL">Acción Manual Aplicada</option>
+                      </select>
+                    </label>
+                    <label>
+                      Motivo Corto
+                      <input 
+                        type="text" 
+                        [(ngModel)]="decisionModel.motivo" 
+                        name="motivo" 
+                        required 
+                        placeholder="Ej. Coincide con hermano en la misma casa."
+                      />
+                    </label>
+                    <label>
+                      Notas de Auditoría (Detalle Interno)
+                      <textarea 
+                        [(ngModel)]="decisionModel.notasInternas" 
+                        name="notasInternas" 
+                        placeholder="Escribe comentarios de la revisión técnica..."
+                      ></textarea>
+                    </label>
+                    <button class="primary-button" type="submit" [disabled]="savingDecision()">
+                      {{ savingDecision() ? 'Guardando...' : 'Registrar Decisión' }}
+                    </button>
+                  </form>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- SECCIÓN 3: CUENTAS ESPECIALES Y EXCEPCIONES -->
+          @if (activeTab() === 'configuraciones') {
+            <div class="tab-section grid-2">
+              <!-- Cuenta Especial -->
               <div class="form-box">
-                <h3>Nueva Decisión</h3>
-                <form class="form-grid" (ngSubmit)="submitDecision()">
+                <h3>Categoría de Cuenta Especial</h3>
+                <p class="muted text-xs">Atenúa o elimina el peso de coincidencias de hardware/IP para esta cuenta mediante multiplicadores.</p>
+                
+                <form class="form-grid" (ngSubmit)="submitCuentaEspecial()">
                   <label>
-                    Resolución Administrativa
-                    <select [(ngModel)]="decisionModel.decision" name="decision">
-                      <option value="EN_OBSERVACION">En Observación</option>
-                      <option value="PERMITIDA_FAMILIAR">Permitida (Familiar Autorizado)</option>
-                      <option value="SOSPECHOSA_CONFIRMADA">Sospechosa Confirmada</option>
-                      <option value="ACCION_MANUAL">Acción Manual Aplicada</option>
+                    Tipo de Cuenta Especial
+                    <select [(ngModel)]="cuentaEspecialModel.tipoCuenta" name="tipoCuenta">
+                      <option value="NORMAL">Cuenta Normal (Multiplicador 1.00)</option>
+                      <option value="ASISTENTE">Asistente de Cátedra (Multiplicador 0.50)</option>
+                      <option value="CASA">Cuenta de Casa Común (Multiplicador 0.25)</option>
+                      <option value="ADMINISTRATIVA">Cuenta Administrativa (Multiplicador 0.10)</option>
+                      <option value="INSTITUCIONAL">Cuenta Institucional (Multiplicador 0.00)</option>
                     </select>
                   </label>
                   <label>
-                    Motivo Corto
+                    Descripción / Justificación
                     <input 
                       type="text" 
-                      [(ngModel)]="decisionModel.motivo" 
-                      name="motivo" 
-                      required 
-                      placeholder="Ej. Coincide con hermano en la misma casa."
+                      [(ngModel)]="cuentaEspecialModel.descripcion" 
+                      name="descripcionEspecial" 
+                      placeholder="Ej. Computadora asignada para la Casa Ravenclaw."
                     />
                   </label>
-                  <label>
-                    Notas de Auditoría (Detalle Interno)
-                    <textarea 
-                      [(ngModel)]="decisionModel.notasInternas" 
-                      name="notasInternas" 
-                      placeholder="Escribe comentarios de la revisión técnica..."
-                    ></textarea>
-                  </label>
-                  <button class="primary-button" type="submit" [disabled]="savingDecision()">
-                    {{ savingDecision() ? 'Guardando...' : 'Registrar Decisión' }}
+                  
+                  <div class="multiplier-info">
+                    Multiplicador sugerido: 
+                    <strong>
+                      {{ 
+                        cuentaEspecialModel.tipoCuenta === 'CASA' ? '0.25x' : 
+                        cuentaEspecialModel.tipoCuenta === 'ASISTENTE' ? '0.50x' : 
+                        cuentaEspecialModel.tipoCuenta === 'ADMINISTRATIVA' ? '0.10x' : 
+                        cuentaEspecialModel.tipoCuenta === 'INSTITUCIONAL' ? '0.00x' : '1.00x'
+                      }}
+                    </strong>
+                  </div>
+
+                  <button class="primary-button" type="submit" [disabled]="savingCuentaEspecial()">
+                    {{ savingCuentaEspecial() ? 'Guardando...' : 'Actualizar Categoría' }}
                   </button>
                 </form>
               </div>
-            }
-          </div>
 
-          <!-- SECCIÓN 3: CUENTAS ESPECIALES Y EXCEPCIONES -->
-          <div class="tab-section grid-2">
-            <!-- Cuenta Especial -->
-            <div class="form-box">
-              <h3>Categoría de Cuenta Especial</h3>
-              <p class="muted text-xs">Atenúa o elimina el peso de coincidencias de hardware/IP para esta cuenta mediante multiplicadores.</p>
-              
-              <form class="form-grid" (ngSubmit)="submitCuentaEspecial()">
-                <label>
-                  Tipo de Cuenta Especial
-                  <select [(ngModel)]="cuentaEspecialModel.tipoCuenta" name="tipoCuenta">
-                    <option value="NORMAL">Cuenta Normal (Multiplicador 1.00)</option>
-                    <option value="ASISTENTE">Asistente de Cátedra (Multiplicador 0.50)</option>
-                    <option value="CASA">Cuenta de Casa Común (Multiplicador 0.25)</option>
-                    <option value="ADMINISTRATIVA">Cuenta Administrativa (Multiplicador 0.10)</option>
-                    <option value="INSTITUCIONAL">Cuenta Institucional (Multiplicador 0.00)</option>
-                  </select>
-                </label>
-                <label>
-                  Descripción / Justificación
-                  <input 
-                    type="text" 
-                    [(ngModel)]="cuentaEspecialModel.descripcion" 
-                    name="descripcionEspecial" 
-                    placeholder="Ej. Computadora asignada para la Casa Ravenclaw."
-                  />
-                </label>
+              <!-- Excepciones Permanentes -->
+              <div class="form-box">
+                <h3>Crear Excepción Permanente</h3>
+                <p class="muted text-xs">Omite auditorías automáticas de forma permanente para una relación o dispositivo específico de este alumno.</p>
                 
-                <div class="multiplier-info">
-                  Multiplicador sugerido: 
-                  <strong>
-                    {{ 
-                      cuentaEspecialModel.tipoCuenta === 'CASA' ? '0.25x' : 
-                      cuentaEspecialModel.tipoCuenta === 'ASISTENTE' ? '0.50x' : 
-                      cuentaEspecialModel.tipoCuenta === 'ADMINISTRATIVA' ? '0.10x' : 
-                      cuentaEspecialModel.tipoCuenta === 'INSTITUCIONAL' ? '0.00x' : '1.00x'
-                    }}
-                  </strong>
-                </div>
-
-                <button class="primary-button" type="submit" [disabled]="savingCuentaEspecial()">
-                  {{ savingCuentaEspecial() ? 'Guardando...' : 'Actualizar Categoría' }}
-                </button>
-              </form>
-            </div>
-
-            <!-- Excepciones Permanentes -->
-            <div class="form-box">
-              <h3>Crear Excepción Permanente</h3>
-              <p class="muted text-xs">Omite auditorías automáticas de forma permanente para una relación o dispositivo específico de este alumno.</p>
-              
-              <form class="form-grid" (ngSubmit)="submitExcepcion()">
-                <label>
-                  Tipo de Excepción
-                  <select [(ngModel)]="excepcionModel.tipoExcepcion" name="tipoExcepcion">
-                    <option value="RELACION_AUTORIZADA">Relación de Cuentas Autorizada</option>
-                    <option value="DISPOSITIVO_AUTORIZADO">Dispositivo de Confianza</option>
-                  </select>
-                </label>
-
-                <!-- Si es relación, pedir Alumno Relacionado -->
-                @if (excepcionModel.tipoExcepcion === 'RELACION_AUTORIZADA') {
+                <form class="form-grid" (ngSubmit)="submitExcepcion()">
                   <label>
-                    ID Alumno Relacionado
-                    <input 
-                      type="text" 
-                      [(ngModel)]="excepcionModel.valorB" 
-                      name="valorB" 
-                      required 
-                      placeholder="Ingrese ID del alumno a exceptuar..."
-                    />
-                  </label>
-                }
-
-                <!-- Si es dispositivo, pedir Fingerprint Hash -->
-                @if (excepcionModel.tipoExcepcion === 'DISPOSITIVO_AUTORIZADO') {
-                  <label>
-                    Dispositivo (Huella Digital)
-                    <select [(ngModel)]="excepcionModel.valorA" name="valorASelect">
-                      <option value="">-- Seleccionar dispositivo registrado --</option>
-                      @for (grupo of arbolRelaciones()?.hijos; track grupo.label) {
-                        @if (grupo.label.includes('Dispositivos')) {
-                          @for (item of grupo.hijos; track item.valor) {
-                            <option [value]="item.valor">{{ item.label }} ({{ item.valor | slice:0:12 }}...)</option>
-                          }
-                        }
-                      }
+                    Tipo de Excepción
+                    <select [(ngModel)]="excepcionModel.tipoExcepcion" name="tipoExcepcion">
+                      <option value="RELACION_AUTORIZADA">Relación de Cuentas Autorizada</option>
+                      <option value="DISPOSITIVO_AUTORIZADO">Dispositivo de Confianza</option>
                     </select>
                   </label>
-                }
 
-                <label>
-                  Motivo de la Excepción
-                  <input 
-                    type="text" 
-                    [(ngModel)]="excepcionModel.motivo" 
-                    name="motivoExcepcion" 
-                    required 
-                    placeholder="Ej. Hermanos compartiendo laptop familiar."
-                  />
-                </label>
+                  <!-- Si es relación, pedir Alumno Relacionado -->
+                  @if (excepcionModel.tipoExcepcion === 'RELACION_AUTORIZADA') {
+                    <label>
+                      ID Alumno Relacionado
+                      <input 
+                        type="text" 
+                        [(ngModel)]="excepcionModel.valorB" 
+                        name="valorB" 
+                        required 
+                        placeholder="Ingrese ID del alumno a exceptuar..."
+                      />
+                    </label>
+                  }
 
-                <button class="primary-button" type="submit" [disabled]="savingException()">
-                  {{ savingException() ? 'Creando...' : 'Crear Excepción' }}
-                </button>
-              </form>
+                  <!-- Si es dispositivo, pedir Fingerprint Hash -->
+                  @if (excepcionModel.tipoExcepcion === 'DISPOSITIVO_AUTORIZADO') {
+                    <label>
+                      Dispositivo (Huella Digital)
+                      <select [(ngModel)]="excepcionModel.valorA" name="valorASelect">
+                        <option value="">-- Seleccionar dispositivo registrado --</option>
+                        @for (grupo of arbolRelaciones()?.hijos; track grupo.label) {
+                          @if (grupo.label.includes('Dispositivos')) {
+                            @for (item of grupo.hijos; track item.valor) {
+                              <option [value]="item.valor">{{ item.label }} ({{ item.valor | slice:0:12 }}...)</option>
+                            }
+                          }
+                        }
+                      </select>
+                    </label>
+                  }
+
+                  <label>
+                    Motivo de la Excepción
+                    <input 
+                      type="text" 
+                      [(ngModel)]="excepcionModel.motivo" 
+                      name="motivoExcepcion" 
+                      required 
+                      placeholder="Ej. Hermanos compartiendo laptop familiar."
+                    />
+                  </label>
+
+                  <button class="primary-button" type="submit" [disabled]="savingException()">
+                    {{ savingException() ? 'Creando...' : 'Crear Excepción' }}
+                  </button>
+                </form>
+              </div>
             </div>
-          </div>
-
+          }
         </div>
       }
     </article>
-
   </div>
 </section>

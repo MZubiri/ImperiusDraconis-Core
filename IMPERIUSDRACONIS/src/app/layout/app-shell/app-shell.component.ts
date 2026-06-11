@@ -17,6 +17,7 @@ import {
   LucideStore,
   LucideTrophy,
   LucideUserRound,
+  LucideEye,
   provideLucideIcons
 } from '@lucide/angular';
 import { resolveProfileAvatarUrl } from '../../core/constants/profile.constants';
@@ -41,7 +42,8 @@ import { RuntimeConfigService } from '../../core/services/runtime-config.service
       LucideShoppingBag,
       LucideStore,
       LucideTrophy,
-      LucideUserRound
+      LucideUserRound,
+      LucideEye
     )
   ],
   templateUrl: './app-shell.component.html',

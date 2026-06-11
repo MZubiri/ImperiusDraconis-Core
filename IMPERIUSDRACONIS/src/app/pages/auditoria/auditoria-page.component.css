@@ -316,3 +316,76 @@
 .text-xs {
   font-size: 0.75rem;
 }
+
+/* Fila de botones de pestañas (Tabs) */
+.tab-buttons-row {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 140ms ease;
+}
+
+.tab-btn:hover {
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-main);
+  border-color: var(--border-strong);
+}
+
+.tab-btn.active {
+  background: var(--accent-soft);
+  border-color: var(--gold);
+  color: var(--gold-strong);
+}
+
+/* Botón de volver atrás (móvil) */
+.mobile-back-row {
+  display: none;
+  margin-bottom: 1rem;
+}
+
+/* Ajustes responsivos móviles */
+@media (max-width: 768px) {
+  .workspace-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Mostrar la fila de volver atrás */
+  .mobile-back-row {
+    display: block;
+  }
+
+  .mobile-back-btn {
+    width: 100%;
+    text-align: left;
+    justify-content: flex-start;
+  }
+
+  /* Master-Detail toggle en móvil */
+  .workspace-grid.alumno-selected .directory-card {
+    display: none;
+  }
+
+  .workspace-grid:not(.alumno-selected) .detail-card {
+    display: none;
+  }
+
+  /* Ajustar grid de tabuladores */
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
