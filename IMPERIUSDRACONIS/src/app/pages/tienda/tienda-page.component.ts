@@ -680,61 +680,118 @@ export class TiendaPageComponent {
 
   private createReceiptCanvas(receipt: TiendaComprobante): HTMLCanvasElement {
     const canvas = document.createElement('canvas');
-    canvas.width = 1080;
-    canvas.height = 1350;
+    canvas.width = 800;
+    canvas.height = 1100;
     const context = canvas.getContext('2d');
 
     if (!context) {
       return canvas;
     }
 
-    const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, '#101827');
-    gradient.addColorStop(1, '#172032');
-    context.fillStyle = gradient;
+    // 1. Fondo principal con gradiente
+    const bgGradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+    bgGradient.addColorStop(0, '#090f1d');
+    bgGradient.addColorStop(1, '#131e35');
+    context.fillStyle = bgGradient;
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    context.strokeStyle = '#e8c567';
-    context.lineWidth = 8;
-    this.roundRect(context, 54, 54, 972, 1242, 36);
+    // 2. Línea dorada decorativa arriba
+    context.fillStyle = '#e8c567';
+    context.fillRect(0, 0, canvas.width, 10);
+
+    // 3. Dibujar la tarjeta / ticket interno con esquinas redondeadas
+    context.strokeStyle = 'rgba(232, 197, 103, 0.25)';
+    context.lineWidth = 2;
+    this.roundRect(context, 40, 50, 720, 1000, 24);
     context.stroke();
 
+    // 4. Cabecera
     context.fillStyle = '#e8c567';
-    context.font = '700 34px Inter, Arial, sans-serif';
-    context.fillText('EMPORIO DEL DRAGON', 110, 150);
+    context.font = '700 20px Inter, Arial, sans-serif';
+    context.textAlign = 'center';
+    context.fillText('EMPORIO DEL DRAGÓN', 400, 110);
 
-    context.fillStyle = '#f6f2e8';
-    context.font = '700 74px Inter, Arial';
-    context.fillText('Comprobante', 110, 245);
+    context.fillStyle = '#f8fafc';
+    context.font = '800 32px Inter, Arial, sans-serif';
+    context.fillText('COMPROBANTE DE COMPRA', 400, 165);
 
-    context.fillStyle = '#c2c8d3';
-    context.font = '400 30px Inter, Arial, sans-serif';
-    context.fillText(`Pedido #${receipt.idPedido}`, 110, 315);
-    context.fillText(new Date(receipt.fechaPedido).toLocaleString(), 110, 360);
+    // Subtítulo con ID de pedido
+    context.fillStyle = '#94a3b8';
+    context.font = '600 18px monospace';
+    context.fillText(`Pedido #${receipt.idPedido}`, 400, 205);
 
-    this.drawReceiptRow(context, 'Producto', receipt.producto, 110, 470);
-    this.drawReceiptRow(context, 'Estado', receipt.estado, 110, 560);
-    this.drawReceiptRow(context, 'Comprador', receipt.comprador, 110, 650);
+    // Línea divisoria punteada
+    this.drawDashedLine(context, 80, 240, 720, 240);
 
+    // 5. Caja del Monto (Total Box)
+    context.fillStyle = 'rgba(232, 197, 103, 0.06)';
+    this.roundRect(context, 100, 270, 600, 130, 16);
+    context.fill();
+    context.strokeStyle = 'rgba(232, 197, 103, 0.3)';
+    context.lineWidth = 1;
+    this.roundRect(context, 100, 270, 600, 130, 16);
+    context.stroke();
+
+    // Texto dentro de la caja de monto
+    context.fillStyle = '#94a3b8';
+    context.font = '700 16px Inter, Arial, sans-serif';
+    context.fillText('TOTAL PAGADO', 400, 310);
+
+    context.fillStyle = '#e8c567';
+    context.font = '800 54px Inter, Arial, sans-serif';
+    context.fillText(`${this.formatNumber(receipt.total)} DC`, 400, 370);
+
+    // 6. Filas de Información
+    context.textAlign = 'left';
+    
+    // Producto
+    this.drawReceiptRow(context, 'Producto', receipt.producto, 100, 470);
+
+    // Estado
+    this.drawReceiptRow(context, 'Estado', receipt.estado, 100, 570);
+
+    // Comprador
+    this.drawReceiptRow(context, 'Comprador', receipt.comprador, 100, 670);
+
+    // Destinatario
     if (receipt.destinatario) {
-      this.drawReceiptRow(context, 'Destinatario', receipt.destinatario, 110, 740);
+      this.drawReceiptRow(context, 'Destinatario', receipt.destinatario, 100, 770);
     }
 
-    context.fillStyle = '#e8c567';
-    context.font = '800 78px Inter, Arial, sans-serif';
-    context.fillText(`${this.formatNumber(receipt.total)} DC`, 110, 920);
-
+    // Comentario (si existe)
+    let comentarioY = receipt.destinatario ? 870 : 770;
     if (receipt.comentario) {
-      context.fillStyle = '#c2c8d3';
-      context.font = '400 28px Inter, Arial, sans-serif';
-      this.wrapText(context, `Comentario: ${receipt.comentario}`, 110, 1015, 850, 40);
+      this.drawReceiptRow(context, 'Comentario', receipt.comentario, 100, comentarioY);
+      comentarioY += 70;
     }
 
-    context.fillStyle = '#5bb98c';
-    context.font = '700 28px Inter, Arial, sans-serif';
-    context.fillText('Gracias por tu compra', 110, 1210);
+    // Línea divisoria inferior
+    this.drawDashedLine(context, 80, 960, 720, 960);
+
+    // 7. Pie de comprobante
+    context.textAlign = 'center';
+    context.fillStyle = '#10b981';
+    context.font = '700 18px Inter, Arial, sans-serif';
+    context.fillText('¡Gracias por tu compra!', 400, 1005);
 
     return canvas;
+  }
+
+  private drawDashedLine(
+    context: CanvasRenderingContext2D,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number
+  ): void {
+    context.beginPath();
+    context.setLineDash([8, 8]);
+    context.strokeStyle = 'rgba(232, 197, 103, 0.22)';
+    context.lineWidth = 2;
+    context.moveTo(x1, y1);
+    context.lineTo(x2, y2);
+    context.stroke();
+    context.setLineDash([]);
   }
 
   private drawReceiptRow(
@@ -744,12 +801,12 @@ export class TiendaPageComponent {
     x: number,
     y: number
   ): void {
-    context.fillStyle = '#c2c8d3';
-    context.font = '400 28px Inter, Arial, sans-serif';
-    context.fillText(label, x, y);
-    context.fillStyle = '#f6f2e8';
-    context.font = '700 36px Inter, Arial, sans-serif';
-    this.wrapText(context, value || 'Sin registrar', x, y + 48, 850, 44);
+    context.fillStyle = '#94a3b8';
+    context.font = '700 16px Inter, Arial, sans-serif';
+    context.fillText(label.toUpperCase(), x, y);
+    context.fillStyle = '#f8fafc';
+    context.font = '700 24px Inter, Arial, sans-serif';
+    this.wrapText(context, value || 'Sin registrar', x, y + 28, 600, 32);
   }
 
   private wrapText(

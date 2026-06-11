@@ -578,28 +578,67 @@
 
   @if (receiptModalOpen() && receipt()) {
     <div class="store-modal-backdrop" (click)="closeReceiptModal()"></div>
-    <article class="store-modal receipt-modal panel">
+    <article class="store-modal receipt-modal panel" style="width: min(480px, calc(100vw - 2rem));">
       <div class="toolbar">
         <div>
-          <span class="pill success">Comprobante</span>
-          <h2>#{{ receipt()?.idPedido }} - {{ receipt()?.estado }}</h2>
+          <span class="pill success">Compra Exitosa</span>
+          <h2>Comprobante</h2>
         </div>
         <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeReceiptModal()">×</button>
       </div>
 
-      <div class="receipt panel">
-        <h3>{{ receipt()?.producto }}</h3>
-        <p>{{ receipt()?.total | number: '1.0-2' }} DC</p>
-        <p class="muted">Comprador: {{ receipt()?.comprador }}</p>
-        @if (receipt()?.destinatario) {
-          <p class="muted">Destinatario: {{ receipt()?.destinatario }}</p>
-        }
-        @if (receipt()?.comentario) {
-          <p class="muted">Comentario: {{ receipt()?.comentario }}</p>
-        }
+      <div class="receipt-ticket">
+        <div class="receipt-ticket-header">
+          <div class="receipt-brand">EMPORIO DEL DRAGÓN</div>
+          <div class="receipt-title">COMPROBANTE DE COMPRA</div>
+          <div class="receipt-order-id">Pedido #{{ receipt()?.idPedido }}</div>
+          <div class="receipt-date">{{ receipt()?.fechaPedido | date: 'dd/MM/yyyy, HH:mm' }}</div>
+        </div>
+
+        <div class="receipt-divider"></div>
+
+        <div class="receipt-body">
+          <div class="receipt-info-row">
+            <span class="receipt-label">Producto</span>
+            <span class="receipt-value">{{ receipt()?.producto }}</span>
+          </div>
+          <div class="receipt-info-row">
+            <span class="receipt-label">Estado</span>
+            <span class="receipt-value status-pill" [class]="(receipt()?.estado ?? '').toLowerCase()">
+              {{ receipt()?.estado }}
+            </span>
+          </div>
+          <div class="receipt-info-row">
+            <span class="receipt-label">Comprador</span>
+            <span class="receipt-value">{{ receipt()?.comprador }}</span>
+          </div>
+          @if (receipt()?.destinatario) {
+            <div class="receipt-info-row">
+              <span class="receipt-label">Destinatario</span>
+              <span class="receipt-value">{{ receipt()?.destinatario }}</span>
+            </div>
+          }
+          @if (receipt()?.comentario) {
+            <div class="receipt-info-row comment-row">
+              <span class="receipt-label">Comentario</span>
+              <span class="receipt-value comment-text">{{ receipt()?.comentario }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="receipt-divider"></div>
+
+        <div class="receipt-total-section">
+          <span class="total-label">TOTAL PAGADO</span>
+          <span class="total-amount">{{ receipt()?.total | number: '1.0-2' }} DC</span>
+        </div>
+
+        <div class="receipt-footer">
+          <span class="thank-you-msg">¡Gracias por tu compra en el Emporio!</span>
+        </div>
       </div>
 
-      <div class="inline-actions modal-actions">
+      <div class="inline-actions modal-actions" style="margin-top: 0.5rem;">
         <button class="ghost-button" type="button" (click)="shareReceipt()">Compartir</button>
         <button class="primary-button" type="button" (click)="downloadReceiptPng()">Descargar PNG</button>
       </div>

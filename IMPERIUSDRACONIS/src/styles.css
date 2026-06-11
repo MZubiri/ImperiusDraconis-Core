@@ -881,3 +881,193 @@ body .login-copy h1 {
     padding-inline: 10px;
   }
 }
+
+/* ==========================================================================
+   DISEÑO PREMIUM PARA COMPROBANTES / RECEIPT TICKETS
+   ========================================================================== */
+.receipt-ticket {
+  background: radial-gradient(circle at top left, var(--panel), var(--panel-strong));
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--gold);
+  border-radius: 16px;
+  padding: 2rem 1.5rem 1.5rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 0.5rem;
+}
+
+.receipt-ticket-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.receipt-brand {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.receipt-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 0.25rem;
+  letter-spacing: 0.5px;
+}
+
+.receipt-order-id {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  font-family: monospace;
+}
+
+.receipt-date {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.receipt-divider {
+  border-top: 1px dashed var(--border-strong);
+  margin: 0.5rem 0;
+  position: relative;
+}
+
+/* Círculos laterales simulando troquelado de ticket */
+.receipt-divider::before,
+.receipt-divider::after {
+  content: '';
+  position: absolute;
+  top: -7px;
+  width: 12px;
+  height: 12px;
+  background: var(--bg);
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
+
+.receipt-divider::before {
+  left: -31px;
+  border-left-color: transparent;
+}
+
+.receipt-divider::after {
+  right: -31px;
+  border-right-color: transparent;
+}
+
+.receipt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.receipt-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.receipt-info-row.comment-row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-top: 0.25rem;
+}
+
+.receipt-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.receipt-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  text-align: right;
+  word-break: break-word;
+}
+
+.comment-text {
+  font-size: 0.88rem;
+  font-weight: 400;
+  color: var(--text-soft);
+  text-align: left;
+  line-height: 1.4;
+  width: 100%;
+}
+
+.status-pill {
+  display: inline-flex;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.status-pill.entregado,
+.status-pill.completado,
+.status-pill.exitoso {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.status-pill.pendiente {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.status-pill.cancelado {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.receipt-total-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(232, 197, 103, 0.05);
+  border: 1px dashed rgba(232, 197, 103, 0.22);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.total-label {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 1px;
+}
+
+.total-amount {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--gold-strong);
+}
+
+.receipt-footer {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-soft);
+  margin-top: 0.25rem;
+}
+

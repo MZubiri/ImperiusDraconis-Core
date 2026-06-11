@@ -33,7 +33,7 @@
       <div class="message panel success-state">
         <span>{{ successMessage() }}</span>
         @if (latestTransferReceipt()) {
-          <button class="receipt-link" type="button" (click)="downloadLatestReceipt()">Descargar comprobante</button>
+          <button class="receipt-link" type="button" (click)="openTransferReceipt(latestTransferReceipt()!)">Ver comprobante</button>
         }
       </div>
     }
@@ -321,18 +321,29 @@
                       <p>
                         {{ transfer.esRecibido ? transfer.nombreRemitente : transfer.nombreDestinatario }}
                       </p>
-                      <button
-                        class="mini-button"
-                        type="button"
-                        [disabled]="isFavorite(transfer.esRecibido ? transfer.codigoRemitente : transfer.codigoDestinatario)"
-                        (click)="addFavoriteFromTransfer(transfer)"
-                      >
-                        {{
-                          isFavorite(transfer.esRecibido ? transfer.codigoRemitente : transfer.codigoDestinatario)
-                            ? 'Favorito'
-                            : 'Agregar favorito'
-                        }}
-                      </button>
+                      <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap;">
+                    <button
+                      class="mini-button"
+                      type="button"
+                      [disabled]="isFavorite(transfer.esRecibido ? transfer.codigoRemitente : transfer.codigoDestinatario)"
+                      (click)="addFavoriteFromTransfer(transfer)"
+                      style="padding-inline: 8px; font-size: 11px;"
+                    >
+                      {{
+                        isFavorite(transfer.esRecibido ? transfer.codigoRemitente : transfer.codigoDestinatario)
+                          ? 'Favorito'
+                          : 'Favorito +'
+                      }}
+                    </button>
+                    <button
+                      class="mini-button ghost"
+                      type="button"
+                      (click)="openTransferReceipt(transfer)"
+                      style="padding-inline: 8px; font-size: 11px; background: rgba(255, 255, 255, 0.05); color: var(--text-main); border: 1px solid var(--border);"
+                    >
+                      Ver Ticket
+                    </button>
+                  </div>
                     </div>
                     <div class="flow-meta">
                       <strong>{{ transfer.monto | number: '1.0-2' }} DC</strong>
@@ -427,16 +438,17 @@
                 <th>Monto</th>
                 <th>Fecha</th>
                 <th>Observación</th>
+                <th style="text-align: center;">Acción</th>
               </tr>
             </thead>
             <tbody>
               @if (loadingGeneralHistory()) {
                 <tr>
-                  <td colspan="6" class="empty-state">Cargando historial general...</td>
+                  <td colspan="7" class="empty-state">Cargando historial general...</td>
                 </tr>
               } @else if ((generalHistory()?.items?.length ?? 0) === 0) {
                 <tr>
-                  <td colspan="6" class="empty-state">No hay movimientos para los filtros actuales.</td>
+                  <td colspan="7" class="empty-state">No hay movimientos para los filtros actuales.</td>
                 </tr>
               } @else {
                 @for (movement of generalHistory()?.items ?? []; track movement.idMovimiento) {
@@ -453,6 +465,16 @@
                     <td>{{ movement.monto | number: '1.0-2' }} DC</td>
                     <td>{{ movement.fechaTransferencia | date: 'dd/MM/yyyy HH:mm' }}</td>
                     <td>{{ movement.observacion || '-' }}</td>
+                    <td style="text-align: center;">
+                      <button 
+                        class="ghost-button" 
+                        type="button" 
+                        (click)="openTransferReceipt(movement)"
+                        style="padding: 2px 8px; min-height: 28px; font-size: 11px; margin-top: 0;"
+                      >
+                        Ver ticket
+                      </button>
+                    </td>
                   </tr>
                 }
               }
@@ -668,6 +690,63 @@
           </div>
         </section>
       }
+    }
+
+    @if (transferReceiptModalOpen() && latestTransferReceipt()) {
+      <div class="dracoins-modal-backdrop" (click)="closeTransferReceiptModal()"></div>
+      <article class="dracoins-modal receipt-modal panel" role="dialog" aria-modal="true" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; width: min(480px, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; padding: 1.25rem; display: grid; gap: 1rem;">
+        <div class="modal-head" style="display: flex; justify-content: space-between; align-items: start;">
+          <div>
+            <span class="pill success">Transferencia Exitosa</span>
+            <h2 style="margin-top: 0.35rem;">Comprobante</h2>
+          </div>
+          <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeTransferReceiptModal()">×</button>
+        </div>
+
+        <div class="receipt-ticket">
+          <div class="receipt-ticket-header">
+            <div class="receipt-brand">IMPERIUS DRACONIS</div>
+            <div class="receipt-title">COMPROBANTE DE TRANSFERENCIA</div>
+            <div class="receipt-order-id">Movimiento #{{ latestTransferReceipt()?.idMovimiento }}</div>
+            <div class="receipt-date">{{ latestTransferReceipt()?.fechaTransferencia | date: 'dd/MM/yyyy, HH:mm' }}</div>
+          </div>
+
+          <div class="receipt-divider"></div>
+
+          <div class="receipt-body">
+            <div class="receipt-info-row">
+              <span class="receipt-label">Remitente</span>
+              <span class="receipt-value">{{ latestTransferReceipt()?.nombreRemitente }} ({{ latestTransferReceipt()?.codigoRemitente }})</span>
+            </div>
+            <div class="receipt-info-row">
+              <span class="receipt-label">Destinatario</span>
+              <span class="receipt-value">{{ latestTransferReceipt()?.nombreDestinatario }} ({{ latestTransferReceipt()?.codigoDestinatario }})</span>
+            </div>
+            @if (latestTransferReceipt()?.observacion) {
+              <div class="receipt-info-row comment-row">
+                <span class="receipt-label">Observación</span>
+                <span class="receipt-value comment-text">{{ latestTransferReceipt()?.observacion }}</span>
+              </div>
+            }
+          </div>
+
+          <div class="receipt-divider"></div>
+
+          <div class="receipt-total-section">
+            <span class="total-label">MONTO TRANSFERIDO</span>
+            <span class="total-amount">{{ latestTransferReceipt()?.monto | number: '1.0-2' }} DC</span>
+          </div>
+
+          <div class="receipt-footer">
+            <span class="thank-you-msg">Transferencia procesada de forma segura</span>
+          </div>
+        </div>
+
+        <div class="inline-actions modal-actions" style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
+          <button class="ghost-button" type="button" (click)="closeTransferReceiptModal()">Cerrar</button>
+          <button class="primary-button" type="button" (click)="downloadLatestReceipt()">Descargar PNG</button>
+        </div>
+      </article>
     }
   </section>
 }

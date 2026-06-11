@@ -63,6 +63,7 @@ export class DracoinsPageComponent {
   readonly transferFavorites = signal<DracoinTransferFavorite[]>([]);
   readonly personalHistoryModalOpen = signal(false);
   readonly latestTransferReceipt = signal<DracoinTransfer | null>(null);
+  readonly transferReceiptModalOpen = signal(false);
 
   readonly canViewSummary = computed(() => this.auth.hasPermission('Dracoins:Index'));
   readonly canTransfer = computed(() => this.auth.hasPermission('Dracoins:TransferirDracoins'));
@@ -505,6 +506,7 @@ export class DracoinsPageComponent {
         next: (response) => {
           this.successMessage.set(`Transferencia #${response.idMovimiento} registrada correctamente.`);
           this.latestTransferReceipt.set(response);
+          this.transferReceiptModalOpen.set(true);
           this.codigoDestinatario = '';
           this.monto = null;
           this.observacion = '';
@@ -583,6 +585,26 @@ export class DracoinsPageComponent {
     this.personalHistoryMontoMax = null;
   }
 
+  closeTransferReceiptModal(): void {
+    this.transferReceiptModalOpen.set(false);
+  }
+
+  openTransferReceipt(transfer: DracoinTransfer | DracoinGeneralMovement): void {
+    const formattedTransfer: DracoinTransfer = {
+      idMovimiento: transfer.idMovimiento,
+      codigoRemitente: transfer.codigoRemitente,
+      nombreRemitente: transfer.nombreRemitente,
+      codigoDestinatario: transfer.codigoDestinatario,
+      nombreDestinatario: transfer.nombreDestinatario,
+      monto: transfer.monto,
+      fechaTransferencia: transfer.fechaTransferencia,
+      observacion: transfer.observacion,
+      esRecibido: 'esRecibido' in transfer ? (transfer as DracoinTransfer).esRecibido : false
+    };
+    this.latestTransferReceipt.set(formattedTransfer);
+    this.transferReceiptModalOpen.set(true);
+  }
+
   downloadLatestReceipt(): void {
     const transfer = this.latestTransferReceipt();
     if (!transfer) {
@@ -590,38 +612,141 @@ export class DracoinsPageComponent {
     }
 
     const canvas = document.createElement('canvas');
-    canvas.width = 980;
-    canvas.height = 620;
+    canvas.width = 800;
+    canvas.height = 1000;
     const context = canvas.getContext('2d');
     if (!context) {
       return;
     }
 
-    context.fillStyle = '#0b1220';
+    // 1. Fondo principal con gradiente
+    const bgGradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+    bgGradient.addColorStop(0, '#090f1d');
+    bgGradient.addColorStop(1, '#131e35');
+    context.fillStyle = bgGradient;
     context.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 2. Línea dorada decorativa arriba
     context.fillStyle = '#e8c567';
-    context.fillRect(0, 0, canvas.width, 12);
-    context.font = '700 42px Arial';
-    context.fillText('Comprobante de transferencia', 64, 86);
-    context.font = '700 28px Arial';
-    context.fillText(`${transfer.monto} DC`, 64, 142);
+    context.fillRect(0, 0, canvas.width, 10);
 
-    context.font = '20px Arial';
-    context.fillStyle = '#e9eef8';
-    this.drawReceiptLine(context, 'Movimiento', `#${transfer.idMovimiento}`, 64, 218);
-    this.drawReceiptLine(context, 'Remitente', `${transfer.codigoRemitente} | ${transfer.nombreRemitente}`, 64, 274);
-    this.drawReceiptLine(context, 'Destinatario', `${transfer.codigoDestinatario} | ${transfer.nombreDestinatario}`, 64, 330);
-    this.drawReceiptLine(context, 'Fecha', new Date(transfer.fechaTransferencia).toLocaleString(), 64, 386);
-    this.drawReceiptLine(context, 'Observación', transfer.observacion || '-', 64, 442);
+    // 3. Dibujar la tarjeta / ticket interno con esquinas redondeadas
+    context.strokeStyle = 'rgba(232, 197, 103, 0.25)';
+    context.lineWidth = 2;
+    this.drawRoundRect(context, 40, 50, 720, 900, 24);
+    context.stroke();
 
-    context.fillStyle = '#9aa6b8';
-    context.font = '18px Arial';
-    context.fillText('Imperius Draconis', 64, 552);
+    // 4. Cabecera
+    context.fillStyle = '#e8c567';
+    context.font = '700 20px Inter, Arial, sans-serif';
+    context.textAlign = 'center';
+    context.fillText('IMPERIUS DRACONIS', 400, 110);
 
+    context.fillStyle = '#f8fafc';
+    context.font = '800 32px Inter, Arial, sans-serif';
+    context.fillText('COMPROBANTE DE TRANSFERENCIA', 400, 165);
+
+    // Subtítulo con ID de movimiento y fecha
+    context.fillStyle = '#94a3b8';
+    context.font = '600 18px monospace';
+    context.fillText(`Movimiento #${transfer.idMovimiento}`, 400, 205);
+
+    // Línea divisoria punteada
+    this.drawDashedLine(context, 80, 240, 720, 240);
+
+    // 5. Caja del Monto (Total Box)
+    context.fillStyle = 'rgba(232, 197, 103, 0.06)';
+    this.drawRoundRect(context, 100, 270, 600, 130, 16);
+    context.fill();
+    context.strokeStyle = 'rgba(232, 197, 103, 0.3)';
+    context.lineWidth = 1;
+    this.drawRoundRect(context, 100, 270, 600, 130, 16);
+    context.stroke();
+
+    // Texto dentro de la caja de monto
+    context.fillStyle = '#94a3b8';
+    context.font = '700 16px Inter, Arial, sans-serif';
+    context.fillText('MONTO TRANSFERIDO', 400, 310);
+
+    context.fillStyle = '#e8c567';
+    context.font = '800 54px Inter, Arial, sans-serif';
+    context.fillText(`${transfer.monto.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} DC`, 400, 370);
+
+    // 6. Filas de Información (Key-Value)
+    context.textAlign = 'left';
+    
+    // Remitente
+    this.drawReceiptLine(context, 'Remitente', `${transfer.nombreRemitente} (${transfer.codigoRemitente})`, 100, 470);
+
+    // Destinatario
+    this.drawReceiptLine(context, 'Destinatario', `${transfer.nombreDestinatario} (${transfer.codigoDestinatario})`, 100, 570);
+
+    // Fecha
+    const fechaStr = new Date(transfer.fechaTransferencia).toLocaleString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    this.drawReceiptLine(context, 'Fecha y Hora', fechaStr, 100, 670);
+
+    // Observación / Motivo
+    this.drawReceiptLine(context, 'Observación / Motivo', transfer.observacion || 'Sin comentario', 100, 770);
+
+    // Línea divisoria inferior
+    this.drawDashedLine(context, 80, 860, 720, 860);
+
+    // 7. Pie de comprobante
+    context.textAlign = 'center';
+    context.fillStyle = '#64748b';
+    context.font = '700 16px Inter, Arial, sans-serif';
+    context.fillText('Banco de Dracoins - Sistema Imperial Seguro', 400, 900);
+
+    // Descargar
     const link = document.createElement('a');
     link.href = canvas.toDataURL('image/png');
     link.download = `comprobante-transferencia-${transfer.idMovimiento}.png`;
     link.click();
+  }
+
+  private drawRoundRect(
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number
+  ): void {
+    context.beginPath();
+    context.moveTo(x + radius, y);
+    context.lineTo(x + width - radius, y);
+    context.quadraticCurveTo(x + width, y, x + width, y + radius);
+    context.lineTo(x + width, y + height - radius);
+    context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    context.lineTo(x + radius, y + height);
+    context.quadraticCurveTo(x, y + height, x, y + height - radius);
+    context.lineTo(x, y + radius);
+    context.quadraticCurveTo(x, y, x + radius, y);
+    context.closePath();
+  }
+
+  private drawDashedLine(
+    context: CanvasRenderingContext2D,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number
+  ): void {
+    context.beginPath();
+    context.setLineDash([8, 8]);
+    context.strokeStyle = 'rgba(232, 197, 103, 0.22)';
+    context.lineWidth = 2;
+    context.moveTo(x1, y1);
+    context.lineTo(x2, y2);
+    context.stroke();
+    context.setLineDash([]);
   }
 
   previousGeneralHistoryPage(): void {
@@ -807,11 +932,11 @@ export class DracoinsPageComponent {
     x: number,
     y: number
   ): void {
-    context.fillStyle = '#9aa6b8';
-    context.font = '700 18px Arial';
+    context.fillStyle = '#94a3b8';
+    context.font = '700 16px Inter, Arial, sans-serif';
     context.fillText(label.toUpperCase(), x, y);
     context.fillStyle = '#f8fafc';
-    context.font = '22px Arial';
+    context.font = '700 24px Inter, Arial, sans-serif';
     context.fillText(value.slice(0, 70), x, y + 28);
   }
 }
