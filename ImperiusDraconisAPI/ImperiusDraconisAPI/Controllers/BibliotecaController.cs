@@ -50,7 +50,8 @@ public sealed class BibliotecaController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<BibliotecaLibroDto>>> GetLibros(
         [FromQuery] int? categoriaId,
         [FromQuery] string? busqueda,
-        CancellationToken cancellationToken)
+        [FromQuery] bool soloMisLibros = false,
+        CancellationToken cancellationToken = default)
     {
         var idAlumnoClaim = User.Claims.FirstOrDefault(claim => claim.Type == ClaimTypes.NameIdentifier)?.Value;
         if (!int.TryParse(idAlumnoClaim, out var idAlumno))
@@ -58,7 +59,7 @@ public sealed class BibliotecaController : ControllerBase
             return Unauthorized();
         }
 
-        var libros = await _bibliotecaService.ObtenerLibrosAsync(idAlumno, categoriaId, busqueda, cancellationToken);
+        var libros = await _bibliotecaService.ObtenerLibrosAsync(idAlumno, categoriaId, busqueda, soloMisLibros, cancellationToken);
         return Ok(libros);
     }
 
@@ -131,5 +132,111 @@ public sealed class BibliotecaController : ControllerBase
         };
 
         return PhysicalFile(absolutePath, contentType, enableRangeProcessing: true);
+    }
+
+    [HttpGet("suscripcion")]
+    [ProducesResponseType(typeof(SuscripcionStatusDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<SuscripcionStatusDto>> GetSuscripcion(CancellationToken cancellationToken)
+    {
+        var idAlumnoClaim = User.Claims.FirstOrDefault(claim => claim.Type == ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(idAlumnoClaim, out var idAlumno))
+        {
+            return Unauthorized();
+        }
+
+        var status = await _bibliotecaService.ObtenerDetalleSuscripcionAsync(idAlumno, cancellationToken);
+        return Ok(status);
+    }
+
+    [HttpPost("suscribirse")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult> Suscribirse(CancellationToken cancellationToken)
+    {
+        var idAlumnoClaim = User.Claims.FirstOrDefault(claim => claim.Type == ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(idAlumnoClaim, out var idAlumno))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var success = await _bibliotecaService.SuscribirseAsync(idAlumno, cancellationToken);
+            return Ok(new { success, message = "Te has suscrito correctamente por una semana." });
+        }
+        catch (BusinessRuleException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+    }
+
+    // --- ENDPOINTS CRUD DE LIBRERÍA (Para Administradores / Maestres) ---
+
+    private bool EsAdministrador()
+    {
+        return User.Claims.Any(c => c.Type == "permission" && c.Value.Equals("Biblioteca:Admin", StringComparison.OrdinalIgnoreCase)) 
+               || User.Claims.Any(c => c.Type == ClaimTypes.Role && c.Value.Equals("Maestre", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [HttpPost("libros")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> CrearLibro([FromBody] SaveLibroRequest request, CancellationToken cancellationToken)
+    {
+        if (!EsAdministrador())
+        {
+            return Forbid();
+        }
+
+        var success = await _bibliotecaService.CrearLibroAsync(request, cancellationToken);
+        if (!success)
+        {
+            return BadRequest(new { message = "No se pudo crear el libro." });
+        }
+
+        return Ok(new { success, message = "Libro creado con éxito." });
+    }
+
+    [HttpPut("libros/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> ActualizarLibro(int id, [FromBody] SaveLibroRequest request, CancellationToken cancellationToken)
+    {
+        if (!EsAdministrador())
+        {
+            return Forbid();
+        }
+
+        var success = await _bibliotecaService.ActualizarLibroAsync(id, request, cancellationToken);
+        if (!success)
+        {
+            return BadRequest(new { message = "No se pudo actualizar el libro." });
+        }
+
+        return Ok(new { success, message = "Libro actualizado con éxito." });
+    }
+
+    [HttpDelete("libros/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> EliminarLibro(int id, CancellationToken cancellationToken)
+    {
+        if (!EsAdministrador())
+        {
+            return Forbid();
+        }
+
+        var success = await _bibliotecaService.EliminarLibroAsync(id, cancellationToken);
+        if (!success)
+        {
+            return BadRequest(new { message = "No se pudo eliminar el libro." });
+        }
+
+        return Ok(new { success, message = "Libro eliminado con éxito." });
     }
 }

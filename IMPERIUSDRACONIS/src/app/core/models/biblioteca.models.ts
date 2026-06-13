@@ -14,4 +14,23 @@ export interface BibliotecaLibro {
   formato: string;
   precioDracoins: number;
   comprado: boolean;
+  rutaArchivo?: string;
+  activo?: boolean;
+}
+
+export interface SaveLibroRequest {
+  titulo: string;
+  autor: string;
+  sinopsis?: string;
+  idCategoria?: number | null;
+  rutaArchivo: string;
+  formato: string;
+  precioDracoins: number;
+  activo: boolean;
+}
+
+export interface SuscripcionStatus {
+  activa: boolean;
+  fechaVencimiento?: string | Date;
+  costoSuscripcion: number;
 }

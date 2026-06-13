@@ -29,8 +29,26 @@ public static class DatabaseInitializer
 
             logger.LogInformation("Iniciando migracion automatica de base de datos para Biblioteca...");
 
-            var rootPath = Path.Combine(environment.ContentRootPath, "..", "SQLMigrar");
-            
+            string? rootPath = null;
+            var currentDir = environment.ContentRootPath;
+            for (int i = 0; i < 4; i++)
+            {
+                var candidate = Path.Combine(currentDir, "SQLMigrar");
+                if (Directory.Exists(candidate))
+                {
+                    rootPath = candidate;
+                    break;
+                }
+                var parent = Directory.GetParent(currentDir);
+                if (parent == null) break;
+                currentDir = parent.FullName;
+            }
+
+            if (rootPath == null)
+            {
+                logger.LogError("No se pudo localizar la carpeta SQLMigrar subiendo desde {ContentRootPath}.", environment.ContentRootPath);
+                return;
+            }
             // 1. Ejecutar 012_create_biblioteca_tables.sql
             var tablesScriptPath = Path.Combine(rootPath, "012_create_biblioteca_tables.sql");
             if (File.Exists(tablesScriptPath))
