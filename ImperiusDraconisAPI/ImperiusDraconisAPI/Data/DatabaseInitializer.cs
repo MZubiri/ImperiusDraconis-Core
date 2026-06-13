@@ -72,9 +72,9 @@ public static class DatabaseInitializer
                 logger.LogError(ex, "Error al contar libros en BibliotecaLibros.");
             }
 
-            if (librosCount == 0)
+            if (librosCount < 500)
             {
-                logger.LogInformation("La tabla BibliotecaLibros esta vacia. Iniciando siembra de datos...");
+                logger.LogInformation("La tabla BibliotecaLibros contiene solo {Count} registros (se esperan mas de 1000). Iniciando siembra de datos...", librosCount);
                 // Ejecutar 013_seed_biblioteca_data.sql
                 var seedScriptPath = Path.Combine(rootPath, "013_seed_biblioteca_data.sql");
                 if (File.Exists(seedScriptPath))
