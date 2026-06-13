@@ -30,13 +30,14 @@
 </div>
 
 <!-- Sección Desbloqueada (Biblioteca) -->
-<div *ngIf="desbloqueado() && !libroActivo()" class="biblioteca-container">
+<section *ngIf="desbloqueado() && !libroActivo()" class="module-layout">
   
   <!-- Encabezado de la página -->
-  <div class="header-section">
-    <div>
-      <h1 class="page-title">La Gran Biblioteca de Imperius</h1>
-      <p class="page-subtitle">Explora los tomos de conocimiento y magia de la orden.</p>
+  <article class="module-hero panel">
+    <div class="stack">
+      <span class="pill success">Biblioteca</span>
+      <h1>La Gran Biblioteca de Imperius</h1>
+      <p class="muted">Explora los tomos de conocimiento y magia de la orden.</p>
     </div>
     
     <!-- Lado derecho: Saldo y Botón Admin -->
@@ -51,7 +52,7 @@
         <span class="coin-amount">{{ alumnoDracoins() | number }} Dracoins</span>
       </div>
     </div>
-  </div>
+  </article>
 
   <!-- Panel de control de Tabs Principales (Todos / Mis Libros / Suscripción) -->
   <div class="tab-selector-bar">
@@ -301,6 +302,8 @@
       </div>
     </div>
   </div>
+</section>
+
 
 <!-- Visor de PDF/EPUB Pantalla Completa (Lectura) -->
 <div *ngIf="libroActivo()" class="reader-overlay">
@@ -453,7 +456,7 @@
     <div class="detail-modal-body">
       <div class="detail-book-info">
         <!-- Portada en miniatura -->
-        <div class="book-cover {{ 'book-cover-' + clasificarCategoria(libroDetalle()!.categoriaNombre) }}" style="transform: none; pointer-events: none; width: 130px; height: 180px; flex-shrink: 0; border: 1px solid #bfa046;">
+        <div class="book-cover {{ 'book-cover-' + clasificarCategoria(libroDetalle()!.categoriaNombre) }}" style="transform: none; pointer-events: none; width: 130px; height: 180px; flex-shrink: 0; border: 1px solid var(--border-strong);">
           <div class="book-spine"></div>
           <div class="book-cover-content">
             <span class="book-format-badge" [class.pdf]="libroDetalle()!.formato === '.pdf'">
