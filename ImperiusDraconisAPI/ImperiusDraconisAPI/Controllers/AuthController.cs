@@ -5,6 +5,7 @@ using ImperiusDraconisAPI.Services;
 using ImperiusDraconisAPI.Services.Auditoria;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ImperiusDraconisAPI.Controllers;
 
@@ -22,6 +23,7 @@ public sealed class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("LoginPolicy")]
     [HttpPost("login")]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -54,6 +56,7 @@ public sealed class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("LoginPolicy")]
     [HttpPost("recuperar-contrasena")]
     [ProducesResponseType(typeof(RecoverPasswordResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
