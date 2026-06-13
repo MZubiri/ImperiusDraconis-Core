@@ -309,20 +309,48 @@
 <div *ngIf="libroActivo()" class="reader-overlay">
   <div class="reader-header">
     <button (click)="cerrarLectura()" class="back-button">
-      <svg lucideIcon="arrow-left"></svg> Volver a la Biblioteca
+      <svg lucideIcon="arrow-left"></svg> Volver
     </button>
     <div class="reader-title-info">
       <h2>{{ libroActivo()?.titulo }}</h2>
       <p>{{ libroActivo()?.autor }}</p>
     </div>
-    <button (click)="cerrarLectura()" class="close-button">
-      <svg lucideIcon="x"></svg>
-    </button>
+    <div class="reader-header-actions">
+      <!-- Botón abrir en nueva pestaña (muy útil en móvil y siempre disponible) -->
+      <button 
+        *ngIf="libroActivo()?.formato === '.pdf'"
+        (click)="abrirEnNuevaPestana()" 
+        class="open-tab-button"
+        title="Abrir en nueva pestaña"
+      >
+        <svg lucideIcon="external-link"></svg>
+        <span class="open-tab-label">Nueva pestaña</span>
+      </button>
+      <button (click)="cerrarLectura()" class="close-button">
+        <svg lucideIcon="x"></svg>
+      </button>
+    </div>
   </div>
   
   <div class="reader-body" (contextmenu)="$event.preventDefault()">
-    <!-- Si es PDF, renderizar iframe -->
-    <iframe *ngIf="libroActivo()?.formato === '.pdf' && libroUrlSafe()" [src]="libroUrlSafe()" class="pdf-iframe" frameborder="0"></iframe>
+    <!-- Si es PDF, renderizar iframe con fallback -->
+    <ng-container *ngIf="libroActivo()?.formato === '.pdf' && libroUrlSafe()">
+      <iframe [src]="libroUrlSafe()" class="pdf-iframe" frameborder="0"></iframe>
+      <!-- Fallback visible si el iframe falla (ej. móvil) -->
+      <div class="pdf-mobile-fallback">
+        <svg lucideIcon="file-text" class="epub-icon"></svg>
+        <h3>Visor no disponible aquí</h3>
+        <p>Tu navegador no puede mostrar el PDF integrado.<br/>Ábrelo en una nueva pestaña para leerlo.</p>
+        <button (click)="abrirEnNuevaPestana()" class="epub-download-btn">
+          <svg lucideIcon="external-link" class="btn-icon-inline"></svg>
+          Abrir PDF en nueva pestaña
+        </button>
+        <button (click)="descargar(libroActivo()!)" class="epub-download-btn" style="background: transparent; color: var(--gold); border: 1px solid var(--gold); box-shadow: none; margin-top: 10px;">
+          <svg lucideIcon="download" class="btn-icon-inline"></svg>
+          Descargar PDF
+        </button>
+      </div>
+    </ng-container>
     
     <!-- Si es EPUB, renderizar fallback amigable -->
     <div *ngIf="libroActivo()?.formato === '.epub'" class="epub-fallback-container">

@@ -25,6 +25,8 @@ import {
   LucidePalette,
   LucideChevronLeft,
   LucideChevronRight,
+  LucideExternalLink,
+  LucideFileText,
   LucideDynamicIcon,
   provideLucideIcons
 } from '@lucide/angular';
@@ -62,7 +64,9 @@ import { AuthService } from '../../core/services/auth.service';
       LucideScroll,
       LucidePalette,
       LucideChevronLeft,
-      LucideChevronRight
+      LucideChevronRight,
+      LucideExternalLink,
+      LucideFileText
     )
   ]
 })
@@ -189,6 +193,12 @@ export class BibliotecaPageComponent implements OnInit {
   // Lectura
   libroActivo = signal<BibliotecaLibro | null>(null);
   libroUrlSafe = signal<SafeResourceUrl | null>(null);
+  libroUrlRaw = signal<string>('');
+
+  // Detección de móvil para el visor de PDF
+  readonly esMobile: boolean = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  ) || (typeof window !== 'undefined' && window.innerWidth <= 768);
 
   // Alumno logueado y rol
   alumnoDracoins = computed(() => this.authService.user()?.dracoins ?? 0);
@@ -475,13 +485,30 @@ export class BibliotecaPageComponent implements OnInit {
   }
 
   leer(libro: BibliotecaLibro): void {
-    this.libroActivo.set(libro);
     const rawUrl = this.bibliotecaService.getLeerUrl(libro.id);
+
+    // En móvil, Chrome Android no puede mostrar PDFs en iframes.
+    // Abrimos directamente en nueva pestaña para usar el visor nativo.
+    if (libro.formato === '.pdf' && this.esMobile) {
+      window.open(rawUrl, '_blank');
+      // Registrar lectura de todas formas
+      this.bibliotecaService.registrarLectura(libro.id).subscribe({
+        next: () => {
+          this.bibliotecaService.getSuscripcionStatus().subscribe({
+            next: (status) => this.suscripcion.set(status)
+          });
+        }
+      });
+      return;
+    }
+
+    // En desktop: mostrar el overlay con iframe
+    this.libroActivo.set(libro);
+    this.libroUrlRaw.set(rawUrl);
     this.libroUrlSafe.set(this.sanitizer.bypassSecurityTrustResourceUrl(rawUrl));
     
     this.bibliotecaService.registrarLectura(libro.id).subscribe({
       next: () => {
-        // Recargar el estado de suscripción para actualizar las estadísticas de libros leídos
         this.bibliotecaService.getSuscripcionStatus().subscribe({
           next: (status) => this.suscripcion.set(status)
         });
@@ -489,9 +516,15 @@ export class BibliotecaPageComponent implements OnInit {
     });
   }
 
+  abrirEnNuevaPestana(): void {
+    const url = this.libroUrlRaw();
+    if (url) window.open(url, '_blank');
+  }
+
   cerrarLectura(): void {
     this.libroActivo.set(null);
     this.libroUrlSafe.set(null);
+    this.libroUrlRaw.set('');
   }
 
   descargar(libro: BibliotecaLibro): void {
