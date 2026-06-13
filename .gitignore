@@ -26,3 +26,13 @@ Thumbs.db
 !SQLMigrar/
 !SQLMigrar/*.sql
 *.log
+
+# Biblioteca (excluir libros, entornos y cache pesada/local)
+Biblioteca/Libros/
+Biblioteca/.env
+Biblioteca/*.xlsx
+Biblioteca/*.json
+Biblioteca/process_metadata_bak.py
+
+# Scripts locales de base de datos
+SQLMigrar/LIMPIAR BD/
