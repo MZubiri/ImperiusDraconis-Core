@@ -2315,13 +2315,24 @@
   gap: 20px;
 }
 
-/* TABLA ADMIN GENERAL */
 .admin-table-wrapper {
   border: 1px solid var(--border);
   border-radius: 8px;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   background-color: var(--panel);
 }
+
+.desktop-only {
+  /* Utility class to hide less important table columns on mobile/tablet */
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+}
+
 
 .admin-table {
   width: 100%;

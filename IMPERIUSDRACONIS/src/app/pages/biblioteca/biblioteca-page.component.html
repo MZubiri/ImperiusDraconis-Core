@@ -644,22 +644,22 @@
           <table class="admin-table">
             <thead>
               <tr>
-                <th>ID</th>
+                <th class="desktop-only">ID</th>
                 <th>Título</th>
-                <th>Autor</th>
-                <th>Categoría</th>
-                <th>Formato</th>
+                <th class="desktop-only">Autor</th>
+                <th class="desktop-only">Categoría</th>
+                <th class="desktop-only">Formato</th>
                 <th>Precio</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               <tr *ngFor="let libro of libros()">
-                <td>{{ libro.id }}</td>
+                <td class="desktop-only">{{ libro.id }}</td>
                 <td class="bold">{{ libro.titulo }}</td>
-                <td>{{ libro.autor }}</td>
-                <td><span class="tag-cat">{{ libro.categoriaNombre }}</span></td>
-                <td><span class="tag-fmt" [class.pdf]="libro.formato === '.pdf'">{{ libro.formato.replace('.', '').toUpperCase() }}</span></td>
+                <td class="desktop-only">{{ libro.autor }}</td>
+                <td class="desktop-only"><span class="tag-cat">{{ libro.categoriaNombre }}</span></td>
+                <td class="desktop-only"><span class="tag-fmt" [class.pdf]="libro.formato === '.pdf'">{{ libro.formato.replace('.', '').toUpperCase() }}</span></td>
                 <td class="gold">{{ libro.precioDracoins | number }} Dc.</td>
                 <td class="table-actions">
                   <button (click)="abrirEditarLibroModal(libro)" class="action-table-btn edit" title="Editar">
@@ -684,21 +684,21 @@
           <table class="admin-table">
             <thead>
               <tr>
-                <th>ID</th>
+                <th class="desktop-only">ID</th>
                 <th>Alumno</th>
-                <th>Código</th>
+                <th class="desktop-only">Código</th>
                 <th>Libro</th>
-                <th>Fecha Compra</th>
+                <th class="desktop-only">Fecha Compra</th>
                 <th>Monto Pagado</th>
               </tr>
             </thead>
             <tbody>
               <tr *ngFor="let compra of comprasAdmin()">
-                <td>{{ compra.id }}</td>
+                <td class="desktop-only">{{ compra.id }}</td>
                 <td class="bold">{{ compra.alumnoNombre }}</td>
-                <td>{{ compra.alumnoCodigo }}</td>
+                <td class="desktop-only">{{ compra.alumnoCodigo }}</td>
                 <td>{{ compra.libroTitulo }}</td>
-                <td>{{ compra.fechaCompra | date: 'dd/MM/yyyy' : 'UTC' }}</td>
+                <td class="desktop-only">{{ compra.fechaCompra | date: 'dd/MM/yyyy' : 'UTC' }}</td>
                 <td class="gold">{{ compra.montoPagado | number }} Dc.</td>
               </tr>
               <tr *ngIf="comprasAdmin().length === 0">
@@ -715,20 +715,20 @@
           <table class="admin-table">
             <thead>
               <tr>
-                <th>ID</th>
+                <th class="desktop-only">ID</th>
                 <th>Alumno</th>
-                <th>Código</th>
+                <th class="desktop-only">Código</th>
                 <th>Libro</th>
-                <th>Fecha Descarga</th>
+                <th class="desktop-only">Fecha Descarga</th>
               </tr>
             </thead>
             <tbody>
               <tr *ngFor="let descarga of descargasAdmin()">
-                <td>{{ descarga.id }}</td>
+                <td class="desktop-only">{{ descarga.id }}</td>
                 <td class="bold">{{ descarga.alumnoNombre }}</td>
-                <td>{{ descarga.alumnoCodigo }}</td>
+                <td class="desktop-only">{{ descarga.alumnoCodigo }}</td>
                 <td>{{ descarga.libroTitulo }}</td>
-                <td>{{ descarga.fechaDescarga | date: 'dd/MM/yyyy' : 'UTC' }}</td>
+                <td class="desktop-only">{{ descarga.fechaDescarga | date: 'dd/MM/yyyy' : 'UTC' }}</td>
               </tr>
               <tr *ngIf="descargasAdmin().length === 0">
                 <td colspan="5" class="text-center text-muted">No se registran descargas en el sistema.</td>
@@ -745,20 +745,20 @@
             <thead>
               <tr>
                 <th>Alumno</th>
-                <th>Código</th>
-                <th>Fecha Inicio</th>
+                <th class="desktop-only">Código</th>
+                <th class="desktop-only">Fecha Inicio</th>
                 <th>Fecha Vencimiento</th>
-                <th>Auto-Renovación</th>
+                <th class="desktop-only">Auto-Renovación</th>
                 <th>Acción</th>
               </tr>
             </thead>
             <tbody>
               <tr *ngFor="let suscrito of suscritosAdmin()">
                 <td class="bold">{{ suscrito.alumnoNombre }}</td>
-                <td>{{ suscrito.alumnoCodigo }}</td>
-                <td>{{ suscrito.fechaInicio | date: 'dd/MM/yyyy' : 'UTC' }}</td>
+                <td class="desktop-only">{{ suscrito.alumnoCodigo }}</td>
+                <td class="desktop-only">{{ suscrito.fechaInicio | date: 'dd/MM/yyyy' : 'UTC' }}</td>
                 <td>{{ suscrito.fechaVencimiento | date: 'dd/MM/yyyy' : 'UTC' }}</td>
-                <td>
+                <td class="desktop-only">
                   <span class="badge-auto" [class.enabled]="suscrito.autoRenovacion">
                     {{ suscrito.autoRenovacion ? 'Habilitada' : 'Inhabilitada' }}
                   </span>
