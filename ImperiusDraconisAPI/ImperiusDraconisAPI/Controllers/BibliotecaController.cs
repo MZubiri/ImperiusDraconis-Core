@@ -109,10 +109,25 @@ public sealed class BibliotecaController : ControllerBase
         // Construir la ruta física completa
         // Los libros están guardados físicamente en: /home/guss/Desktop/Proyectos/IDNUEVO/Biblioteca/Libros/...
         // que equivale a: {RootPath}/Biblioteca/Libros/...
-        // El script 013 guarda la ruta como: "Libros/PDF/..." o "Libros/EPUB/..."
+        // El script 013 guarda la ruta como: "PDF/..." o "EPUB/...", por lo que puede faltar el prefijo "Libros".
         var pathSegments = rutaRelativa.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
         var baseDir = Path.Combine(_environment.ContentRootPath, "..", "Biblioteca");
         var absolutePath = Path.Combine(baseDir, Path.Combine(pathSegments));
+
+        if (!System.IO.File.Exists(absolutePath))
+        {
+            // Intentar buscar dentro de la subcarpeta "Libros" si no está presente en la ruta
+            if (pathSegments.Length > 0 && !pathSegments[0].Equals("Libros", StringComparison.OrdinalIgnoreCase))
+            {
+                var fallbackSegments = new List<string> { "Libros" };
+                fallbackSegments.AddRange(pathSegments);
+                var fallbackPath = Path.Combine(baseDir, Path.Combine(fallbackSegments.ToArray()));
+                if (System.IO.File.Exists(fallbackPath))
+                {
+                    absolutePath = fallbackPath;
+                }
+            }
+        }
 
         if (!System.IO.File.Exists(absolutePath))
         {
