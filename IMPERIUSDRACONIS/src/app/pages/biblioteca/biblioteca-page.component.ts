@@ -75,6 +75,56 @@ export class BibliotecaPageComponent implements OnInit {
   desbloqueado = signal<boolean>(false);
   passwordInput = signal<string>('');
   loading = signal<boolean>(false);
+
+  // Modal de confirmación/alerta personalizado
+  modalConfig = signal<{
+    visible: boolean;
+    title: string;
+    message: string;
+    isConfirm: boolean;
+    onAccept: () => void;
+    onCancel?: () => void;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    isConfirm: false,
+    onAccept: () => {}
+  });
+
+  mostrarAlerta(title: string, message: string, onAccept?: () => void): void {
+    this.modalConfig.set({
+      visible: true,
+      title,
+      message,
+      isConfirm: false,
+      onAccept: () => {
+        this.cerrarModalInfo();
+        if (onAccept) onAccept();
+      }
+    });
+  }
+
+  mostrarConfirmacion(title: string, message: string, onAccept: () => void, onCancel?: () => void): void {
+    this.modalConfig.set({
+      visible: true,
+      title,
+      message,
+      isConfirm: true,
+      onAccept: () => {
+        this.cerrarModalInfo();
+        onAccept();
+      },
+      onCancel: () => {
+        this.cerrarModalInfo();
+        if (onCancel) onCancel();
+      }
+    });
+  }
+
+  cerrarModalInfo(): void {
+    this.modalConfig.update(cfg => ({ ...cfg, visible: false }));
+  }
   errorMsg = signal<string>('');
 
   // Categorías agrupadas (Grupos principales)
@@ -292,33 +342,43 @@ export class BibliotecaPageComponent implements OnInit {
 
   comprar(libro: BibliotecaLibro): void {
     if (this.alumnoDracoins() < libro.precioDracoins) {
-      alert(`No tienes suficientes Dracoins. Necesitas ${libro.precioDracoins} y tienes ${this.alumnoDracoins()}.`);
+      this.mostrarAlerta(
+        'Saldo Insuficiente',
+        `No tienes suficientes Dracoins. Necesitas ${libro.precioDracoins} Dc y tienes ${this.alumnoDracoins()} Dc.`
+      );
       return;
     }
 
-    if (confirm(`¿Estás seguro de que deseas comprar "${libro.titulo}" por ${libro.precioDracoins} Dracoins?`)) {
-      this.loading.set(true);
-      this.bibliotecaService.comprarLibro(libro.id).subscribe({
-        next: (res) => {
-          if (res.success) {
-            alert(res.message);
-            this.authService.hydrateSession().subscribe();
-            this.buscarLibros();
+    this.mostrarConfirmacion(
+      'Confirmar Adquisición',
+      `¿Estás seguro de que deseas comprar "${libro.titulo}" por ${libro.precioDracoins} Dracoins?`,
+      () => {
+        this.loading.set(true);
+        this.bibliotecaService.comprarLibro(libro.id).subscribe({
+          next: (res) => {
+            if (res.success) {
+              this.mostrarAlerta('Éxito', res.message);
+              this.authService.hydrateSession().subscribe();
+              this.buscarLibros();
+            }
+          },
+          error: (err) => {
+            this.loading.set(false);
+            this.mostrarAlerta('Error', err.error?.message || 'Ocurrió un error al procesar la compra.');
           }
-        },
-        error: (err) => {
-          this.loading.set(false);
-          alert(err.error?.message || 'Ocurrió un error al procesar la compra.');
-        }
-      });
-    }
+        });
+      }
+    );
   }
 
   suscribirse(): void {
     const costo = this.suscripcion()?.costoSuscripcion ?? 250;
 
     if (this.alumnoDracoins() < costo) {
-      alert(`No tienes suficientes Dracoins. La suscripción cuesta ${costo} DC y tienes ${this.alumnoDracoins()} DC.`);
+      this.mostrarAlerta(
+        'Saldo Insuficiente',
+        `No tienes suficientes Dracoins. La suscripción cuesta ${costo} Dc y tienes ${this.alumnoDracoins()} Dc.`
+      );
       return;
     }
 
@@ -326,22 +386,26 @@ export class BibliotecaPageComponent implements OnInit {
       ? `¿Deseas extender tu suscripción semanal por otros 7 días por ${costo} Dracoins?`
       : `¿Deseas suscribirte a la biblioteca por una semana por ${costo} Dracoins? (Acceso ilimitado a todos los libros y 2 descargas semanales)`;
 
-    if (confirm(confirmMsg)) {
-      this.loading.set(true);
-      this.bibliotecaService.suscribirse().subscribe({
-        next: (res) => {
-          if (res.success) {
-            alert(res.message);
-            this.authService.hydrateSession().subscribe();
-            this.cargarDatos(); // Recarga libros y estado de suscripción
+    this.mostrarConfirmacion(
+      'Confirmar Suscripción',
+      confirmMsg,
+      () => {
+        this.loading.set(true);
+        this.bibliotecaService.suscribirse().subscribe({
+          next: (res) => {
+            if (res.success) {
+              this.mostrarAlerta('Éxito', res.message);
+              this.authService.hydrateSession().subscribe();
+              this.cargarDatos(); // Recarga libros y estado de suscripción
+            }
+          },
+          error: (err) => {
+            this.loading.set(false);
+            this.mostrarAlerta('Error', err.error?.message || 'Ocurrió un error al procesar la suscripción.');
           }
-        },
-        error: (err) => {
-          this.loading.set(false);
-          alert(err.error?.message || 'Ocurrió un error al procesar la suscripción.');
-        }
-      });
-    }
+        });
+      }
+    );
   }
 
   leer(libro: BibliotecaLibro): void {
@@ -384,14 +448,14 @@ export class BibliotecaPageComponent implements OnInit {
           reader.onload = (e: any) => {
             try {
               const res = JSON.parse(e.target.result);
-              alert(res.message || 'Error al descargar el libro.');
+              this.mostrarAlerta('Descarga Fallida', res.message || 'Error al descargar el libro.');
             } catch {
-              alert('Error al descargar el libro.');
+              this.mostrarAlerta('Descarga Fallida', 'Error al descargar el libro.');
             }
           };
           reader.readAsText(err.error);
         } else {
-          alert(err.error?.message || 'Error al descargar el libro.');
+          this.mostrarAlerta('Descarga Fallida', err.error?.message || 'Error al descargar el libro.');
         }
       }
     });
@@ -434,7 +498,7 @@ export class BibliotecaPageComponent implements OnInit {
 
   guardarLibro(): void {
     if (!this.formTitulo.trim() || !this.formAutor.trim() || !this.formRutaArchivo.trim() || !this.formFormato.trim()) {
-      alert('Por favor, completa todos los campos requeridos.');
+      this.mostrarAlerta('Campos Requeridos', 'Por favor, completa todos los campos requeridos.');
       return;
     }
 
@@ -459,31 +523,35 @@ export class BibliotecaPageComponent implements OnInit {
       finalize(() => this.loading.set(false))
     ).subscribe({
       next: (res) => {
-        alert(res.message);
+        this.mostrarAlerta('Éxito', res.message);
         this.cerrarCrudModal();
         this.buscarLibros();
       },
       error: (err) => {
-        alert(err.error?.message || 'Error al guardar el libro.');
+        this.mostrarAlerta('Error', err.error?.message || 'Error al guardar el libro.');
       }
     });
   }
 
   eliminarLibro(libro: BibliotecaLibro): void {
-    if (confirm(`¿Estás completamente seguro de eliminar "${libro.titulo}"?`)) {
-      this.loading.set(true);
-      this.bibliotecaService.eliminarLibro(libro.id).pipe(
-        finalize(() => this.loading.set(false))
-      ).subscribe({
-        next: (res) => {
-          alert(res.message);
-          this.buscarLibros();
-        },
-        error: (err) => {
-          alert(err.error?.message || 'Error al eliminar el libro.');
-        }
-      });
-    }
+    this.mostrarConfirmacion(
+      'Eliminar Grimorio',
+      `¿Estás completamente seguro de eliminar "${libro.titulo}"?`,
+      () => {
+        this.loading.set(true);
+        this.bibliotecaService.eliminarLibro(libro.id).pipe(
+          finalize(() => this.loading.set(false))
+        ).subscribe({
+          next: (res) => {
+            this.mostrarAlerta('Éxito', res.message);
+            this.buscarLibros();
+          },
+          error: (err) => {
+            this.mostrarAlerta('Error', err.error?.message || 'Error al eliminar el libro.');
+          }
+        });
+      }
+    );
   }
 
   exportarBiblioteca(): void {
@@ -502,7 +570,7 @@ export class BibliotecaPageComponent implements OnInit {
         window.URL.revokeObjectURL(url);
       },
       error: (err) => {
-        alert('Error al descargar el archivo de Excel.');
+        this.mostrarAlerta('Exportación Fallida', 'Error al descargar el archivo de Excel.');
       }
     });
   }
@@ -512,24 +580,29 @@ export class BibliotecaPageComponent implements OnInit {
     if (!input.files || input.files.length === 0) return;
 
     const file = input.files[0];
-    if (confirm(`¿Deseas importar el archivo "${file.name}"? Se actualizarán los grimorios que coincidan con su ID y se añadirán los nuevos.`)) {
-      this.loading.set(true);
-      this.bibliotecaService.importarExcel(file).pipe(
-        finalize(() => {
-          this.loading.set(false);
-          input.value = ''; // Limpiar el input para permitir subir el mismo archivo después
-        })
-      ).subscribe({
-        next: (res) => {
-          alert(res.message);
-          this.cargarDatos(); // Recargar todo el catálogo y categorías
-        },
-        error: (err) => {
-          alert(err.error?.message || 'Error al importar el archivo de Excel.');
-        }
-      });
-    } else {
-      input.value = '';
-    }
+    this.mostrarConfirmacion(
+      'Importar Grimorios',
+      `¿Deseas importar el archivo "${file.name}"? Se actualizarán los grimorios que coincidan con su ID y se añadirán los nuevos.`,
+      () => {
+        this.loading.set(true);
+        this.bibliotecaService.importarExcel(file).pipe(
+          finalize(() => {
+            this.loading.set(false);
+            input.value = ''; // Limpiar el input para permitir subir el mismo archivo después
+          })
+        ).subscribe({
+          next: (res) => {
+            this.mostrarAlerta('Éxito', res.message);
+            this.cargarDatos(); // Recargar todo el catálogo y categorías
+          },
+          error: (err) => {
+            this.mostrarAlerta('Error', err.error?.message || 'Error al importar el archivo de Excel.');
+          }
+        });
+      },
+      () => {
+        input.value = '';
+      }
+    );
   }
 }

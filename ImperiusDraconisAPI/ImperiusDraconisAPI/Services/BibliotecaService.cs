@@ -230,23 +230,22 @@ public sealed class BibliotecaService
                     CodigoRemitente, 
                     CodigoDestinatario, 
                     Monto, 
-                    Fecha, 
-                    Observacion, 
-                    IdAlumnoReferencia
+                    FechaTransferencia, 
+                    Observacion
                 ) VALUES (
                     (SELECT Codigo FROM Alumnos WHERE IdAlumno = @IdAlumno),
-                    'COBRO_BIBLIOTECA',
+                    'COBRO',
                     @Monto,
                     GETDATE(),
-                    'Compra de libro en la biblioteca',
-                    @IdAlumno
+                    @Observacion
                 )
                 """,
                 connection,
                 transaction))
             {
-                insertMovCommand.Parameters.AddWithValue("@Monto", precio);
+                insertMovCommand.Parameters.AddWithValue("@Monto", -Convert.ToInt32(precio));
                 insertMovCommand.Parameters.AddWithValue("@IdAlumno", idAlumno);
+                insertMovCommand.Parameters.AddWithValue("@Observacion", "Compra de libro en la biblioteca");
                 await insertMovCommand.ExecuteNonQueryAsync(cancellationToken);
             }
 
@@ -386,23 +385,22 @@ public sealed class BibliotecaService
                     CodigoRemitente, 
                     CodigoDestinatario, 
                     Monto, 
-                    Fecha, 
-                    Observacion, 
-                    IdAlumnoReferencia
+                    FechaTransferencia, 
+                    Observacion
                 ) VALUES (
                     (SELECT Codigo FROM Alumnos WHERE IdAlumno = @IdAlumno),
-                    'COBRO_BIBLIOTECA',
+                    'COBRO',
                     @Monto,
                     GETDATE(),
-                    'Suscripcion semanal a la biblioteca',
-                    @IdAlumno
+                    @Observacion
                 )
                 """,
                 connection,
                 transaction))
             {
-                insertMovCommand.Parameters.AddWithValue("@Monto", costo);
+                insertMovCommand.Parameters.AddWithValue("@Monto", -Convert.ToInt32(costo));
                 insertMovCommand.Parameters.AddWithValue("@IdAlumno", idAlumno);
+                insertMovCommand.Parameters.AddWithValue("@Observacion", "Suscripcion semanal a la biblioteca");
                 await insertMovCommand.ExecuteNonQueryAsync(cancellationToken);
             }
 

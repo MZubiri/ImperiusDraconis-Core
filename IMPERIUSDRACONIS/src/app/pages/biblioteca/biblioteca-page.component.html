@@ -86,7 +86,7 @@
     </div>
     <button (click)="suscribirse()" class="suscripcion-btn" [disabled]="loading()">
       <svg lucideIcon="coins" class="btn-icon-inline"></svg>
-      {{ suscripcion()?.activa ? 'Extender Suscripción (' + (suscripcion()?.costoSuscripcion ?? 250) + ' DC)' : 'Suscribirse por 1 semana (' + (suscripcion()?.costoSuscripcion ?? 250) + ' DC)' }}
+      {{ suscripcion()?.activa ? 'Extender Suscripción (' + (suscripcion()?.costoSuscripcion ?? 250) + ' Dc)' : 'Suscribirse por 1 semana (' + (suscripcion()?.costoSuscripcion ?? 250) + ' Dc)' }}
     </button>
   </div>
 
@@ -217,14 +217,14 @@
 
           <!-- Libro de Pago no comprado -->
           <div *ngIf="libro.precioDracoins > 0 && !libro.comprado && !suscripcion()?.activa" class="purchase-box">
-            <span class="price-tag">
-              <svg lucideIcon="coins" class="inline-coin"></svg>
-              {{ libro.precioDracoins | number }} Dr.
-            </span>
-            <button (click)="comprar(libro)" class="action-button buy-button">
-              Adquirir
-            </button>
-          </div>
+              <span class="price-tag">
+                <svg lucideIcon="coins" class="inline-coin"></svg>
+                {{ libro.precioDracoins | number }} Dc.
+              </span>
+              <button (click)="comprar(libro)" class="action-button buy-button">
+                Adquirir
+              </button>
+            </div>
         </div>
       </div>
     </div>
@@ -347,6 +347,33 @@
       <button (click)="guardarLibro()" class="crud-btn-save" [disabled]="loading()">
         <svg lucideIcon="check" class="btn-icon-inline"></svg>
         {{ editandoLibroId() !== null ? 'Guardar Cambios' : 'Registrar Grimorio' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Información y Confirmación Personalizado -->
+<div *ngIf="modalConfig().visible" class="custom-modal-overlay">
+  <div class="custom-modal-box">
+    <div class="custom-modal-header">
+      <h3>
+        <svg lucideIcon="sparkles" class="modal-title-icon"></svg>
+        {{ modalConfig().title }}
+      </h3>
+      <button (click)="cerrarModalInfo()" class="close-btn-custom">
+        <svg lucideIcon="x"></svg>
+      </button>
+    </div>
+    <div class="custom-modal-body">
+      <p>{{ modalConfig().message }}</p>
+    </div>
+    <div class="custom-modal-footer">
+      <button *ngIf="modalConfig().isConfirm" (click)="modalConfig().onCancel ? modalConfig().onCancel!() : cerrarModalInfo()" class="modal-btn-cancel">
+        Cancelar
+      </button>
+      <button (click)="modalConfig().onAccept()" class="modal-btn-accept">
+        <svg lucideIcon="check" class="btn-icon-inline"></svg>
+        Aceptar
       </button>
     </div>
   </div>

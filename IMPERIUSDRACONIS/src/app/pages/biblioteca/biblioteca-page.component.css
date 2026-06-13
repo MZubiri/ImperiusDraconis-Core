@@ -1181,3 +1181,125 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* MODAL DE CONFIRMACIÓN / ALERTA PERSONALIZADO */
+.custom-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 30000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.custom-modal-box {
+  background: linear-gradient(135deg, #18130e 0%, #0c0906 100%);
+  border: 2px solid #bfa046;
+  border-radius: 12px;
+  max-width: 450px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
+  animation: fadeIn 0.4s ease-out;
+  overflow: hidden;
+}
+
+.custom-modal-header {
+  background-color: #130f0a;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(191, 160, 70, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.custom-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-family: 'Georgia', serif;
+  color: #f0e6d2;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-title-icon {
+  width: 18px;
+  height: 18px;
+  color: #dcb33f;
+}
+
+.close-btn-custom {
+  background: transparent;
+  border: none;
+  color: #a89e8c;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+}
+
+.close-btn-custom:hover {
+  color: #f7f1e6;
+}
+
+.custom-modal-body {
+  padding: 20px;
+  font-size: 15px;
+  color: #bfa88a;
+  line-height: 1.6;
+}
+
+.custom-modal-footer {
+  background-color: #130f0a;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(191, 160, 70, 0.2);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.modal-btn-cancel {
+  background: transparent;
+  border: 1px solid #4e3d23;
+  color: #a89e8c;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.modal-btn-cancel:hover {
+  color: #f7f1e6;
+  border-color: #7e6c54;
+}
+
+.modal-btn-accept {
+  background: linear-gradient(90deg, #7f0909 0%, #a91212 100%);
+  color: #ffffff;
+  border: 1px solid #bfa046;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(127, 9, 9, 0.3);
+}
+
+.modal-btn-accept:hover {
+  background: linear-gradient(90deg, #961111 0%, #c11818 100%);
+  box-shadow: 0 6px 16px rgba(169, 18, 18, 0.5);
+  transform: translateY(-1px);
+}
