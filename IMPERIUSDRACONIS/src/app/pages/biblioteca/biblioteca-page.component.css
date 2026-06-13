@@ -1303,3 +1303,462 @@
   box-shadow: 0 6px 16px rgba(169, 18, 18, 0.5);
   transform: translateY(-1px);
 }
+
+/* COMPACTAR BANNER DE SUSCRIPCIÓN */
+.suscripcion-banner {
+  padding: 12px 20px !important;
+  margin-bottom: 20px !important;
+  border-radius: 10px !important;
+  gap: 15px !important;
+}
+
+.banner-title {
+  font-size: 15px !important;
+  margin: 0 0 3px 0 !important;
+}
+
+.banner-desc {
+  font-size: 13px !important;
+}
+
+.suscripcion-btn {
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+}
+
+.suscripcion-btn.cancel {
+  background: linear-gradient(135deg, #440c0c 0%, #200505 100%) !important;
+  color: #ff8a8a !important;
+  border-color: #7f0909 !important;
+  box-shadow: 0 4px 12px rgba(127, 9, 9, 0.2) !important;
+}
+
+.suscripcion-btn.cancel:hover {
+  background: linear-gradient(135deg, #601010 0%, #300808 100%) !important;
+  border-color: #a91212 !important;
+}
+
+/* ESTILOS FALLBACK LECTOR EPUB */
+.epub-fallback-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  padding: 30px;
+  box-sizing: border-box;
+}
+
+.epub-fallback-box {
+  background: linear-gradient(135deg, #18130e 0%, #0c0906 100%);
+  border: 2px solid #bfa046;
+  border-radius: 12px;
+  padding: 40px 30px;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.8);
+}
+
+.epub-icon {
+  width: 60px;
+  height: 60px;
+  color: #dcb33f;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 0 8px rgba(220, 179, 63, 0.4));
+}
+
+.epub-fallback-box h3 {
+  font-family: 'Georgia', serif;
+  font-size: 24px;
+  color: #ffd88a;
+  margin: 0 0 15px 0;
+}
+
+.epub-fallback-box p {
+  font-size: 14px;
+  color: #bfa88a;
+  line-height: 1.6;
+  margin: 0 0 12px 0;
+}
+
+.epub-fallback-box .epub-instruction {
+  font-size: 13px;
+  color: #8a7e6e;
+  margin-bottom: 30px;
+}
+
+.epub-download-btn {
+  background: linear-gradient(90deg, #7f0909 0%, #a91212 100%);
+  color: #ffffff;
+  border: 1px solid #bfa046;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(127, 9, 9, 0.4);
+}
+
+.epub-download-btn:hover {
+  background: linear-gradient(90deg, #961111 0%, #c11818 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(169, 18, 18, 0.6);
+}
+
+/* ESTILOS MODAL DETALLE DE LIBRO */
+.detail-modal-box {
+  background: linear-gradient(135deg, #18130e 0%, #0c0906 100%);
+  border: 2px solid #bfa046;
+  border-radius: 12px;
+  max-width: 620px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
+  animation: fadeIn 0.4s ease-out;
+  overflow: hidden;
+}
+
+.detail-modal-header {
+  background-color: #130f0a;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(191, 160, 70, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-family: 'Georgia', serif;
+  color: #f0e6d2;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-modal-body {
+  padding: 24px;
+}
+
+.detail-book-info {
+  display: flex;
+  gap: 24px;
+}
+
+.detail-text-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-grow: 1;
+  min-width: 0; /* Evita desborde de textos largos */
+}
+
+.detail-title {
+  font-size: 22px;
+  font-family: 'Georgia', serif;
+  color: #f7f1e6;
+  margin: 0 0 4px 0;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.detail-author {
+  font-size: 14px;
+  color: #a89e8c;
+  margin: 0 0 12px 0;
+}
+
+.detail-author strong {
+  color: #ffd88a;
+}
+
+.detail-synopsis-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-synopsis-section h4 {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  color: #bfa046;
+  letter-spacing: 0.8px;
+}
+
+.detail-synopsis {
+  font-size: 13px;
+  color: #bfa88a;
+  line-height: 1.6;
+  margin: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* Scrollbar para la sinopsis */
+.detail-synopsis::-webkit-scrollbar {
+  width: 6px;
+}
+.detail-synopsis::-webkit-scrollbar-track {
+  background: #0d0a07;
+}
+.detail-synopsis::-webkit-scrollbar-thumb {
+  background: #5a4b2c;
+  border-radius: 3px;
+}
+
+.detail-modal-footer {
+  background-color: #130f0a;
+  padding: 16px 24px;
+  border-top: 1px solid rgba(191, 160, 70, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-actions {
+  display: flex;
+  align-items: center;
+}
+
+/* ESTILOS RESPONSIVE (MÓVIL / TABLET) */
+@media (max-width: 768px) {
+  .biblioteca-container {
+    padding: 15px;
+  }
+
+  .header-section {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    gap: 15px;
+    padding-bottom: 15px;
+  }
+
+  .header-actions {
+    justify-content: center;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .dracoins-badge {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  .admin-action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .suscripcion-banner {
+    flex-direction: column;
+    text-align: center;
+    padding: 16px;
+    border-radius: 8px;
+  }
+
+  .suscripcion-info {
+    width: 100%;
+  }
+
+  .banner-title {
+    justify-content: center;
+  }
+
+  .suscripcion-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Desplazamiento horizontal de categorías en móviles */
+  .category-groups-bar {
+    display: flex !important;
+    overflow-x: auto;
+    gap: 8px;
+    padding: 4px 2px 10px;
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #5a4b2c #0d0a07;
+  }
+
+  .category-groups-bar::-webkit-scrollbar {
+    height: 4px;
+  }
+  .category-groups-bar::-webkit-scrollbar-track {
+    background: #0d0a07;
+  }
+  .category-groups-bar::-webkit-scrollbar-thumb {
+    background: #5a4b2c;
+    border-radius: 2px;
+  }
+
+  .group-tab {
+    flex: 0 0 110px;
+    padding: 8px;
+  }
+
+  .group-tab-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .group-tab-name {
+    font-size: 11px;
+  }
+
+  .search-bar-wrapper {
+    max-width: 100%;
+  }
+
+  .books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 20px;
+  }
+
+  /* Modales responsive */
+  .crud-modal-box, .detail-modal-box, .custom-modal-box {
+    width: 95%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .crud-modal-body, .detail-modal-body {
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
+  .detail-book-info {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+  }
+
+  .detail-book-info .book-cover {
+    width: 120px !important;
+    height: 165px !important;
+  }
+
+  .detail-synopsis {
+    max-height: 220px;
+    text-align: left;
+  }
+
+  /* Subcategorías con scroll horizontal en móvil */
+  .subcategories-list {
+    display: flex !important;
+    overflow-x: auto;
+    gap: 8px;
+    padding: 4px 2px 8px;
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #5a4b2c #0d0a07;
+  }
+
+  .subcategories-list::-webkit-scrollbar {
+    height: 4px;
+  }
+  .subcategories-list::-webkit-scrollbar-track {
+    background: #0d0a07;
+  }
+  .subcategories-list::-webkit-scrollbar-thumb {
+    background: #5a4b2c;
+    border-radius: 2px;
+  }
+
+  .subcategory-pill {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  /* Header actions responsive grid */
+  .header-actions {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .header-actions .admin-action-btn {
+    flex: 1 1 calc(50% - 5px);
+    box-sizing: border-box;
+    width: auto !important;
+  }
+
+  .header-actions .dracoins-badge {
+    flex: 1 1 100%;
+    box-sizing: border-box;
+    width: 100% !important;
+  }
+
+  /* Reader header responsive */
+  .reader-header {
+    padding: 10px 14px !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .reader-title-info {
+    order: 3;
+    width: 100%;
+    text-align: left !important;
+    margin-top: 4px;
+    border-top: 1px solid rgba(191, 160, 70, 0.1);
+    padding-top: 6px;
+  }
+
+  .reader-title-info h2 {
+    font-size: 15px !important;
+  }
+
+  .reader-title-info p {
+    font-size: 11px !important;
+  }
+
+  .detail-modal-footer {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .detail-actions, .detail-actions .access-buttons-row {
+    width: 100%;
+  }
+
+  .detail-actions .action-button, .detail-actions .purchase-box {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .detail-modal-footer .modal-btn-cancel {
+    width: 100%;
+    order: 2; /* Pone el botón Cerrar abajo */
+  }
+  .detail-actions {
+    width: 100%;
+    order: 1; /* Pone los botones de acción arriba */
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .books-grid {
+    grid-template-columns: 1fr;
+  }
+}

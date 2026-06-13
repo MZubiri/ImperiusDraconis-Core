@@ -57,6 +57,13 @@ export class BibliotecaService {
     );
   }
 
+  cancelarSuscripcion(): Observable<{ success: boolean; message: string }> {
+    return this.http.post<{ success: boolean; message: string }>(
+      `${this.runtimeConfig.apiUrl}/biblioteca/cancelar-suscripcion`, 
+      {}
+    );
+  }
+
   // --- MÉTODOS CRUD (Administrador) ---
 
   crearLibro(payload: SaveLibroRequest): Observable<{ success: boolean; message: string }> {

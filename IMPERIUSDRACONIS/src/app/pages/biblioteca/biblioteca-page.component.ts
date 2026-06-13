@@ -76,6 +76,21 @@ export class BibliotecaPageComponent implements OnInit {
   passwordInput = signal<string>('');
   loading = signal<boolean>(false);
 
+  // Modal de detalles de libro
+  libroDetalle = signal<BibliotecaLibro | null>(null);
+
+  // Modal Éxito de Compra
+  mostrarModalExitoCompra = signal<boolean>(false);
+  libroCompradoTitulo = signal<string>('');
+
+  abrirDetalle(libro: BibliotecaLibro): void {
+    this.libroDetalle.set(libro);
+  }
+
+  cerrarDetalle(): void {
+    this.libroDetalle.set(null);
+  }
+
   // Modal de confirmación/alerta personalizado
   modalConfig = signal<{
     visible: boolean;
@@ -140,6 +155,15 @@ export class BibliotecaPageComponent implements OnInit {
   ];
 
   grupoSeleccionado = signal<string>('todas');
+  gruposCategoriasVisibles = computed(() => {
+    const activeGroups = new Set<string>();
+    activeGroups.add('todas');
+    for (const libro of this.libros()) {
+      const grupoKey = this.clasificarCategoria(libro.categoriaNombre);
+      activeGroups.add(grupoKey);
+    }
+    return this.gruposCategorias.filter(g => activeGroups.has(g.key));
+  });
   categorias = signal<BibliotecaCategoria[]>([]);
   libros = signal<BibliotecaLibro[]>([]);
   categoriaSeleccionada = signal<number | null>(null);
@@ -196,7 +220,11 @@ export class BibliotecaPageComponent implements OnInit {
     if (grupo === 'todas') {
       return [];
     }
-    return this.categorias().filter(cat => this.clasificarCategoria(cat.nombre) === grupo);
+    // Filtrar para mostrar solo subcategorías que tengan al menos un libro en la lista actual
+    const activeCatIds = new Set(this.libros().map(l => l.idCategoria).filter(id => id !== null));
+    return this.categorias().filter(cat => 
+      this.clasificarCategoria(cat.nombre) === grupo && activeCatIds.has(cat.id)
+    );
   });
 
   // Filtrar libros según búsqueda, tab, grupo de categoría y subcategoría
@@ -357,7 +385,8 @@ export class BibliotecaPageComponent implements OnInit {
         this.bibliotecaService.comprarLibro(libro.id).subscribe({
           next: (res) => {
             if (res.success) {
-              this.mostrarAlerta('Éxito', res.message);
+              this.libroCompradoTitulo.set(libro.titulo);
+              this.mostrarModalExitoCompra.set(true);
               this.authService.hydrateSession().subscribe();
               this.buscarLibros();
             }
@@ -383,8 +412,8 @@ export class BibliotecaPageComponent implements OnInit {
     }
 
     const confirmMsg = this.suscripcion()?.activa 
-      ? `¿Deseas extender tu suscripción semanal por otros 7 días por ${costo} Dracoins?`
-      : `¿Deseas suscribirte a la biblioteca por una semana por ${costo} Dracoins? (Acceso ilimitado a todos los libros y 2 descargas semanales)`;
+      ? `¿Deseas reactivar la renovación automática semanal por ${costo} Dracoins?`
+      : `¿Deseas suscribirte a la biblioteca por una semana por ${costo} Dracoins? (Acceso ilimitado a todos los libros y 2 descargas semanales, con cobro recurrente)`;
 
     this.mostrarConfirmacion(
       'Confirmar Suscripción',
@@ -402,6 +431,28 @@ export class BibliotecaPageComponent implements OnInit {
           error: (err) => {
             this.loading.set(false);
             this.mostrarAlerta('Error', err.error?.message || 'Ocurrió un error al procesar la suscripción.');
+          }
+        });
+      }
+    );
+  }
+
+  cancelarSuscripcion(): void {
+    this.mostrarConfirmacion(
+      'Cancelar Suscripción',
+      '¿Estás seguro de que deseas cancelar la renovación automática de tu suscripción? Seguirás teniendo acceso completo hasta el final de tu período actual.',
+      () => {
+        this.loading.set(true);
+        this.bibliotecaService.cancelarSuscripcion().subscribe({
+          next: (res) => {
+            if (res.success) {
+              this.mostrarAlerta('Suscripción Cancelada', res.message);
+              this.cargarDatos(); // Recarga libros y estado de suscripción
+            }
+          },
+          error: (err) => {
+            this.loading.set(false);
+            this.mostrarAlerta('Error', err.error?.message || 'Ocurrió un error al cancelar la suscripción.');
           }
         });
       }
@@ -535,7 +586,7 @@ export class BibliotecaPageComponent implements OnInit {
 
   eliminarLibro(libro: BibliotecaLibro): void {
     this.mostrarConfirmacion(
-      'Eliminar Grimorio',
+      'Eliminar Libro',
       `¿Estás completamente seguro de eliminar "${libro.titulo}"?`,
       () => {
         this.loading.set(true);
@@ -563,7 +614,7 @@ export class BibliotecaPageComponent implements OnInit {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `grimorios_exportados_${new Date().toISOString().slice(0,10)}.xlsx`;
+        a.download = `libros_exportados_${new Date().toISOString().slice(0,10)}.xlsx`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -581,8 +632,8 @@ export class BibliotecaPageComponent implements OnInit {
 
     const file = input.files[0];
     this.mostrarConfirmacion(
-      'Importar Grimorios',
-      `¿Deseas importar el archivo "${file.name}"? Se actualizarán los grimorios que coincidan con su ID y se añadirán los nuevos.`,
+      'Importar Libros',
+      `¿Deseas importar el archivo "${file.name}"? Se actualizarán los libros que coincidan con su ID y se añadirán los nuevos.`,
       () => {
         this.loading.set(true);
         this.bibliotecaService.importarExcel(file).pipe(

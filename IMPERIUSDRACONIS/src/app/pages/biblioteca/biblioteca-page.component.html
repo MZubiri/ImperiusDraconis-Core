@@ -5,7 +5,7 @@
       <svg lucideIcon="lock" class="lock-icon"></svg>
     </div>
     <h1 class="magic-title">Sección Prohibida</h1>
-    <p class="magic-subtitle">Introduce la contraseña de la biblioteca para desbloquear los antiguos grimorios.</p>
+    <p class="magic-subtitle">Introduce la contraseña de la biblioteca para desbloquear los antiguos libros.</p>
 
     <div class="input-group">
       <input 
@@ -23,7 +23,7 @@
     </div>
 
     <button (click)="desbloquear()" class="magic-button" [disabled]="loading()">
-      <span *ngIf="!loading()">Revelar Grimorios</span>
+      <span *ngIf="!loading()">Revelar Libros</span>
       <span *ngIf="loading()">Abriendo portal...</span>
     </button>
   </div>
@@ -57,7 +57,7 @@
           style="display: none;" 
         />
         <button (click)="abrirNuevoLibroModal()" class="admin-action-btn">
-          <svg lucideIcon="plus" class="btn-icon"></svg> Añadir Grimorio
+          <svg lucideIcon="plus" class="btn-icon"></svg> Añadir Libro
         </button>
       </ng-container>
 
@@ -76,17 +76,22 @@
         Pase de Suscripción a la Biblioteca
       </h3>
       <p class="banner-desc" *ngIf="!suscripcion()?.activa">
-        Accede ilimitadamente a todos los grimorios de Imperius por solo <strong>{{ suscripcion()?.costoSuscripcion ?? 250 }} Dracoins</strong> a la semana (incluye 2 descargas semanales).
+        Accede ilimitadamente a todos los libros de Imperius por solo <strong>{{ suscripcion()?.costoSuscripcion ?? 250 }} Dracoins</strong> a la semana (incluye 2 descargas semanales).
       </p>
       <p class="banner-desc" *ngIf="suscripcion()?.activa">
-        Tu suscripción está activa. Tienes acceso completo a todos los libros. Vence el: <strong>{{ suscripcion()?.fechaVencimiento | date: 'dd/MM/yyyy HH:mm' }}</strong>.
+        <span *ngIf="suscripcion()?.autoRenovacion">Tu suscripción está activa (renovación automática habilitada). Vence el: <strong>{{ suscripcion()?.fechaVencimiento | date: 'dd/MM/yyyy HH:mm' }}</strong>.</span>
+        <span *ngIf="!suscripcion()?.autoRenovacion">Tu suscripción está activa (renovación automática cancelada). Expira definitivamente el: <strong>{{ suscripcion()?.fechaVencimiento | date: 'dd/MM/yyyy HH:mm' }}</strong>.</span>
         <br/>
         <strong>Descargas semanales: {{ suscripcion()?.descargasRealizadas ?? 0 }} de {{ suscripcion()?.descargasPermitidas ?? 2 }} utilizadas.</strong>
       </p>
     </div>
-    <button (click)="suscribirse()" class="suscripcion-btn" [disabled]="loading()">
+    
+    <button *ngIf="suscripcion()?.activa && suscripcion()?.autoRenovacion" (click)="cancelarSuscripcion()" class="suscripcion-btn cancel" [disabled]="loading()">
+      Cancelar Suscripción
+    </button>
+    <button *ngIf="!suscripcion()?.activa || !suscripcion()?.autoRenovacion" (click)="suscribirse()" class="suscripcion-btn" [disabled]="loading()">
       <svg lucideIcon="coins" class="btn-icon-inline"></svg>
-      {{ suscripcion()?.activa ? 'Extender Suscripción (' + (suscripcion()?.costoSuscripcion ?? 250) + ' Dc)' : 'Suscribirse por 1 semana (' + (suscripcion()?.costoSuscripcion ?? 250) + ' Dc)' }}
+      {{ suscripcion()?.activa ? 'Reactivar Renovación (' + (suscripcion()?.costoSuscripcion ?? 250) + ' Dc)' : 'Suscribirse por 1 semana (' + (suscripcion()?.costoSuscripcion ?? 250) + ' Dc)' }}
     </button>
   </div>
 
@@ -97,7 +102,7 @@
       [class.active]="tabActivo() === 'todos'"
       (click)="cambiarTab('todos')"
     >
-      Todos los Grimorios
+      Todos los Libros
     </button>
     <button 
       class="tab-btn" 
@@ -125,7 +130,7 @@
     <!-- Grupos de categorías principales (Artes Arcanas, Ciencia Ficción, etc.) -->
     <div class="category-groups-bar">
       <button 
-        *ngFor="let grupo of gruposCategorias" 
+        *ngFor="let grupo of gruposCategoriasVisibles()" 
         [class.active]="grupoSeleccionado() === grupo.key"
         (click)="seleccionarGrupo(grupo.key)"
         class="group-tab"
@@ -167,19 +172,19 @@
   <div *ngIf="!loading() && librosFiltrados().length === 0" class="empty-state">
     <svg lucideIcon="book-open" class="empty-icon"></svg>
     <p *ngIf="tabActivo() === 'todos'">No se encontraron libros que coincidan con la búsqueda o los filtros.</p>
-    <p *ngIf="tabActivo() === 'mis-libros'">Todavía no has adquirido ningún grimorio propio en esta categoría ni posees una suscripción activa.</p>
+    <p *ngIf="tabActivo() === 'mis-libros'">Todavía no has adquirido ningún libro propio en esta categoría ni posees una suscripción activa.</p>
   </div>
 
   <!-- Grid de Libros -->
   <div *ngIf="!loading() && librosFiltrados().length > 0" class="books-grid">
-    <div *ngFor="let libro of librosPaginados()" class="book-card">
+    <div *ngFor="let libro of librosPaginados()" class="book-card" (click)="abrirDetalle(libro)" style="cursor: pointer;">
       
       <!-- Controles de edición rápidos en la esquina para Administradores -->
-      <div *ngIf="esAdmin()" class="admin-card-overlay">
-        <button (click)="abrirEditarLibroModal(libro)" class="card-admin-btn edit" title="Editar Grimorio">
+      <div *ngIf="esAdmin()" class="admin-card-overlay" (click)="$event.stopPropagation()">
+        <button (click)="abrirEditarLibroModal(libro)" class="card-admin-btn edit" title="Editar Libro">
           <svg lucideIcon="edit"></svg>
         </button>
-        <button (click)="eliminarLibro(libro)" class="card-admin-btn delete" title="Eliminar Grimorio">
+        <button (click)="eliminarLibro(libro)" class="card-admin-btn delete" title="Eliminar Libro">
           <svg lucideIcon="trash-2"></svg>
         </button>
       </div>
@@ -200,7 +205,7 @@
         <p class="book-synopsis" *ngIf="libro.sinopsis">{{ libro.sinopsis }}</p>
         <p class="book-synopsis" *ngIf="!libro.sinopsis">Sin sinopsis disponible.</p>
 
-        <div class="book-action-area">
+        <div class="book-action-area" (click)="$event.stopPropagation()">
           <!-- Libro Gratuito o Ya Comprado o con Acceso por Suscripción -->
           <div *ngIf="libro.precioDracoins === 0 || libro.comprado || suscripcion()?.activa" class="access-box">
             <span class="owned-tag" *ngIf="libro.precioDracoins > 0 && !suscripcion()?.activa">Adquirido</span>
@@ -259,8 +264,8 @@
   </div>
 </div>
 
-<!-- Visor de PDF Pantalla Completa (Lectura) -->
-<div *ngIf="libroActivo() && libroUrlSafe()" class="reader-overlay">
+<!-- Visor de PDF/EPUB Pantalla Completa (Lectura) -->
+<div *ngIf="libroActivo()" class="reader-overlay">
   <div class="reader-header">
     <button (click)="cerrarLectura()" class="back-button">
       <svg lucideIcon="arrow-left"></svg> Volver a la Biblioteca
@@ -275,7 +280,23 @@
   </div>
   
   <div class="reader-body" (contextmenu)="$event.preventDefault()">
-    <iframe [src]="libroUrlSafe()" class="pdf-iframe" frameborder="0"></iframe>
+    <!-- Si es PDF, renderizar iframe -->
+    <iframe *ngIf="libroActivo()?.formato === '.pdf' && libroUrlSafe()" [src]="libroUrlSafe()" class="pdf-iframe" frameborder="0"></iframe>
+    
+    <!-- Si es EPUB, renderizar fallback amigable -->
+    <div *ngIf="libroActivo()?.formato === '.epub'" class="epub-fallback-container">
+      <div class="epub-fallback-box">
+        <svg lucideIcon="book-open" class="epub-icon"></svg>
+        <h3>Lectura en Formato EPUB</h3>
+        <p>Los archivos en formato EPUB no admiten previsualización directa en el navegador de la academia.</p>
+        <p class="epub-instruction">Para leerlo, por favor descarga el archivo y ábrelo en tu lector de libros electrónicos favorito (como Apple Books, Google Play Books, Lithium o Calibre).</p>
+        
+        <button (click)="descargar(libroActivo()!)" class="epub-download-btn">
+          <svg lucideIcon="download" class="btn-icon-inline"></svg>
+          Descargar Libro EPUB
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -283,7 +304,7 @@
 <div *ngIf="mostrarCrudModal()" class="crud-modal-overlay">
   <div class="crud-modal-box">
     <div class="crud-modal-header">
-      <h2>{{ editandoLibroId() !== null ? 'Editar Grimorio Antiguo' : 'Registrar Nuevo Grimorio' }}</h2>
+      <h2>{{ editandoLibroId() !== null ? 'Editar Libro Antiguo' : 'Registrar Nuevo Libro' }}</h2>
       <button (click)="cerrarCrudModal()" class="close-btn-crud">
         <svg lucideIcon="x"></svg>
       </button>
@@ -331,13 +352,13 @@
 
       <div class="form-group">
         <label>Sinopsis / Descripción</label>
-        <textarea [(ngModel)]="formSinopsis" rows="4" placeholder="Sinopsis del grimorio..." class="crud-textarea"></textarea>
+        <textarea [(ngModel)]="formSinopsis" rows="4" placeholder="Sinopsis del libro..." class="crud-textarea"></textarea>
       </div>
 
       <div class="form-group-checkbox">
         <label class="checkbox-label">
           <input type="checkbox" [(ngModel)]="formActivo" />
-          <span>Grimorio visible y activo en la biblioteca</span>
+          <span>Libro visible y activo en la biblioteca</span>
         </label>
       </div>
     </div>
@@ -346,7 +367,7 @@
       <button (click)="cerrarCrudModal()" class="crud-btn-cancel">Cancelar</button>
       <button (click)="guardarLibro()" class="crud-btn-save" [disabled]="loading()">
         <svg lucideIcon="check" class="btn-icon-inline"></svg>
-        {{ editandoLibroId() !== null ? 'Guardar Cambios' : 'Registrar Grimorio' }}
+        {{ editandoLibroId() !== null ? 'Guardar Cambios' : 'Registrar Libro' }}
       </button>
     </div>
   </div>
@@ -374,6 +395,95 @@
       <button (click)="modalConfig().onAccept()" class="modal-btn-accept">
         <svg lucideIcon="check" class="btn-icon-inline"></svg>
         Aceptar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE DETALLES DE LIBRO -->
+<div *ngIf="libroDetalle()" class="custom-modal-overlay" (click)="cerrarDetalle()">
+  <div class="detail-modal-box" (click)="$event.stopPropagation()">
+    <div class="detail-modal-header">
+      <h3>
+        <svg lucideIcon="book-open" class="modal-title-icon"></svg>
+        Detalles del Libro
+      </h3>
+      <button (click)="cerrarDetalle()" class="close-btn-custom">
+        <svg lucideIcon="x"></svg>
+      </button>
+    </div>
+    <div class="detail-modal-body">
+      <div class="detail-book-info">
+        <!-- Portada en miniatura -->
+        <div class="book-cover {{ 'book-cover-' + clasificarCategoria(libroDetalle()!.categoriaNombre) }}" style="transform: none; pointer-events: none; width: 130px; height: 180px; flex-shrink: 0; border: 1px solid #bfa046;">
+          <div class="book-spine"></div>
+          <div class="book-cover-content">
+            <span class="book-format-badge" [class.pdf]="libroDetalle()!.formato === '.pdf'">
+              {{ libroDetalle()!.formato.replace('.', '').toUpperCase() }}
+            </span>
+            <h4 class="cover-book-title" style="font-size: 11px;">{{ libroDetalle()!.titulo }}</h4>
+            <p class="cover-book-author" style="font-size: 9px;">{{ libroDetalle()!.autor }}</p>
+          </div>
+        </div>
+        <!-- Información textual -->
+        <div class="detail-text-info">
+          <span class="book-category">{{ libroDetalle()!.categoriaNombre }}</span>
+          <h3 class="detail-title">{{ libroDetalle()!.titulo }}</h3>
+          <p class="detail-author">Por <strong>{{ libroDetalle()!.autor }}</strong></p>
+          
+          <div class="detail-synopsis-section">
+            <h4>Sinopsis:</h4>
+            <p class="detail-synopsis">{{ libroDetalle()!.sinopsis || 'Sin sinopsis disponible.' }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="detail-modal-footer">
+      <button (click)="cerrarDetalle()" class="modal-btn-cancel">Cerrar</button>
+      
+      <!-- Acciones de Compra / Acceso -->
+      <div class="detail-actions">
+        <div *ngIf="libroDetalle()!.precioDracoins === 0 || libroDetalle()!.comprado || suscripcion()?.activa" class="access-buttons-row">
+          <button (click)="cerrarDetalle(); leer(libroDetalle()!)" class="action-button read-button" style="padding: 8px 16px;">
+            Ver Libro
+          </button>
+          <button (click)="descargar(libroDetalle()!)" class="action-button download-button" style="padding: 8px 16px;">
+            Descargar
+          </button>
+        </div>
+        <div *ngIf="libroDetalle()!.precioDracoins > 0 && !libroDetalle()!.comprado && !suscripcion()?.activa" class="purchase-box">
+          <span class="price-tag" style="padding: 6px 10px; font-size: 13px;">
+            <svg lucideIcon="coins" class="inline-coin"></svg>
+            {{ libroDetalle()!.precioDracoins | number }} Dc.
+          </span>
+          <button (click)="cerrarDetalle(); comprar(libroDetalle()!)" class="action-button buy-button" style="padding: 8px 16px;">
+            Adquirir
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Éxito de Compra -->
+<div *ngIf="mostrarModalExitoCompra()" class="custom-modal-overlay">
+  <div class="custom-modal-box">
+    <div class="custom-modal-header">
+      <h3>
+        <svg lucideIcon="sparkles" class="modal-title-icon"></svg>
+        ¡Libro Adquirido!
+      </h3>
+    </div>
+    <div class="custom-modal-body" style="text-align: center; padding: 30px 20px;">
+      <svg lucideIcon="check" style="width: 50px; height: 50px; color: #2b844b; margin: 0 auto 15px; display: block; filter: drop-shadow(0 0 5px rgba(43, 132, 75, 0.4));"></svg>
+      <p>Has adquirido con éxito el libro:<br/><strong>"{{ libroCompradoTitulo() }}"</strong>.</p>
+    </div>
+    <div class="custom-modal-footer" style="justify-content: space-between; gap: 10px;">
+      <button (click)="mostrarModalExitoCompra.set(false)" class="modal-btn-cancel" style="flex: 1;">
+        Seguir viendo libros
+      </button>
+      <button (click)="mostrarModalExitoCompra.set(false); cambiarTab('mis-libros')" class="modal-btn-accept" style="flex: 1; justify-content: center; margin: 0;">
+        Ir a mis libros
       </button>
     </div>
   </div>

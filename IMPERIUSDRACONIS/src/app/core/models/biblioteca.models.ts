@@ -35,4 +35,5 @@ export interface SuscripcionStatus {
   costoSuscripcion: number;
   descargasRealizadas: number;
   descargasPermitidas: number;
+  autoRenovacion: boolean;
 }

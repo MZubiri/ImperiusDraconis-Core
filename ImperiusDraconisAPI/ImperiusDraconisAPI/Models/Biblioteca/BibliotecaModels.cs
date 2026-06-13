@@ -58,6 +58,7 @@ public sealed class SuscripcionStatusDto
     public int CostoSuscripcion { get; set; } = 250;
     public int DescargasRealizadas { get; set; }
     public int DescargasPermitidas { get; set; } = 2;
+    public bool AutoRenovacion { get; set; }
 }
 
 public sealed class BookExcelRow

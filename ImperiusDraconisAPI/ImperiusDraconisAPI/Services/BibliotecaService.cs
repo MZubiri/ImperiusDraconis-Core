@@ -271,13 +271,146 @@ public sealed class BibliotecaService
         }
     }
 
-    public async Task<bool> TieneSuscripcionActivaAsync(int idAlumno, CancellationToken cancellationToken)
+    private async Task ProcesarAutoRenovacionesAsync(int idAlumno, CancellationToken cancellationToken)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        // Buscar si tiene suscripción activa que ya venció
+        using var selectCmd = new SqlCommand(
+            "SELECT Id, FechaVencimiento FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND Activa = 1 AND FechaVencimiento <= GETDATE()",
+            connection);
+        selectCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
+
+        int? suscripcionId = null;
+        using (var reader = await selectCmd.ExecuteReaderAsync(cancellationToken))
+        {
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                suscripcionId = Convert.ToInt32(reader["Id"], CultureInfo.InvariantCulture);
+            }
+        }
+
+        if (suscripcionId == null) return;
+
+        // Intentar renovar
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            const decimal costo = 250m;
+            decimal saldo = 0;
+
+            // 1. Obtener saldo
+            using (var checkSaldoCmd = new SqlCommand(
+                "SELECT Dracoins FROM Alumnos WHERE IdAlumno = @IdAlumno",
+                connection,
+                transaction))
+            {
+                checkSaldoCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
+                var result = await checkSaldoCmd.ExecuteScalarAsync(cancellationToken);
+                if (result != null && result != DBNull.Value)
+                {
+                    saldo = Convert.ToDecimal(result, CultureInfo.InvariantCulture);
+                }
+            }
+
+            if (saldo >= costo)
+            {
+                // 2. Descontar Dracoins
+                using (var updateSaldoCmd = new SqlCommand(
+                    "UPDATE Alumnos SET Dracoins = Dracoins - @Monto WHERE IdAlumno = @IdAlumno",
+                    connection,
+                    transaction))
+                {
+                    updateSaldoCmd.Parameters.AddWithValue("@Monto", costo);
+                    updateSaldoCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
+                    await updateSaldoCmd.ExecuteNonQueryAsync(cancellationToken);
+                }
+
+                // 3. Registrar transacción
+                using (var insertMovCmd = new SqlCommand(
+                    """
+                    INSERT INTO MovimientosDracoins (
+                        CodigoRemitente, 
+                        CodigoDestinatario, 
+                        Monto, 
+                        FechaTransferencia, 
+                        Observacion
+                    ) VALUES (
+                        (SELECT Codigo FROM Alumnos WHERE IdAlumno = @IdAlumno),
+                        'COBRO',
+                        @Monto,
+                        GETDATE(),
+                        'Renovacion automatica de suscripcion a la biblioteca'
+                    )
+                    """,
+                    connection,
+                    transaction))
+                {
+                    insertMovCmd.Parameters.AddWithValue("@Monto", -Convert.ToInt32(costo));
+                    insertMovCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
+                    await insertMovCmd.ExecuteNonQueryAsync(cancellationToken);
+                }
+
+                // 4. Actualizar suscripción
+                var nuevoVencimiento = DateTime.Now.AddDays(7);
+                using (var updateSuscCmd = new SqlCommand(
+                    "UPDATE AlumnosSuscripciones SET FechaInicio = GETDATE(), FechaVencimiento = @FechaVencimiento WHERE Id = @Id",
+                    connection,
+                    transaction))
+                {
+                    updateSuscCmd.Parameters.AddWithValue("@FechaVencimiento", nuevoVencimiento);
+                    updateSuscCmd.Parameters.AddWithValue("@Id", suscripcionId.Value);
+                    await updateSuscCmd.ExecuteNonQueryAsync(cancellationToken);
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+            }
+            else
+            {
+                // Desactivar por falta de saldo
+                using (var deactivateCmd = new SqlCommand(
+                    "UPDATE AlumnosSuscripciones SET Activa = 0 WHERE Id = @Id",
+                    connection,
+                    transaction))
+                {
+                    deactivateCmd.Parameters.AddWithValue("@Id", suscripcionId.Value);
+                    await deactivateCmd.ExecuteNonQueryAsync(cancellationToken);
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+            }
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    public async Task<bool> CancelarSuscripcionAsync(int idAlumno, CancellationToken cancellationToken)
     {
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
         using var command = new SqlCommand(
-            "SELECT COUNT(*) FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND Activa = 1 AND FechaVencimiento > GETDATE()",
+            "UPDATE AlumnosSuscripciones SET Activa = 0 WHERE IdAlumno = @IdAlumno AND Activa = 1 AND FechaVencimiento > GETDATE()",
+            connection);
+        command.Parameters.AddWithValue("@IdAlumno", idAlumno);
+
+        var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
+        return rowsAffected > 0;
+    }
+
+    public async Task<bool> TieneSuscripcionActivaAsync(int idAlumno, CancellationToken cancellationToken)
+    {
+        await ProcesarAutoRenovacionesAsync(idAlumno, cancellationToken);
+
+        using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        using var command = new SqlCommand(
+            "SELECT COUNT(*) FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND FechaVencimiento > GETDATE()",
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
 
@@ -287,11 +420,13 @@ public sealed class BibliotecaService
 
     public async Task<SuscripcionStatusDto> ObtenerDetalleSuscripcionAsync(int idAlumno, CancellationToken cancellationToken)
     {
+        await ProcesarAutoRenovacionesAsync(idAlumno, cancellationToken);
+
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
         using var command = new SqlCommand(
-            "SELECT TOP 1 FechaInicio, FechaVencimiento, Activa FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND Activa = 1 AND FechaVencimiento > GETDATE() ORDER BY FechaVencimiento DESC",
+            "SELECT TOP 1 FechaInicio, FechaVencimiento, Activa FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND FechaVencimiento > GETDATE() ORDER BY FechaVencimiento DESC",
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
 
@@ -305,10 +440,11 @@ public sealed class BibliotecaService
                 fechaInicio = Convert.ToDateTime(reader["FechaInicio"], CultureInfo.InvariantCulture);
                 status = new SuscripcionStatusDto
                 {
-                    Activa = Convert.ToBoolean(reader["Activa"], CultureInfo.InvariantCulture),
+                    Activa = true,
                     FechaVencimiento = Convert.ToDateTime(reader["FechaVencimiento"], CultureInfo.InvariantCulture),
                     CostoSuscripcion = 250,
-                    DescargasPermitidas = 2
+                    DescargasPermitidas = 2,
+                    AutoRenovacion = Convert.ToBoolean(reader["Activa"], CultureInfo.InvariantCulture)
                 };
             }
         }
@@ -331,7 +467,8 @@ public sealed class BibliotecaService
             FechaVencimiento = null, 
             CostoSuscripcion = 250,
             DescargasRealizadas = 0,
-            DescargasPermitidas = 2
+            DescargasPermitidas = 2,
+            AutoRenovacion = false
         };
     }
 

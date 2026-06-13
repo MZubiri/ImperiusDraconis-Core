@@ -258,6 +258,27 @@ public sealed class BibliotecaController : ControllerBase
         }
     }
 
+    [HttpPost("cancelar-suscripcion")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult> CancelarSuscripcion(CancellationToken cancellationToken)
+    {
+        var idAlumnoClaim = User.Claims.FirstOrDefault(claim => claim.Type == ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(idAlumnoClaim, out var idAlumno))
+        {
+            return Unauthorized();
+        }
+
+        var success = await _bibliotecaService.CancelarSuscripcionAsync(idAlumno, cancellationToken);
+        if (!success)
+        {
+            return BadRequest(new { message = "No tienes una suscripción activa para cancelar." });
+        }
+
+        return Ok(new { success, message = "Suscripción cancelada correctamente. Seguirás teniendo acceso hasta el final de tu período contratado." });
+    }
+
     // --- ENDPOINTS CRUD DE LIBRERÍA (Para Administradores / Maestres) ---
 
     private bool EsAdministrador()
