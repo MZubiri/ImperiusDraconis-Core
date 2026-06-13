@@ -15,19 +15,12 @@ public static class DatabaseInitializer
             using var connection = connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
-            // Verificar si la tabla BibliotecaLibros ya existe
+            // 1. Verificar si la tabla BibliotecaLibros ya existe
             using var checkCommand = new SqlCommand(
                 "SELECT OBJECT_ID(N'dbo.BibliotecaLibros', N'U')",
                 connection);
-            var result = await checkCommand.ExecuteScalarAsync();
-
-            if (result != DBNull.Value && result != null)
-            {
-                logger.LogInformation("Las tablas de biblioteca ya existen. Omitiendo migracion.");
-                return;
-            }
-
-            logger.LogInformation("Iniciando migracion automatica de base de datos para Biblioteca...");
+            var checkResult = await checkCommand.ExecuteScalarAsync();
+            var tableExists = checkResult != DBNull.Value && checkResult != null;
 
             string? rootPath = null;
             var currentDir = environment.ContentRootPath;
@@ -49,22 +42,51 @@ public static class DatabaseInitializer
                 logger.LogError("No se pudo localizar la carpeta SQLMigrar subiendo desde {ContentRootPath}.", environment.ContentRootPath);
                 return;
             }
-            // 1. Ejecutar 012_create_biblioteca_tables.sql
-            var tablesScriptPath = Path.Combine(rootPath, "012_create_biblioteca_tables.sql");
-            if (File.Exists(tablesScriptPath))
+
+            if (!tableExists)
             {
-                logger.LogInformation("Ejecutando esquema de tablas: 012_create_biblioteca_tables.sql");
-                var script = await File.ReadAllTextAsync(tablesScriptPath);
-                await ExecuteSqlScriptAsync(connection, script);
+                logger.LogInformation("Iniciando creacion de tablas para Biblioteca (012_create_biblioteca_tables.sql)...");
+                // Ejecutar 012_create_biblioteca_tables.sql
+                var tablesScriptPath = Path.Combine(rootPath, "012_create_biblioteca_tables.sql");
+                if (File.Exists(tablesScriptPath))
+                {
+                    logger.LogInformation("Ejecutando esquema de tablas: 012_create_biblioteca_tables.sql");
+                    var script = await File.ReadAllTextAsync(tablesScriptPath);
+                    await ExecuteSqlScriptAsync(connection, script);
+                }
+            }
+            else
+            {
+                logger.LogInformation("Las tablas de biblioteca ya existen. Omitiendo creacion.");
             }
 
-            // 2. Ejecutar 013_seed_biblioteca_data.sql
-            var seedScriptPath = Path.Combine(rootPath, "013_seed_biblioteca_data.sql");
-            if (File.Exists(seedScriptPath))
+            // 2. Verificar si hay libros sembrados
+            int librosCount = 0;
+            try
             {
-                logger.LogInformation("Sembrando datos: 013_seed_biblioteca_data.sql (esto puede tardar unos segundos)...");
-                var script = await File.ReadAllTextAsync(seedScriptPath);
-                await ExecuteSqlScriptAsync(connection, script);
+                using var countCommand = new SqlCommand("SELECT COUNT(*) FROM dbo.BibliotecaLibros", connection);
+                librosCount = Convert.ToInt32(await countCommand.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error al contar libros en BibliotecaLibros.");
+            }
+
+            if (librosCount == 0)
+            {
+                logger.LogInformation("La tabla BibliotecaLibros esta vacia. Iniciando siembra de datos...");
+                // Ejecutar 013_seed_biblioteca_data.sql
+                var seedScriptPath = Path.Combine(rootPath, "013_seed_biblioteca_data.sql");
+                if (File.Exists(seedScriptPath))
+                {
+                    logger.LogInformation("Sembrando datos: 013_seed_biblioteca_data.sql (esto puede tardar unos segundos)...");
+                    var script = await File.ReadAllTextAsync(seedScriptPath);
+                    await ExecuteSqlScriptAsync(connection, script);
+                }
+            }
+            else
+            {
+                logger.LogInformation("La tabla BibliotecaLibros ya contiene {Count} registros. Omitiendo siembra de datos.", librosCount);
             }
 
             logger.LogInformation("Migracion de biblioteca finalizada correctamente.");
