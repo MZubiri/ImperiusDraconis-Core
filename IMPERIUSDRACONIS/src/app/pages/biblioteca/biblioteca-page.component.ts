@@ -76,7 +76,7 @@ export class BibliotecaPageComponent implements OnInit {
   private readonly sanitizer = inject(DomSanitizer);
 
   // Estados reactivos
-  desbloqueado = signal<boolean>(false);
+  desbloqueado = signal<boolean>(true); // Filtro de contraseña desactivado
   passwordInput = signal<string>('');
   loading = signal<boolean>(false);
 
@@ -195,10 +195,10 @@ export class BibliotecaPageComponent implements OnInit {
   libroUrlSafe = signal<SafeResourceUrl | null>(null);
   libroUrlRaw = signal<string>('');
 
-  // Detección de móvil para el visor de PDF
+  // Detección de móvil para el visor de PDF (solo User Agent, sin window.innerWidth)
   readonly esMobile: boolean = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     typeof navigator !== 'undefined' ? navigator.userAgent : ''
-  ) || (typeof window !== 'undefined' && window.innerWidth <= 768);
+  );
 
   // Alumno logueado y rol
   alumnoDracoins = computed(() => this.authService.user()?.dracoins ?? 0);
@@ -293,11 +293,8 @@ export class BibliotecaPageComponent implements OnInit {
   formActivo = true;
 
   ngOnInit(): void {
-    const isUnlocked = sessionStorage.getItem('biblioteca_desbloqueada') === 'true';
-    if (isUnlocked) {
-      this.desbloqueado.set(true);
-      this.cargarDatos();
-    }
+    // Carga directa sin requerir contraseña
+    this.cargarDatos();
   }
 
   desbloquear(): void {
@@ -519,6 +516,23 @@ export class BibliotecaPageComponent implements OnInit {
   abrirEnNuevaPestana(): void {
     const url = this.libroUrlRaw();
     if (url) window.open(url, '_blank');
+  }
+
+  /* Abre el libro desde el modal de detalle: guarda la referencia ANTES
+   * de cerrar el modal para que no sea null al llamar leer() */
+  leerDesdeDetalle(): void {
+    const libro = this.libroDetalle();
+    if (!libro) return;
+    this.cerrarDetalle();
+    this.leer(libro);
+  }
+
+  /* Compra y abre: igual que leerDesdeDetalle para consistencia */
+  comprarDesdeDetalle(): void {
+    const libro = this.libroDetalle();
+    if (!libro) return;
+    this.cerrarDetalle();
+    this.comprar(libro);
   }
 
   cerrarLectura(): void {

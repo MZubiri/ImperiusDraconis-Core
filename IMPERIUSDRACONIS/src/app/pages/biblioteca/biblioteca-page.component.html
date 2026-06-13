@@ -513,7 +513,7 @@
       <!-- Acciones de Compra / Acceso -->
       <div class="detail-actions">
         <div *ngIf="libroDetalle()!.precioDracoins === 0 || libroDetalle()!.comprado || suscripcion()?.activa" class="access-buttons-row">
-          <button (click)="cerrarDetalle(); leer(libroDetalle()!)" class="action-button read-button" style="padding: 8px 16px;">
+          <button (click)="leerDesdeDetalle()" class="action-button read-button" style="padding: 8px 16px;">
             Ver Libro
           </button>
           <button (click)="descargar(libroDetalle()!)" class="action-button download-button" style="padding: 8px 16px;">
@@ -525,7 +525,7 @@
             <svg lucideIcon="coins" class="inline-coin"></svg>
             {{ libroDetalle()!.precioDracoins | number }} Dc.
           </span>
-          <button (click)="cerrarDetalle(); comprar(libroDetalle()!)" class="action-button buy-button" style="padding: 8px 16px;">
+          <button (click)="comprarDesdeDetalle()" class="action-button buy-button" style="padding: 8px 16px;">
             Adquirir
           </button>
         </div>
