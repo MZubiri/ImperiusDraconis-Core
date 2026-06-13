@@ -1,0 +1,47 @@
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { RuntimeConfigService } from './runtime-config.service';
+import { BibliotecaCategoria, BibliotecaLibro } from '../models/biblioteca.models';
+
+@Injectable({ providedIn: 'root' })
+export class BibliotecaService {
+  private readonly http = inject(HttpClient);
+  private readonly runtimeConfig = inject(RuntimeConfigService);
+
+  unlock(password: string): Observable<{ success: boolean; token: string }> {
+    return this.http.post<{ success: boolean; token: string }>(
+      `${this.runtimeConfig.apiUrl}/biblioteca/unlock`, 
+      { password }
+    );
+  }
+
+  getCategorias(): Observable<BibliotecaCategoria[]> {
+    return this.http.get<BibliotecaCategoria[]>(`${this.runtimeConfig.apiUrl}/biblioteca/categorias`);
+  }
+
+  getLibros(categoriaId?: number | null, busqueda?: string): Observable<BibliotecaLibro[]> {
+    let params = new HttpParams();
+    if (categoriaId !== null && categoriaId !== undefined) {
+      params = params.set('categoriaId', categoriaId.toString());
+    }
+    if (busqueda?.trim()) {
+      params = params.set('busqueda', busqueda.trim());
+    }
+
+    return this.http.get<BibliotecaLibro[]>(`${this.runtimeConfig.apiUrl}/biblioteca/libros`, { params });
+  }
+
+  comprarLibro(id: number): Observable<{ success: boolean; message: string }> {
+    return this.http.post<{ success: boolean; message: string }>(
+      `${this.runtimeConfig.apiUrl}/biblioteca/comprar/${id}`, 
+      {}
+    );
+  }
+
+  getLeerUrl(id: number): string {
+    // Almacenamos el token JWT si es necesario o delegamos en el interceptor de la app
+    const token = localStorage.getItem('token');
+    return `${this.runtimeConfig.apiUrl}/biblioteca/leer/${id}?access_token=${token}`;
+  }
+}

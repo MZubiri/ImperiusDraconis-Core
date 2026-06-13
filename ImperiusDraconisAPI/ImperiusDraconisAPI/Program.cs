@@ -45,6 +45,7 @@ builder.Services.AddScoped<GamePlayerService>();
 builder.Services.AddScoped<GameDragonService>();
 builder.Services.AddSingleton<IGeoLocationService, GeoLocationService>();
 builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
+builder.Services.AddScoped<BibliotecaService>();
 
 
 builder.Services.AddHttpClient();
@@ -197,5 +198,11 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    await ImperiusDraconisAPI.Data.DatabaseInitializer.InitializeAsync(services, app.Environment);
+}
 
 app.Run();

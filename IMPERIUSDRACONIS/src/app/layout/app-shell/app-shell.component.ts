@@ -18,6 +18,7 @@ import {
   LucideTrophy,
   LucideUserRound,
   LucideEye,
+  LucideBookOpen,
   provideLucideIcons
 } from '@lucide/angular';
 import { resolveProfileAvatarUrl } from '../../core/constants/profile.constants';
@@ -43,7 +44,8 @@ import { RuntimeConfigService } from '../../core/services/runtime-config.service
       LucideStore,
       LucideTrophy,
       LucideUserRound,
-      LucideEye
+      LucideEye,
+      LucideBookOpen
     )
   ],
   templateUrl: './app-shell.component.html',
@@ -78,6 +80,7 @@ export class AppShellComponent {
   readonly menu = [
     { label: 'Dashboard', icon: 'layout-dashboard', route: '/dashboard', permission: null },
     { label: 'Mi perfil', icon: 'user-round', route: '/perfil', permission: null },
+    { label: 'Biblioteca', icon: 'book-open', route: '/biblioteca', permission: null },
     { label: 'Tienda', icon: 'shopping-bag', route: '/tienda', permission: null },
     {
       label: 'Rincón',

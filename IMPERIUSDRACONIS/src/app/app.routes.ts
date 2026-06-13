@@ -270,6 +270,20 @@ export const routes: Routes = [
       {
         path: 'Rincon',
         loadComponent: loadRinconPage
+      },
+      {
+        path: 'biblioteca',
+        loadComponent: () =>
+          import('./pages/biblioteca/biblioteca-page.component').then(
+            (module) => module.BibliotecaPageComponent
+          )
+      },
+      {
+        path: 'Biblioteca',
+        loadComponent: () =>
+          import('./pages/biblioteca/biblioteca-page.component').then(
+            (module) => module.BibliotecaPageComponent
+          )
       }
     ]
   },

@@ -1,0 +1,153 @@
+<!-- Sección Bloqueada (Pantalla de Contraseña) -->
+<div *ngIf="!desbloqueado()" class="lock-screen-container">
+  <div class="lock-box">
+    <div class="lock-icon-wrapper">
+      <svg lucideIcon="lock" class="lock-icon"></svg>
+    </div>
+    <h1 class="magic-title">Sección Prohibida</h1>
+    <p class="magic-subtitle">Introduce la contraseña de la biblioteca para desbloquear los antiguos grimorios.</p>
+
+    <div class="input-group">
+      <input 
+        type="password" 
+        placeholder="Introduce la contraseña..." 
+        [(ngModel)]="passwordInput"
+        (keyup.enter)="desbloquear()"
+        class="magic-input"
+        [disabled]="loading()"
+      />
+    </div>
+
+    <div *ngIf="errorMsg()" class="magic-error">
+      {{ errorMsg() }}
+    </div>
+
+    <button (click)="desbloquear()" class="magic-button" [disabled]="loading()">
+      <span *ngIf="!loading()">Revelar Grimorios</span>
+      <span *ngIf="loading()">Abriendo portal...</span>
+    </button>
+  </div>
+</div>
+
+<!-- Sección Desbloqueada (Biblioteca) -->
+<div *ngIf="desbloqueado() && !libroActivo()" class="biblioteca-container">
+  <div class="header-section">
+    <div>
+      <h1 class="page-title">La Gran Biblioteca de Imperius</h1>
+      <p class="page-subtitle">Explora los tomos de conocimiento y magia de la orden.</p>
+    </div>
+    
+    <!-- Marcador de Dracoins del Alumno -->
+    <div class="dracoins-badge">
+      <svg lucideIcon="coins" class="coin-icon"></svg>
+      <span class="coin-amount">{{ alumnoDracoins() | number }} Dracoins</span>
+    </div>
+  </div>
+
+  <!-- Controles de Filtros y Búsqueda -->
+  <div class="controls-panel">
+    <div class="search-bar-wrapper">
+      <svg lucideIcon="search" class="search-icon"></svg>
+      <input 
+        type="text" 
+        placeholder="Buscar grimorios por título, autor..." 
+        [(ngModel)]="busquedaInput"
+        (keyup.enter)="buscarLibros()"
+        class="search-input"
+      />
+      <button (click)="buscarLibros()" class="search-button">Buscar</button>
+    </div>
+
+    <div class="categories-tabs">
+      <button 
+        [class.active]="categoriaSeleccionada() === null"
+        (click)="seleccionarCategoria(null)"
+        class="category-tab"
+      >
+        Todos
+      </button>
+      <button 
+        *ngFor="let cat of categorias()" 
+        [class.active]="categoriaSeleccionada() === cat.id"
+        (click)="seleccionarCategoria(cat.id)"
+        class="category-tab"
+      >
+        {{ cat.nombre }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading()" class="loading-state">
+    <div class="spinner"></div>
+    <p>Consultando los archivos de la biblioteca...</p>
+  </div>
+
+  <!-- Vacío -->
+  <div *ngIf="!loading() && libros().length === 0" class="empty-state">
+    <svg lucideIcon="book-open" class="empty-icon"></svg>
+    <p>No se encontraron libros que coincidan con la búsqueda.</p>
+  </div>
+
+  <!-- Grid de Libros -->
+  <div *ngIf="!loading() && libros().length > 0" class="books-grid">
+    <div *ngFor="let libro of libros()" class="book-card">
+      <div class="book-cover">
+        <div class="book-spine"></div>
+        <div class="book-cover-content">
+          <span class="book-format-badge" [class.pdf]="libro.formato === '.pdf'">{{ libro.formato.replace('.', '').toUpperCase() }}</span>
+          <svg lucideIcon="book-open" class="book-main-icon"></svg>
+        </div>
+      </div>
+      
+      <div class="book-details">
+        <span class="book-category">{{ libro.categoriaNombre }}</span>
+        <h3 class="book-title" [title]="libro.titulo">{{ libro.titulo }}</h3>
+        <p class="book-author">Por {{ libro.autor }}</p>
+        <p class="book-synopsis" *ngIf="libro.sinopsis">{{ libro.sinopsis }}</p>
+        <p class="book-synopsis" *ngIf="!libro.sinopsis">Sin sinopsis disponible.</p>
+
+        <div class="book-action-area">
+          <!-- Libro Gratuito o Ya Comprado -->
+          <div *ngIf="libro.precioDracoins === 0 || libro.comprado" class="access-box">
+            <span class="owned-tag" *ngIf="libro.precioDracoins > 0">Adquirido</span>
+            <button (click)="leer(libro)" class="action-button read-button">
+              Abrir Grimorio
+            </button>
+          </div>
+
+          <!-- Libro de Pago no comprado -->
+          <div *ngIf="libro.precioDracoins > 0 && !libro.comprado" class="purchase-box">
+            <span class="price-tag">
+              <svg lucideIcon="coins" class="inline-coin"></svg>
+              {{ libro.precioDracoins | number }} Dr.
+            </span>
+            <button (click)="comprar(libro)" class="action-button buy-button">
+              Adquirir
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Visor de PDF Pantalla Completa (Lectura) -->
+<div *ngIf="libroActivo() && libroUrlSafe()" class="reader-overlay">
+  <div class="reader-header">
+    <button (click)="cerrarLectura()" class="back-button">
+      <svg lucideIcon="arrow-left"></svg> Volver a la Biblioteca
+    </button>
+    <div class="reader-title-info">
+      <h2>{{ libroActivo()?.titulo }}</h2>
+      <p>{{ libroActivo()?.autor }}</p>
+    </div>
+    <button (click)="cerrarLectura()" class="close-button">
+      <svg lucideIcon="x"></svg>
+    </button>
+  </div>
+  
+  <div class="reader-body">
+    <iframe [src]="libroUrlSafe()" class="pdf-iframe" frameborder="0"></iframe>
+  </div>
+</div>
