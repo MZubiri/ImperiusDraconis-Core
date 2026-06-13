@@ -6,7 +6,33 @@
   font-family: 'Outfit', 'Inter', sans-serif;
   min-width: 0;
   width: 100%;
+  max-width: 100%;
   overflow-x: hidden;
+}
+
+/* =====================================================
+ * CONTENCIÓN DE GRID: Todos los hijos directos del
+ * section.module-layout son grid-items y necesitan
+ * min-width: 0 para no desbordar el contenedor.
+ * Sin esto, cuando los libros cargan dinámicamente
+ * el grid se expande más allá del viewport.
+ * ===================================================== */
+.module-layout > * {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Wrapper del contenido de tabs (Todos los Libros / Mis Libros) */
+.tab-content-wrapper {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .lock-screen-container {

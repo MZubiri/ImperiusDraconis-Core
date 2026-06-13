@@ -387,6 +387,9 @@ label {
 .stack {
   display: grid;
   gap: 16px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .module-hero,
