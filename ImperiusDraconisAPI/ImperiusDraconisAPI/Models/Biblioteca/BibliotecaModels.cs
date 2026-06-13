@@ -57,3 +57,16 @@ public sealed class SuscripcionStatusDto
     public DateTime? FechaVencimiento { get; init; }
     public int CostoSuscripcion { get; init; } = 50; // Costo por defecto 50 Dracoins
 }
+
+public sealed class BookExcelRow
+{
+    public int? Id { get; set; }
+    public string Titulo { get; set; } = string.Empty;
+    public string Autor { get; set; } = string.Empty;
+    public string? Sinopsis { get; set; }
+    public string? Categoria { get; set; }
+    public string RutaArchivo { get; set; } = string.Empty;
+    public string Formato { get; set; } = string.Empty;
+    public decimal PrecioDracoins { get; set; }
+    public bool Activo { get; set; }
+}

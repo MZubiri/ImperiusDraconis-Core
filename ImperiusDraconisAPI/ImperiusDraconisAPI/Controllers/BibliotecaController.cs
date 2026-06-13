@@ -239,4 +239,54 @@ public sealed class BibliotecaController : ControllerBase
 
         return Ok(new { success, message = "Libro eliminado con éxito." });
     }
+
+    [HttpGet("exportar")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult> ExportarLibros(CancellationToken cancellationToken)
+    {
+        if (!EsAdministrador())
+        {
+            return Forbid();
+        }
+
+        var bytes = await _bibliotecaService.ExportarLibrosExcelAsync(cancellationToken);
+        return File(
+            bytes, 
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
+            $"grimorios_exportados_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+    }
+
+    [HttpPost("importar")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> ImportarLibros(IFormFile file, CancellationToken cancellationToken)
+    {
+        if (!EsAdministrador())
+        {
+            return Forbid();
+        }
+
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { message = "Por favor, sube un archivo de Excel (.xlsx) valido." });
+        }
+
+        if (!Path.GetExtension(file.FileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { message = "El formato de archivo debe ser .xlsx (Excel)." });
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream();
+            var count = await _bibliotecaService.ImportarLibrosExcelAsync(stream, cancellationToken);
+            return Ok(new { success = true, count, message = $"Se procesaron {count} libros correctamente (creados/actualizados)." });
+        }
+        catch (Exception exception)
+        {
+            return BadRequest(new { message = $"Error al leer el archivo Excel: {exception.Message}" });
+        }
+    }
 }

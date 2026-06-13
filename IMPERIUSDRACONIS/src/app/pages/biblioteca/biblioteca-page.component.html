@@ -41,10 +41,25 @@
     
     <!-- Lado derecho: Saldo y Botón Admin -->
     <div class="header-actions">
-      <!-- Botón Admin para Añadir Libro -->
-      <button *ngIf="esAdmin()" (click)="abrirNuevoLibroModal()" class="admin-action-btn">
-        <svg lucideIcon="plus" class="btn-icon"></svg> Añadir Grimorio
-      </button>
+      <!-- Botones de administración de catálogo -->
+      <ng-container *ngIf="esAdmin()">
+        <button (click)="exportarBiblioteca()" class="admin-action-btn secondary" title="Exportar Catálogo a Excel">
+          <svg lucideIcon="download" class="btn-icon"></svg> Exportar Excel
+        </button>
+        <button (click)="fileInput.click()" class="admin-action-btn secondary" title="Importar Catálogo desde Excel">
+          <svg lucideIcon="upload" class="btn-icon"></svg> Importar Excel
+        </button>
+        <input 
+          #fileInput 
+          type="file" 
+          accept=".xlsx" 
+          (change)="onImportarArchivo($event)" 
+          style="display: none;" 
+        />
+        <button (click)="abrirNuevoLibroModal()" class="admin-action-btn">
+          <svg lucideIcon="plus" class="btn-icon"></svg> Añadir Grimorio
+        </button>
+      </ng-container>
 
       <div class="dracoins-badge">
         <svg lucideIcon="coins" class="coin-icon"></svg>

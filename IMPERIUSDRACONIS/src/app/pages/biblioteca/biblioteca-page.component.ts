@@ -14,6 +14,8 @@ import {
   LucideEdit,
   LucideTrash2,
   LucideCheck,
+  LucideDownload,
+  LucideUpload,
   LucideDynamicIcon,
   provideLucideIcons
 } from '@lucide/angular';
@@ -40,7 +42,9 @@ import { AuthService } from '../../core/services/auth.service';
       LucidePlus,
       LucideEdit,
       LucideTrash2,
-      LucideCheck
+      LucideCheck,
+      LucideDownload,
+      LucideUpload
     )
   ]
 })
@@ -318,6 +322,53 @@ export class BibliotecaPageComponent implements OnInit {
           alert(err.error?.message || 'Error al eliminar el libro.');
         }
       });
+    }
+  }
+
+  exportarBiblioteca(): void {
+    this.loading.set(true);
+    this.bibliotecaService.exportarExcel().pipe(
+      finalize(() => this.loading.set(false))
+    ).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `grimorios_exportados_${new Date().toISOString().slice(0,10)}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      },
+      error: (err) => {
+        alert('Error al descargar el archivo de Excel.');
+      }
+    });
+  }
+
+  onImportarArchivo(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+    if (confirm(`¿Deseas importar el archivo "${file.name}"? Se actualizarán los grimorios que coincidan con su ID y se añadirán los nuevos.`)) {
+      this.loading.set(true);
+      this.bibliotecaService.importarExcel(file).pipe(
+        finalize(() => {
+          this.loading.set(false);
+          input.value = ''; // Limpiar el input para permitir subir el mismo archivo después
+        })
+      ).subscribe({
+        next: (res) => {
+          alert(res.message);
+          this.cargarDatos(); // Recargar todo el catálogo y categorías
+        },
+        error: (err) => {
+          alert(err.error?.message || 'Error al importar el archivo de Excel.');
+        }
+      });
+    } else {
+      input.value = '';
     }
   }
 }

@@ -1,9 +1,11 @@
 using System.Data;
 using System.Globalization;
+using System.IO;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Biblioteca;
 using Microsoft.Data.SqlClient;
+using MiniExcelLibs;
 
 namespace ImperiusDraconisAPI.Services;
 
@@ -497,5 +499,174 @@ public sealed class BibliotecaService
         command.Parameters.AddWithValue("@Id", id);
 
         return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+    }
+
+    public async Task<byte[]> ExportarLibrosExcelAsync(CancellationToken cancellationToken)
+    {
+        var rows = new List<BookExcelRow>();
+        using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        using var command = new SqlCommand(
+            """
+            SELECT 
+                L.Id, 
+                L.Titulo, 
+                L.Autor, 
+                L.Sinopsis, 
+                C.Nombre AS Categoria, 
+                L.RutaArchivo, 
+                L.Formato, 
+                L.PrecioDracoins, 
+                L.Activo
+            FROM BibliotecaLibros L
+            LEFT JOIN BibliotecaCategorias C ON C.Id = L.IdCategoria
+            ORDER BY L.Id
+            """, connection);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new BookExcelRow
+            {
+                Id = Convert.ToInt32(reader["Id"], CultureInfo.InvariantCulture),
+                Titulo = reader["Titulo"]?.ToString() ?? string.Empty,
+                Autor = reader["Autor"]?.ToString() ?? string.Empty,
+                Sinopsis = reader["Sinopsis"] == DBNull.Value ? null : reader["Sinopsis"]?.ToString(),
+                Categoria = reader["Categoria"] == DBNull.Value ? null : reader["Categoria"]?.ToString(),
+                RutaArchivo = reader["RutaArchivo"]?.ToString() ?? string.Empty,
+                Formato = reader["Formato"]?.ToString() ?? string.Empty,
+                PrecioDracoins = Convert.ToDecimal(reader["PrecioDracoins"], CultureInfo.InvariantCulture),
+                Activo = Convert.ToBoolean(reader["Activo"], CultureInfo.InvariantCulture)
+            });
+        }
+
+        using var memoryStream = new MemoryStream();
+        memoryStream.SaveAs(rows);
+        return memoryStream.ToArray();
+    }
+
+    public async Task<int> ImportarLibrosExcelAsync(Stream excelStream, CancellationToken cancellationToken)
+    {
+        var rows = excelStream.Query<BookExcelRow>().ToList();
+        if (rows.Count == 0) return 0;
+
+        using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        // 1. Obtener todas las categorias existentes para mapeo rapido, o crearlas si no existen
+        var categoriasMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        using (var catCmd = new SqlCommand("SELECT Id, Nombre FROM BibliotecaCategorias", connection))
+        using (var catReader = await catCmd.ExecuteReaderAsync(cancellationToken))
+        {
+            while (await catReader.ReadAsync(cancellationToken))
+            {
+                var id = Convert.ToInt32(catReader["Id"], CultureInfo.InvariantCulture);
+                var nombre = catReader["Nombre"]?.ToString()?.Trim() ?? string.Empty;
+                if (!string.IsNullOrEmpty(nombre) && !categoriasMap.ContainsKey(nombre))
+                {
+                    categoriasMap.Add(nombre, id);
+                }
+            }
+        }
+
+        int importados = 0;
+        foreach (var row in rows)
+        {
+            if (string.IsNullOrWhiteSpace(row.Titulo) || string.IsNullOrWhiteSpace(row.Autor))
+            {
+                continue; // Saltar filas sin datos criticos
+            }
+
+            // Mapear o crear la categoria si viene especificada
+            int? idCategoria = null;
+            if (!string.IsNullOrWhiteSpace(row.Categoria))
+            {
+                var catNombre = row.Categoria.Trim();
+                if (categoriasMap.TryGetValue(catNombre, out var catId))
+                {
+                    idCategoria = catId;
+                }
+                else
+                {
+                    // Crear categoria nueva en caliente
+                    using var insertCatCmd = new SqlCommand(
+                        "INSERT INTO BibliotecaCategorias (Nombre, Descripcion, Activo) OUTPUT INSERTED.Id VALUES (@Nombre, @Descripcion, 1)",
+                        connection);
+                    insertCatCmd.Parameters.AddWithValue("@Nombre", catNombre);
+                    insertCatCmd.Parameters.AddWithValue("@Descripcion", $"Categoria creada en importacion");
+                    var newId = (int?)await insertCatCmd.ExecuteScalarAsync(cancellationToken);
+                    if (newId.HasValue)
+                    {
+                        categoriasMap.Add(catNombre, newId.Value);
+                        idCategoria = newId.Value;
+                    }
+                }
+            }
+
+            // Si viene un ID y existe en la BD, actualizamos. De lo contrario, insertamos.
+            bool existe = false;
+            if (row.Id.HasValue && row.Id.Value > 0)
+            {
+                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM BibliotecaLibros WHERE Id = @Id", connection);
+                checkCmd.Parameters.AddWithValue("@Id", row.Id.Value);
+                var count = Convert.ToInt32(await checkCmd.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+                existe = count > 0;
+            }
+
+            if (existe)
+            {
+                // Actualizar
+                using var updateCmd = new SqlCommand(
+                    """
+                    UPDATE BibliotecaLibros 
+                    SET Titulo = @Titulo, 
+                        Autor = @Autor, 
+                        Sinopsis = @Sinopsis, 
+                        IdCategoria = @IdCategoria, 
+                        RutaArchivo = @RutaArchivo, 
+                        Formato = @Formato, 
+                        PrecioDracoins = @PrecioDracoins, 
+                        Activo = @Activo
+                    WHERE Id = @Id
+                    """, connection);
+
+                updateCmd.Parameters.AddWithValue("@Id", row.Id!.Value);
+                updateCmd.Parameters.AddWithValue("@Titulo", row.Titulo.Trim());
+                updateCmd.Parameters.AddWithValue("@Autor", row.Autor.Trim());
+                updateCmd.Parameters.AddWithValue("@Sinopsis", (object?)row.Sinopsis?.Trim() ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@IdCategoria", (object?)idCategoria ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@RutaArchivo", string.IsNullOrWhiteSpace(row.RutaArchivo) ? "Libros/PDF/" : row.RutaArchivo.Trim());
+                updateCmd.Parameters.AddWithValue("@Formato", string.IsNullOrWhiteSpace(row.Formato) ? ".pdf" : row.Formato.Trim());
+                updateCmd.Parameters.AddWithValue("@PrecioDracoins", row.PrecioDracoins);
+                updateCmd.Parameters.AddWithValue("@Activo", row.Activo ? 1 : 0);
+
+                await updateCmd.ExecuteNonQueryAsync(cancellationToken);
+            }
+            else
+            {
+                // Insertar
+                using var insertCmd = new SqlCommand(
+                    """
+                    INSERT INTO BibliotecaLibros (Titulo, Autor, Sinopsis, IdCategoria, RutaArchivo, Formato, PrecioDracoins, Activo, FechaRegistro)
+                    VALUES (@Titulo, @Autor, @Sinopsis, @IdCategoria, @RutaArchivo, @Formato, @PrecioDracoins, @Activo, GETDATE())
+                    """, connection);
+
+                insertCmd.Parameters.AddWithValue("@Titulo", row.Titulo.Trim());
+                insertCmd.Parameters.AddWithValue("@Autor", row.Autor.Trim());
+                insertCmd.Parameters.AddWithValue("@Sinopsis", (object?)row.Sinopsis?.Trim() ?? DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@IdCategoria", (object?)idCategoria ?? DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@RutaArchivo", string.IsNullOrWhiteSpace(row.RutaArchivo) ? "Libros/PDF/" : row.RutaArchivo.Trim());
+                insertCmd.Parameters.AddWithValue("@Formato", string.IsNullOrWhiteSpace(row.Formato) ? ".pdf" : row.Formato.Trim());
+                insertCmd.Parameters.AddWithValue("@PrecioDracoins", row.PrecioDracoins);
+                insertCmd.Parameters.AddWithValue("@Activo", row.Activo ? 1 : 0);
+
+                await insertCmd.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            importados++;
+        }
+
+        return importados;
     }
 }

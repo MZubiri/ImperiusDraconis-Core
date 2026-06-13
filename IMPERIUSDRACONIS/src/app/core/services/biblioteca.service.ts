@@ -85,4 +85,19 @@ export class BibliotecaService {
       : '';
     return `${this.runtimeConfig.apiUrl}/biblioteca/leer/${id}?access_token=${token}`;
   }
+
+  exportarExcel(): Observable<Blob> {
+    return this.http.get(`${this.runtimeConfig.apiUrl}/biblioteca/exportar`, {
+      responseType: 'blob'
+    });
+  }
+
+  importarExcel(file: File): Observable<{ success: boolean; count: number; message: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ success: boolean; count: number; message: string }>(
+      `${this.runtimeConfig.apiUrl}/biblioteca/importar`,
+      formData
+    );
+  }
 }
