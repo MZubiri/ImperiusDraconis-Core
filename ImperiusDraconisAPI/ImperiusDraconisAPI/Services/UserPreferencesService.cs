@@ -34,7 +34,6 @@ public sealed class UserPreferencesService
     {
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await ValidateTableAsync(connection, cancellationToken);
 
         await using var command = new SqlCommand(
             """
@@ -81,7 +80,6 @@ public sealed class UserPreferencesService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await ValidateTableAsync(connection, cancellationToken);
 
         await using var command = new SqlCommand(
             """
@@ -108,7 +106,6 @@ public sealed class UserPreferencesService
     {
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await ValidateTableAsync(connection, cancellationToken);
 
         await using var command = new SqlCommand(
             """
@@ -156,7 +153,6 @@ public sealed class UserPreferencesService
     {
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await ValidateTableAsync(connection, cancellationToken);
 
         var currentUserCode = await GetCurrentUserCodeAsync(connection, idAlumno, cancellationToken);
         var requestedCodes = request.Favoritos
@@ -209,7 +205,6 @@ public sealed class UserPreferencesService
     {
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await ValidateTableAsync(connection, cancellationToken);
 
         await using var command = new SqlCommand(
             """
@@ -234,7 +229,6 @@ public sealed class UserPreferencesService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await ValidateTableAsync(connection, cancellationToken);
 
         await using var command = new SqlCommand(
             """
@@ -256,19 +250,7 @@ public sealed class UserPreferencesService
         return new ThemePreferenceDto { Tema = theme };
     }
 
-    private static async Task ValidateTableAsync(SqlConnection connection, CancellationToken cancellationToken)
-    {
-        await using var command = new SqlCommand(
-            """
-            IF OBJECT_ID(N'dbo.AlumnoPreferencias', N'U') IS NULL
-            BEGIN
-                THROW 51000, 'Falta aplicar la migracion que crea dbo.AlumnoPreferencias.', 1;
-            END
-            """,
-            connection);
 
-        await command.ExecuteNonQueryAsync(cancellationToken);
-    }
 
     private static async Task<string> GetCurrentUserCodeAsync(
         SqlConnection connection,
