@@ -25,6 +25,8 @@ Thumbs.db
 *.sql
 !SQLMigrar/
 !SQLMigrar/*.sql
+!ImperiusDraconisAPI/ImperiusDraconisAPI/SQLMigrar/
+!ImperiusDraconisAPI/ImperiusDraconisAPI/SQLMigrar/*.sql
 *.log
 
 # Biblioteca (excluir libros, entornos y cache pesada/local)

@@ -1,0 +1,5 @@
+{
+  "summary": "Database cleanup analysis report identifying 34 unused tables in the SQL Server script compared to the active C# and Angular project.",
+  "updatedAt": "2026-06-11T15:02:37.708291156Z",
+  "userFacing": true
+}
