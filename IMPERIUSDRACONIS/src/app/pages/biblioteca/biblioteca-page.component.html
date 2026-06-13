@@ -76,15 +76,17 @@
         Pase de Suscripción a la Biblioteca
       </h3>
       <p class="banner-desc" *ngIf="!suscripcion()?.activa">
-        Accede ilimitadamente a todos los grimorios de Imperius por solo <strong>{{ suscripcion()?.costoSuscripcion ?? 50 }} Dracoins</strong> a la semana.
+        Accede ilimitadamente a todos los grimorios de Imperius por solo <strong>{{ suscripcion()?.costoSuscripcion ?? 250 }} Dracoins</strong> a la semana (incluye 2 descargas semanales).
       </p>
       <p class="banner-desc" *ngIf="suscripcion()?.activa">
         Tu suscripción está activa. Tienes acceso completo a todos los libros. Vence el: <strong>{{ suscripcion()?.fechaVencimiento | date: 'dd/MM/yyyy HH:mm' }}</strong>.
+        <br/>
+        <strong>Descargas semanales: {{ suscripcion()?.descargasRealizadas ?? 0 }} de {{ suscripcion()?.descargasPermitidas ?? 2 }} utilizadas.</strong>
       </p>
     </div>
     <button (click)="suscribirse()" class="suscripcion-btn" [disabled]="loading()">
       <svg lucideIcon="coins" class="btn-icon-inline"></svg>
-      {{ suscripcion()?.activa ? 'Extender Suscripción (' + (suscripcion()?.costoSuscripcion ?? 50) + ' DC)' : 'Suscribirse por 1 semana (' + (suscripcion()?.costoSuscripcion ?? 50) + ' DC)' }}
+      {{ suscripcion()?.activa ? 'Extender Suscripción (' + (suscripcion()?.costoSuscripcion ?? 250) + ' DC)' : 'Suscribirse por 1 semana (' + (suscripcion()?.costoSuscripcion ?? 250) + ' DC)' }}
     </button>
   </div>
 
@@ -182,11 +184,12 @@
         </button>
       </div>
 
-      <div class="book-cover">
+      <div class="book-cover" [class]="'book-cover-' + clasificarCategoria(libro.categoriaNombre)">
         <div class="book-spine"></div>
         <div class="book-cover-content">
           <span class="book-format-badge" [class.pdf]="libro.formato === '.pdf'">{{ libro.formato.replace('.', '').toUpperCase() }}</span>
-          <svg lucideIcon="book-open" class="book-main-icon"></svg>
+          <h4 class="cover-book-title">{{ libro.titulo }}</h4>
+          <p class="cover-book-author">{{ libro.autor }}</p>
         </div>
       </div>
       
@@ -202,9 +205,14 @@
           <div *ngIf="libro.precioDracoins === 0 || libro.comprado || suscripcion()?.activa" class="access-box">
             <span class="owned-tag" *ngIf="libro.precioDracoins > 0 && !suscripcion()?.activa">Adquirido</span>
             <span class="owned-tag sub" *ngIf="suscripcion()?.activa && libro.precioDracoins > 0 && !libro.comprado">Acceso por Suscripción</span>
-            <button (click)="leer(libro)" class="action-button read-button">
-              Abrir Grimorio
-            </button>
+            <div class="access-buttons-row">
+              <button (click)="leer(libro)" class="action-button read-button">
+                Ver
+              </button>
+              <button (click)="descargar(libro)" class="action-button download-button" title="Descargar PDF/EPUB">
+                Descargar
+              </button>
+            </div>
           </div>
 
           <!-- Libro de Pago no comprado -->
@@ -266,7 +274,7 @@
     </button>
   </div>
   
-  <div class="reader-body">
+  <div class="reader-body" (contextmenu)="$event.preventDefault()">
     <iframe [src]="libroUrlSafe()" class="pdf-iframe" frameborder="0"></iframe>
   </div>
 </div>

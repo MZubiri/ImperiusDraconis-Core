@@ -60,6 +60,42 @@ public static class DatabaseInitializer
                 logger.LogInformation("Las tablas de biblioteca ya existen. Omitiendo creacion.");
             }
 
+            // 1.5 Verificar/crear tabla AlumnosLibrosDescargados
+            using var checkDescargasCommand = new SqlCommand(
+                "SELECT OBJECT_ID(N'dbo.AlumnosLibrosDescargados', N'U')",
+                connection);
+            var checkDescargasResult = await checkDescargasCommand.ExecuteScalarAsync();
+            var descargasTableExists = checkDescargasResult != DBNull.Value && checkDescargasResult != null;
+
+            if (!descargasTableExists)
+            {
+                logger.LogInformation("Creando tabla AlumnosLibrosDescargados...");
+                var createDescargasSql = """
+                    CREATE TABLE dbo.AlumnosLibrosDescargados
+                    (
+                        Id INT IDENTITY(1,1) NOT NULL,
+                        IdAlumno INT NOT NULL,
+                        IdLibro INT NOT NULL,
+                        FechaDescarga DATETIME NOT NULL CONSTRAINT DF_AlumnosLibrosDescargados_FechaDescarga DEFAULT GETDATE(),
+                        CONSTRAINT PK_AlumnosLibrosDescargados PRIMARY KEY (Id),
+                        CONSTRAINT FK_AlumnosLibrosDescargados_Alumnos FOREIGN KEY (IdAlumno) REFERENCES dbo.Alumnos(IdAlumno) ON DELETE CASCADE,
+                        CONSTRAINT FK_AlumnosLibrosDescargados_BibliotecaLibros FOREIGN KEY (IdLibro) REFERENCES dbo.BibliotecaLibros(Id) ON DELETE CASCADE
+                    );
+                    """;
+                using var createCmd = new SqlCommand(createDescargasSql, connection);
+                await createCmd.ExecuteNonQueryAsync();
+            }
+
+            // 1.6 Establecer el costo base de todos los libros a 300 DC
+            using var updateCostoCommand = new SqlCommand(
+                "UPDATE dbo.BibliotecaLibros SET PrecioDracoins = 300 WHERE PrecioDracoins = 0",
+                connection);
+            int rowsUpdated = await updateCostoCommand.ExecuteNonQueryAsync();
+            if (rowsUpdated > 0)
+            {
+                logger.LogInformation("Se actualizo el costo base de {Count} libros a 300 Dracoins.", rowsUpdated);
+            }
+
             // 2. Verificar si hay libros sembrados
             int librosCount = 0;
             try

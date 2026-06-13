@@ -90,6 +90,7 @@ public sealed class BibliotecaController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> LeerLibro(int id, [FromQuery] string? accessKey, CancellationToken cancellationToken)
     {
@@ -97,6 +98,15 @@ public sealed class BibliotecaController : ControllerBase
         if (!int.TryParse(idAlumnoClaim, out var idAlumno))
         {
             return Unauthorized();
+        }
+
+        if (!EsAdministrador())
+        {
+            var tieneAcceso = await _bibliotecaService.ValidarAccesoLecturaAsync(idAlumno, id, cancellationToken);
+            if (!tieneAcceso)
+            {
+                return Forbid();
+            }
         }
 
         // Obtener la ruta del archivo relativa
@@ -147,6 +157,67 @@ public sealed class BibliotecaController : ControllerBase
         };
 
         return PhysicalFile(absolutePath, contentType, enableRangeProcessing: true);
+    }
+
+    [HttpGet("descargar/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> DescargarLibro(int id, CancellationToken cancellationToken)
+    {
+        var idAlumnoClaim = User.Claims.FirstOrDefault(claim => claim.Type == ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(idAlumnoClaim, out var idAlumno))
+        {
+            return Unauthorized();
+        }
+
+        var esAdmin = EsAdministrador();
+        var (success, message, rutaRelativa) = await _bibliotecaService.ValidarYObtenerRutaDescargaAsync(idAlumno, id, esAdmin, cancellationToken);
+        
+        if (!success || string.IsNullOrWhiteSpace(rutaRelativa))
+        {
+            return BadRequest(new { message });
+        }
+
+        // Resolver la ruta física del archivo
+        var pathSegments = rutaRelativa.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+        var baseDir = Path.Combine(_environment.ContentRootPath, "..", "Biblioteca");
+        var absolutePath = Path.Combine(baseDir, Path.Combine(pathSegments));
+
+        if (!System.IO.File.Exists(absolutePath))
+        {
+            if (pathSegments.Length > 0 && !pathSegments[0].Equals("Libros", StringComparison.OrdinalIgnoreCase))
+            {
+                var fallbackSegments = new List<string> { "Libros" };
+                fallbackSegments.AddRange(pathSegments);
+                var fallbackPath = Path.Combine(baseDir, Path.Combine(fallbackSegments.ToArray()));
+                if (System.IO.File.Exists(fallbackPath))
+                {
+                    absolutePath = fallbackPath;
+                }
+            }
+        }
+
+        if (!System.IO.File.Exists(absolutePath))
+        {
+            absolutePath = Path.Combine(_environment.ContentRootPath, "..", Path.Combine(pathSegments));
+            if (!System.IO.File.Exists(absolutePath))
+            {
+                return NotFound(new { message = "El archivo físico del libro no se encuentra en el servidor." });
+            }
+        }
+
+        var contentType = Path.GetExtension(absolutePath).ToLowerInvariant() switch
+        {
+            ".pdf" => "application/pdf",
+            ".epub" => "application/epub+zip",
+            _ => "application/octet-stream"
+        };
+
+        var fileName = Path.GetFileName(absolutePath);
+        return PhysicalFile(absolutePath, contentType, fileName, enableRangeProcessing: true);
     }
 
     [HttpGet("suscripcion")]

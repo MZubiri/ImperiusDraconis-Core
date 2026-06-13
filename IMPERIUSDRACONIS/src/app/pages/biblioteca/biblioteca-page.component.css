@@ -648,13 +648,54 @@
 }
 
 .book-cover {
-  background: linear-gradient(135deg, #2c1e11 0%, #150e07 100%);
-  height: 180px;
+  height: 200px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  border-bottom: 1px solid #2e2415;
+  border-bottom: 1.5px solid #2e2415;
+  padding: 15px;
+  box-sizing: border-box;
+}
+
+/* Diseños de portadas por categoría */
+.book-cover-todas {
+  background: linear-gradient(135deg, #2c1e11 0%, #150e07 100%);
+}
+
+.book-cover-arcanas {
+  background: linear-gradient(135deg, #440c0c 0%, #1a0303 100%);
+  border-left: 2px solid #bfa046;
+}
+
+.book-cover-distopias {
+  background: linear-gradient(135deg, #0f233a 0%, #060e18 100%);
+  border-left: 2px solid #5a82a6;
+}
+
+.book-cover-sombras {
+  background: linear-gradient(135deg, #2b0f3e 0%, #100518 100%);
+  border-left: 2px solid #915ea6;
+}
+
+.book-cover-novela {
+  background: linear-gradient(135deg, #440c2a 0%, #1a030f 100%);
+  border-left: 2px solid #a6587c;
+}
+
+.book-cover-alquimia {
+  background: linear-gradient(135deg, #0e3b1c 0%, #05170a 100%);
+  border-left: 2px solid #4ea662;
+}
+
+.book-cover-saber {
+  background: linear-gradient(135deg, #3d2610 0%, #180e05 100%);
+  border-left: 2px solid #bfa046;
+}
+
+.book-cover-miscelanea {
+  background: linear-gradient(135deg, #0e373b 0%, #051517 100%);
+  border-left: 2px solid #4e9ca6;
 }
 
 .book-spine {
@@ -662,9 +703,10 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: 15px;
-  background: linear-gradient(to right, rgba(0,0,0,0.4) 0%, rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.5) 100%);
-  border-right: 1px solid rgba(255,255,255,0.05);
+  width: 14px;
+  background: linear-gradient(to right, rgba(0,0,0,0.55) 0%, rgba(255,255,255,0.06) 50%, rgba(0,0,0,0.6) 100%);
+  border-right: 1px solid rgba(255,255,255,0.04);
+  z-index: 2;
 }
 
 .book-cover-content {
@@ -676,12 +718,33 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding-left: 10px; /* Evitar que el lomo tape las letras */
+  box-sizing: border-box;
 }
 
-.book-main-icon {
-  font-size: 56px;
-  color: rgba(191, 160, 70, 0.6);
-  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+.cover-book-title {
+  font-size: 14px;
+  font-family: 'Georgia', serif;
+  color: #ffd88a;
+  margin: 0 0 10px 0;
+  font-weight: 700;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);
+  padding: 0 8px;
+}
+
+.cover-book-author {
+  font-size: 11px;
+  color: #bfa88a;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+  font-weight: 500;
 }
 
 .book-format-badge {
@@ -764,7 +827,14 @@
   transition: all 0.2s ease;
 }
 
+.access-buttons-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
 .read-button {
+  flex: 1;
   background: linear-gradient(135deg, #184c2b 0%, #0d381c 100%);
   color: #c9ebd4;
   border: 1px solid #236c3d;
@@ -773,6 +843,18 @@
 .read-button:hover {
   background: linear-gradient(135deg, #206439 0%, #114b25 100%);
   border-color: #2b844b;
+}
+
+.download-button {
+  flex: 1;
+  background: linear-gradient(135deg, #7c5f21 0%, #523f15 100%);
+  color: #ffd88a;
+  border: 1px solid #997426;
+}
+
+.download-button:hover {
+  background: linear-gradient(135deg, #96742b 0%, #68501c 100%);
+  border-color: #bfa046;
 }
 
 .purchase-box {

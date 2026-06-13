@@ -53,9 +53,11 @@ public sealed class SaveLibroRequest
 
 public sealed class SuscripcionStatusDto
 {
-    public bool Activa { get; init; }
-    public DateTime? FechaVencimiento { get; init; }
-    public int CostoSuscripcion { get; init; } = 50; // Costo por defecto 50 Dracoins
+    public bool Activa { get; set; }
+    public DateTime? FechaVencimiento { get; set; }
+    public int CostoSuscripcion { get; set; } = 250;
+    public int DescargasRealizadas { get; set; }
+    public int DescargasPermitidas { get; set; } = 2;
 }
 
 public sealed class BookExcelRow

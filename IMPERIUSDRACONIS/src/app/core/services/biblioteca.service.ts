@@ -83,7 +83,13 @@ export class BibliotecaService {
     const token = localStorage.getItem('imperiusdraconis.session') 
       ? JSON.parse(localStorage.getItem('imperiusdraconis.session')!).token 
       : '';
-    return `${this.runtimeConfig.apiUrl}/biblioteca/leer/${id}?access_token=${token}`;
+    return `${this.runtimeConfig.apiUrl}/biblioteca/leer/${id}?access_token=${token}#toolbar=0`;
+  }
+
+  descargarLibro(id: number): Observable<Blob> {
+    return this.http.get(`${this.runtimeConfig.apiUrl}/biblioteca/descargar/${id}`, {
+      responseType: 'blob'
+    });
   }
 
   exportarExcel(): Observable<Blob> {

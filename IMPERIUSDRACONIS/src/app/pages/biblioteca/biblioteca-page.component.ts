@@ -315,7 +315,7 @@ export class BibliotecaPageComponent implements OnInit {
   }
 
   suscribirse(): void {
-    const costo = this.suscripcion()?.costoSuscripcion ?? 50;
+    const costo = this.suscripcion()?.costoSuscripcion ?? 250;
 
     if (this.alumnoDracoins() < costo) {
       alert(`No tienes suficientes Dracoins. La suscripción cuesta ${costo} DC y tienes ${this.alumnoDracoins()} DC.`);
@@ -324,7 +324,7 @@ export class BibliotecaPageComponent implements OnInit {
 
     const confirmMsg = this.suscripcion()?.activa 
       ? `¿Deseas extender tu suscripción semanal por otros 7 días por ${costo} Dracoins?`
-      : `¿Deseas suscribirte a la biblioteca por una semana por ${costo} Dracoins? (Acceso ilimitado a todos los libros)`;
+      : `¿Deseas suscribirte a la biblioteca por una semana por ${costo} Dracoins? (Acceso ilimitado a todos los libros y 2 descargas semanales)`;
 
     if (confirm(confirmMsg)) {
       this.loading.set(true);
@@ -355,6 +355,48 @@ export class BibliotecaPageComponent implements OnInit {
     this.libroUrlSafe.set(null);
   }
 
+  descargar(libro: BibliotecaLibro): void {
+    this.loading.set(true);
+    this.bibliotecaService.descargarLibro(libro.id).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${libro.titulo} - ${libro.autor}${libro.formato}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        // Refrescar el estado de la suscripción para actualizar las descargas usadas
+        this.bibliotecaService.getSuscripcionStatus().subscribe({
+          next: (status) => {
+            this.suscripcion.set(status);
+            this.loading.set(false);
+          },
+          error: () => this.loading.set(false)
+        });
+      },
+      error: (err) => {
+        this.loading.set(false);
+        if (err.error instanceof Blob) {
+          const reader = new FileReader();
+          reader.onload = (e: any) => {
+            try {
+              const res = JSON.parse(e.target.result);
+              alert(res.message || 'Error al descargar el libro.');
+            } catch {
+              alert('Error al descargar el libro.');
+            }
+          };
+          reader.readAsText(err.error);
+        } else {
+          alert(err.error?.message || 'Error al descargar el libro.');
+        }
+      }
+    });
+  }
+
   // --- LÓGICA DE CRUD DE LIBROS ---
 
   abrirNuevoLibroModal(): void {
@@ -365,7 +407,7 @@ export class BibliotecaPageComponent implements OnInit {
     this.formIdCategoria = this.categorias().length > 0 ? this.categorias()[0].id : null;
     this.formRutaArchivo = 'Libros/PDF/'; // Ruta de base
     this.formFormato = '.pdf';
-    this.formPrecioDracoins = 0;
+    this.formPrecioDracoins = 300;
     this.formActivo = true;
 
     this.mostrarCrudModal.set(true);

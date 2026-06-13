@@ -33,4 +33,6 @@ export interface SuscripcionStatus {
   activa: boolean;
   fechaVencimiento?: string | Date;
   costoSuscripcion: number;
+  descargasRealizadas: number;
+  descargasPermitidas: number;
 }
