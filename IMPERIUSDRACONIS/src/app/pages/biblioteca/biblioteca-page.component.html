@@ -120,23 +120,39 @@
       <button (click)="buscarLibros()" class="search-button">Buscar</button>
     </div>
 
-    <!-- Pestañas de categorías -->
-    <div class="categories-tabs">
+    <!-- Grupos de categorías principales (Artes Arcanas, Ciencia Ficción, etc.) -->
+    <div class="category-groups-bar">
       <button 
-        [class.active]="categoriaSeleccionada() === null"
-        (click)="seleccionarCategoria(null)"
-        class="category-tab"
+        *ngFor="let grupo of gruposCategorias" 
+        [class.active]="grupoSeleccionado() === grupo.key"
+        (click)="seleccionarGrupo(grupo.key)"
+        class="group-tab"
       >
-        Todos
+        <svg [lucideIcon]="grupo.icon" class="group-tab-icon"></svg>
+        <span class="group-tab-name">{{ grupo.nombre }}</span>
       </button>
-      <button 
-        *ngFor="let cat of categorias()" 
-        [class.active]="categoriaSeleccionada() === cat.id"
-        (click)="seleccionarCategoria(cat.id)"
-        class="category-tab"
-      >
-        {{ cat.nombre }}
-      </button>
+    </div>
+
+    <!-- Subcategorías del grupo seleccionado -->
+    <div *ngIf="grupoSeleccionado() !== 'todas' && categoriasFiltradas().length > 0" class="subcategories-panel">
+      <div class="subcategories-title">Filtrar por subcategoría:</div>
+      <div class="subcategories-list">
+        <button 
+          [class.active]="categoriaSeleccionada() === null"
+          (click)="seleccionarSubcategoria(null)"
+          class="subcategory-pill"
+        >
+          Todas
+        </button>
+        <button 
+          *ngFor="let cat of categoriasFiltradas()" 
+          [class.active]="categoriaSeleccionada() === cat.id"
+          (click)="seleccionarSubcategoria(cat.id)"
+          class="subcategory-pill"
+        >
+          {{ cat.nombre }}
+        </button>
+      </div>
     </div>
   </div>
 
@@ -146,15 +162,15 @@
     <p>Consultando los archivos de la biblioteca...</p>
   </div>
 
-  <div *ngIf="!loading() && libros().length === 0" class="empty-state">
+  <div *ngIf="!loading() && librosFiltrados().length === 0" class="empty-state">
     <svg lucideIcon="book-open" class="empty-icon"></svg>
-    <p *ngIf="tabActivo() === 'todos'">No se encontraron libros que coincidan con la búsqueda.</p>
-    <p *ngIf="tabActivo() === 'mis-libros'">Todavía no has adquirido ningún grimorio propio ni posees una suscripción activa.</p>
+    <p *ngIf="tabActivo() === 'todos'">No se encontraron libros que coincidan con la búsqueda o los filtros.</p>
+    <p *ngIf="tabActivo() === 'mis-libros'">Todavía no has adquirido ningún grimorio propio en esta categoría ni posees una suscripción activa.</p>
   </div>
 
   <!-- Grid de Libros -->
-  <div *ngIf="!loading() && libros().length > 0" class="books-grid">
-    <div *ngFor="let libro of libros()" class="book-card">
+  <div *ngIf="!loading() && librosFiltrados().length > 0" class="books-grid">
+    <div *ngFor="let libro of librosPaginados()" class="book-card">
       
       <!-- Controles de edición rápidos en la esquina para Administradores -->
       <div *ngIf="esAdmin()" class="admin-card-overlay">
@@ -204,6 +220,34 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Paginación -->
+  <div *ngIf="!loading() && paginasTotales() > 1" class="pagination-controls">
+    <button 
+      [disabled]="paginaActual() === 1" 
+      (click)="cambiarPagina(paginaActual() - 1)" 
+      class="page-nav-btn"
+      title="Página Anterior"
+    >
+      <svg lucideIcon="chevron-left" class="btn-icon"></svg> Anterior
+    </button>
+
+    <div class="page-info">
+      <span>Página</span>
+      <span class="page-number-active">{{ paginaActual() }}</span>
+      <span>de</span>
+      <span>{{ paginasTotales() }}</span>
+    </div>
+
+    <button 
+      [disabled]="paginaActual() === paginasTotales()" 
+      (click)="cambiarPagina(paginaActual() + 1)" 
+      class="page-nav-btn"
+      title="Siguiente Página"
+    >
+      Siguiente <svg lucideIcon="chevron-right" class="btn-icon"></svg>
+    </button>
   </div>
 </div>
 

@@ -16,6 +16,15 @@ import {
   LucideCheck,
   LucideDownload,
   LucideUpload,
+  LucideSparkles,
+  LucideRocket,
+  LucideGhost,
+  LucideHeart,
+  LucideLeaf,
+  LucideScroll,
+  LucidePalette,
+  LucideChevronLeft,
+  LucideChevronRight,
   LucideDynamicIcon,
   provideLucideIcons
 } from '@lucide/angular';
@@ -44,7 +53,16 @@ import { AuthService } from '../../core/services/auth.service';
       LucideTrash2,
       LucideCheck,
       LucideDownload,
-      LucideUpload
+      LucideUpload,
+      LucideSparkles,
+      LucideRocket,
+      LucideGhost,
+      LucideHeart,
+      LucideLeaf,
+      LucideScroll,
+      LucidePalette,
+      LucideChevronLeft,
+      LucideChevronRight
     )
   ]
 })
@@ -59,11 +77,28 @@ export class BibliotecaPageComponent implements OnInit {
   loading = signal<boolean>(false);
   errorMsg = signal<string>('');
 
+  // Categorías agrupadas (Grupos principales)
+  gruposCategorias = [
+    { key: 'todas', nombre: 'Todas', icon: 'book-open' },
+    { key: 'arcanas', nombre: 'Artes Arcanas', icon: 'sparkles' },
+    { key: 'distopias', nombre: 'Ciencia Ficción', icon: 'rocket' },
+    { key: 'sombras', nombre: 'Misterio y Terror', icon: 'ghost' },
+    { key: 'novela', nombre: 'Romance y Novela', icon: 'heart' },
+    { key: 'alquimia', nombre: 'Bienestar y Salud', icon: 'leaf' },
+    { key: 'saber', nombre: 'Estudio y Saber', icon: 'scroll' },
+    { key: 'miscelanea', nombre: 'Arte y Ocio', icon: 'palette' }
+  ];
+
+  grupoSeleccionado = signal<string>('todas');
   categorias = signal<BibliotecaCategoria[]>([]);
   libros = signal<BibliotecaLibro[]>([]);
   categoriaSeleccionada = signal<number | null>(null);
   busquedaInput = signal<string>('');
   tabActivo = signal<'todos' | 'mis-libros'>('todos');
+
+  // Paginación
+  paginaActual = signal<number>(1);
+  elementosPorPagina = 24;
 
   // Suscripción
   suscripcion = signal<SuscripcionStatus | null>(null);
@@ -79,6 +114,71 @@ export class BibliotecaPageComponent implements OnInit {
     const esMaestre = cargo === 'maestre' || cargo === 'director' || cargo === 'administrador';
     const tienePermiso = this.authService.permissions().some(p => p.toLowerCase() === 'biblioteca:admin');
     return esMaestre || tienePermiso;
+  });
+
+  // Clasificación de categorías en caliente
+  clasificarCategoria(nombre: string): string {
+    const nom = nombre.toLowerCase();
+    if (nom.includes('fantas') || nom.includes('magia') || nom.includes('ocult') || nom.includes('esoter') || nom.includes('mistic') || nom.includes('teosof') || nom.includes('espiritualidad') || nom.includes('paranormal') || nom.includes('grimorio') || nom.includes('mason')) {
+      return 'arcanas';
+    }
+    if (nom.includes('ciencia fic') || nom.includes('distop') || nom.includes('cyborg') || nom.includes('future') || nom.includes('robot')) {
+      return 'distopias';
+    }
+    if (nom.includes('misterio') || nom.includes('terror') || nom.includes('thriller') || nom.includes('policial') || nom.includes('detective') || nom.includes('negra') || nom.includes('suspense') || nom.includes('intriga') || nom.includes('policiaca') || nom.includes('investigac') || nom.includes('negro')) {
+      return 'sombras';
+    }
+    if (nom.includes('romance') || nom.includes('romant') || nom.includes('erotic') || nom.includes('ertic') || nom.includes('amor') || nom.includes('novela') || nom.includes('drama') || nom.includes('femenina') || nom.includes('matrimonio') || nom.includes('pareja') || nom.includes('comediaromntica') || nom.includes('regency') || nom.includes('loveerotica')) {
+      return 'novela';
+    }
+    if (nom.includes('autoayuda') || nom.includes('bienestar') || nom.includes('psicolog') || nom.includes('desarrollo personal') || nom.includes('crecimiento') || nom.includes('mindfulness') || nom.includes('meditac') || nom.includes('yoga') || nom.includes('salud') || nom.includes('fisioterapia') || nom.includes('medicina') || nom.includes('crianza') || nom.includes('relaciones') || nom.includes('relationships')) {
+      return 'alquimia';
+    }
+    if (nom.includes('educac') || nom.includes('academic') || nom.includes('didactica') || nom.includes('mathematic') || nom.includes('ciencia') || nom.includes('historia') || nom.includes('historico') || nom.includes('ensayo') || nom.includes('biografia') || nom.includes('filosof') || nom.includes('logica') || nom.includes('finanzas') || nom.includes('negocios') || nom.includes('ventas') || nom.includes('emprend') || nom.includes('administracion') || nom.includes('tecnolog') || nom.includes('empleo') || nom.includes('idiomas') || nom.includes('escaneado') || nom.includes('manual') || nom.includes('tratado') || nom.includes('universidad')) {
+      return 'saber';
+    }
+    return 'miscelanea';
+  }
+
+  // Filtrar categorías del grupo seleccionado
+  categoriasFiltradas = computed(() => {
+    const grupo = this.grupoSeleccionado();
+    if (grupo === 'todas') {
+      return [];
+    }
+    return this.categorias().filter(cat => this.clasificarCategoria(cat.nombre) === grupo);
+  });
+
+  // Filtrar libros según búsqueda, tab, grupo de categoría y subcategoría
+  librosFiltrados = computed(() => {
+    let list = this.libros();
+    const grupo = this.grupoSeleccionado();
+    const catId = this.categoriaSeleccionada();
+
+    if (catId !== null) {
+      list = list.filter(l => l.idCategoria === catId);
+    } else if (grupo !== 'todas') {
+      list = list.filter(l => {
+        if (!l.idCategoria) return grupo === 'miscelanea';
+        const cat = this.categorias().find(c => c.id === l.idCategoria);
+        if (!cat) return grupo === 'miscelanea';
+        return this.clasificarCategoria(cat.nombre) === grupo;
+      });
+    }
+
+    return list;
+  });
+
+  // Paginación de libros
+  paginasTotales = computed(() => {
+    const total = this.librosFiltrados().length;
+    return total > 0 ? Math.ceil(total / this.elementosPorPagina) : 1;
+  });
+
+  librosPaginados = computed(() => {
+    const start = (this.paginaActual() - 1) * this.elementosPorPagina;
+    const end = start + this.elementosPorPagina;
+    return this.librosFiltrados().slice(start, end);
   });
 
   // Modales CRUD
@@ -149,9 +249,11 @@ export class BibliotecaPageComponent implements OnInit {
     this.loading.set(true);
     const soloMisLibros = this.tabActivo() === 'mis-libros';
 
-    this.bibliotecaService.getLibros(this.categoriaSeleccionada(), this.busquedaInput(), soloMisLibros).subscribe({
+    // Se solicita sin ID de categoría para filtrar localmente en cliente y soportar agrupaciones dinámicas
+    this.bibliotecaService.getLibros(null, this.busquedaInput(), soloMisLibros).subscribe({
       next: (lbs) => {
         this.libros.set(lbs);
+        this.paginaActual.set(1); // Resetear paginación al buscar
         this.loading.set(false);
       },
       error: () => {
@@ -161,9 +263,26 @@ export class BibliotecaPageComponent implements OnInit {
     });
   }
 
-  seleccionarCategoria(catId: number | null): void {
-    this.categoriaSeleccionada.set(catId);
-    this.buscarLibros();
+  seleccionarGrupo(key: string): void {
+    this.grupoSeleccionado.set(key);
+    this.categoriaSeleccionada.set(null);
+    this.paginaActual.set(1);
+  }
+
+  seleccionarSubcategoria(id: number | null): void {
+    this.categoriaSeleccionada.set(id);
+    this.paginaActual.set(1);
+  }
+
+  obtenerNombreGrupo(key: string): string {
+    return this.gruposCategorias.find(g => g.key === key)?.nombre ?? '';
+  }
+
+  cambiarPagina(pagina: number): void {
+    if (pagina >= 1 && pagina <= this.paginasTotales()) {
+      this.paginaActual.set(pagina);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 
   cambiarTab(tab: 'todos' | 'mis-libros'): void {
