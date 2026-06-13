@@ -59,6 +59,8 @@ public sealed class SuscripcionStatusDto
     public int DescargasRealizadas { get; set; }
     public int DescargasPermitidas { get; set; } = 2;
     public bool AutoRenovacion { get; set; }
+    public int LibrosVistos { get; set; }
+    public int LibrosDescargados { get; set; }
 }
 
 public sealed class BookExcelRow
@@ -72,4 +74,42 @@ public sealed class BookExcelRow
     public string Formato { get; set; } = string.Empty;
     public decimal PrecioDracoins { get; set; }
     public bool Activo { get; set; }
+}
+
+public sealed class BibliotecaCompraAdminDto
+{
+    public int Id { get; set; }
+    public string AlumnoNombre { get; set; } = string.Empty;
+    public string AlumnoCodigo { get; set; } = string.Empty;
+    public string LibroTitulo { get; set; } = string.Empty;
+    public DateTime FechaCompra { get; set; }
+    public decimal MontoPagado { get; set; }
+}
+
+public sealed class BibliotecaDescargaAdminDto
+{
+    public int Id { get; set; }
+    public string AlumnoNombre { get; set; } = string.Empty;
+    public string AlumnoCodigo { get; set; } = string.Empty;
+    public string LibroTitulo { get; set; } = string.Empty;
+    public DateTime FechaDescarga { get; set; }
+}
+
+public sealed class BibliotecaBalanceAdminDto
+{
+    public decimal IngresosSuscripciones { get; set; }
+    public decimal IngresosCompras { get; set; }
+    public decimal IngresosTotales { get; set; }
+    public int TotalSuscripcionesActivas { get; set; }
+    public int TotalLibrosEnCatalogo { get; set; }
+}
+
+public sealed class BibliotecaSuscritoAdminDto
+{
+    public int IdAlumno { get; set; }
+    public string AlumnoNombre { get; set; } = string.Empty;
+    public string AlumnoCodigo { get; set; } = string.Empty;
+    public DateTime FechaInicio { get; set; }
+    public DateTime FechaVencimiento { get; set; }
+    public bool AutoRenovacion { get; set; }
 }

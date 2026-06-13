@@ -1,8 +1,8 @@
 :host {
   display: block;
   min-height: 100vh;
-  background-color: #0b0907;
-  color: #f7f1e6;
+  background-color: var(--bg-night);
+  color: var(--text-main);
   font-family: 'Outfit', 'Inter', sans-serif;
 }
 
@@ -15,14 +15,14 @@
 }
 
 .lock-box {
-  background: linear-gradient(135deg, #18130e 0%, #0c0906 100%);
-  border: 2px solid #bfa046;
+  background: linear-gradient(135deg, var(--panel) 0%, var(--bg-deep) 100%);
+  border: 2px solid var(--border);
   border-radius: 16px;
   padding: 40px 30px;
   max-width: 480px;
   width: 100%;
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 40px rgba(191, 160, 70, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 40px var(--accent-soft);
   backdrop-filter: blur(8px);
   animation: fadeIn 0.6s ease-out;
 }
@@ -1759,6 +1759,544 @@
 
 @media (max-width: 480px) {
   .books-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ESTILOS DE LA PESTAÑA DE SUSCRIPCIÓN */
+.suscripcion-tab-container {
+  max-width: 800px;
+  margin: 0 auto;
+  animation: fadeIn 0.4s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.suscripcion-card {
+  background: linear-gradient(135deg, var(--panel) 0%, var(--panel-strong) 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.3s ease;
+}
+
+.suscripcion-card.activa {
+  border-color: var(--emerald);
+}
+
+.suscripcion-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 15px;
+}
+
+.suscripcion-card-title {
+  margin: 0;
+  font-size: 20px;
+  font-family: 'Georgia', serif;
+  color: var(--gold-strong);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.suscripcion-card-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--gold);
+}
+
+.suscripcion-status-badge {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  background-color: var(--panel-strong);
+  color: var(--text-soft);
+  border: 1px solid var(--border);
+}
+
+.suscripcion-status-badge.activa {
+  background-color: rgba(79, 185, 130, 0.1);
+  color: var(--emerald);
+  border-color: rgba(79, 185, 130, 0.3);
+}
+
+.suscripcion-card-desc {
+  color: var(--text-soft);
+  line-height: 1.6;
+  font-size: 14.5px;
+  margin-bottom: 20px;
+}
+
+.suscripcion-card-details {
+  background-color: var(--panel-strong);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.detail-label {
+  color: var(--text-soft);
+}
+
+.detail-value {
+  color: var(--text-main);
+}
+
+.detail-disclaimer {
+  margin: 4px 0 0 0;
+  font-size: 12px;
+  color: var(--danger);
+  font-style: italic;
+}
+
+.suscripcion-card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.action-btn {
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.activate-sub-btn {
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-strong) 100%);
+  color: var(--button-text);
+  box-shadow: 0 4px 12px var(--accent-soft);
+}
+
+.activate-sub-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px var(--accent-soft);
+  opacity: 0.95;
+}
+
+.cancel-sub-btn {
+  background: linear-gradient(135deg, #440c0c 0%, #200505 100%);
+  color: #ff8a8a;
+  border: 1px solid #7f0909;
+}
+
+.cancel-sub-btn:hover {
+  background: linear-gradient(135deg, #601010 0%, #300808 100%);
+  border-color: #a91212;
+}
+
+/* GRIDS DE ESTADÍSTICAS DEL USUARIO */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.stat-card {
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.stat-card-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: var(--accent-soft);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-card-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--gold);
+}
+
+.stat-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-card-label {
+  font-size: 13px;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-card-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--gold-strong);
+  font-family: 'Georgia', serif;
+  line-height: 1.1;
+}
+
+/* OVERLAY Y CAJA DEL PANEL DE ADMINISTRACIÓN */
+.admin-panel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 25000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.admin-panel-box {
+  background: linear-gradient(135deg, var(--panel) 0%, var(--bg-deep) 100%);
+  border: 2px solid var(--border-strong);
+  border-radius: 12px;
+  max-width: 1000px;
+  width: 100%;
+  height: 85vh;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
+  animation: fadeIn 0.4s ease-out;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.admin-panel-header {
+  background-color: var(--panel-strong);
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-panel-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-family: 'Georgia', serif;
+  color: var(--gold-strong);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.close-btn-admin {
+  background: transparent;
+  border: none;
+  color: var(--text-soft);
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s ease;
+}
+
+.close-btn-admin:hover {
+  color: var(--text-main);
+}
+
+/* PESTAÑAS DE CONTROL ADMIN */
+.admin-tabs-bar {
+  display: flex;
+  background-color: var(--panel-strong);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  overflow-x: auto;
+}
+
+.admin-tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-soft);
+  padding: 14px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.admin-tab-btn:hover {
+  color: var(--text-main);
+}
+
+.admin-tab-btn.active {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+
+/* CUERPO DEL PANEL ADMIN */
+.admin-panel-body {
+  flex-grow: 1;
+  padding: 24px;
+  overflow-y: auto;
+  background-color: var(--bg-night);
+}
+
+.admin-content-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* TABLA ADMIN GENERAL */
+.admin-table-wrapper {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--panel);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+.admin-table th {
+  background-color: var(--panel-strong);
+  color: var(--gold);
+  font-weight: 600;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.admin-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-main);
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tr:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.admin-table td.bold {
+  font-weight: 600;
+}
+
+.admin-table td.gold {
+  color: var(--gold-strong);
+  font-weight: 600;
+}
+
+/* ACCIONES DE TABLA */
+.table-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.action-table-btn {
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  border-radius: 4px;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.action-table-btn:hover {
+  color: var(--text-main);
+  border-color: var(--gold);
+}
+
+.action-table-btn.delete:hover {
+  background-color: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+.action-table-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* FILAS DE ACCIONES */
+.admin-actions-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.import-export-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* STATS GRID EN ADMIN PANEL */
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.admin-stat-card {
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.admin-stat-label {
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.admin-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-main);
+  font-family: 'Georgia', serif;
+}
+
+.admin-stat-value.gold {
+  color: var(--gold);
+}
+
+.admin-stat-value.gold.total {
+  color: var(--gold-strong);
+  font-size: 28px;
+  border-bottom: 2px double var(--border-strong);
+  padding-bottom: 4px;
+  display: inline-block;
+}
+
+/* BOTÓN DE REVOCAR PASE */
+.btn-revoke-sub {
+  background-color: rgba(229, 101, 101, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(229, 101, 101, 0.3);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-revoke-sub:hover {
+  background-color: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+.badge-auto {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  background-color: rgba(229, 101, 101, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(229, 101, 101, 0.2);
+}
+
+.badge-auto.enabled {
+  background-color: rgba(79, 185, 130, 0.1);
+  color: var(--emerald);
+  border: 1px solid rgba(79, 185, 130, 0.2);
+}
+
+.tag-cat {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+.tag-fmt {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 6px;
+  border-radius: 3px;
+  background-color: var(--border);
+  color: var(--text-soft);
+}
+
+.tag-fmt.pdf {
+  background-color: rgba(140, 28, 28, 0.15);
+  color: #ff8a8a;
+  border: 1px solid rgba(140, 28, 28, 0.3);
+}
+
+/* ANIMACIONES */
+.animate-fade {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* RESPONSIVE DE ADMIN PANEL */
+@media (max-width: 768px) {
+  .admin-panel-box {
+    width: 98%;
+    height: 90vh;
+  }
+  
+  .admin-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .admin-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .import-export-actions {
+    flex-direction: column;
+  }
+
+  .stats-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -41,25 +41,10 @@
     
     <!-- Lado derecho: Saldo y Botón Admin -->
     <div class="header-actions">
-      <!-- Botones de administración de catálogo -->
-      <ng-container *ngIf="esAdmin()">
-        <button (click)="exportarBiblioteca()" class="admin-action-btn secondary" title="Exportar Catálogo a Excel">
-          <svg lucideIcon="download" class="btn-icon"></svg> Exportar Excel
-        </button>
-        <button (click)="fileInput.click()" class="admin-action-btn secondary" title="Importar Catálogo desde Excel">
-          <svg lucideIcon="upload" class="btn-icon"></svg> Importar Excel
-        </button>
-        <input 
-          #fileInput 
-          type="file" 
-          accept=".xlsx" 
-          (change)="onImportarArchivo($event)" 
-          style="display: none;" 
-        />
-        <button (click)="abrirNuevoLibroModal()" class="admin-action-btn">
-          <svg lucideIcon="plus" class="btn-icon"></svg> Añadir Libro
-        </button>
-      </ng-container>
+      <!-- Botón de administración de biblioteca -->
+      <button *ngIf="esAdmin()" (click)="abrirAdminPanel()" class="admin-action-btn">
+        <svg lucideIcon="edit" class="btn-icon"></svg> Panel Admin
+      </button>
 
       <div class="dracoins-badge">
         <svg lucideIcon="coins" class="coin-icon"></svg>
@@ -68,34 +53,7 @@
     </div>
   </div>
 
-  <!-- Sección de Suscripción Semanal -->
-  <div class="suscripcion-banner" [class.activa]="suscripcion()?.activa">
-    <div class="suscripcion-info">
-      <h3 class="banner-title">
-        <svg lucideIcon="book-open" class="banner-icon"></svg>
-        Pase de Suscripción a la Biblioteca
-      </h3>
-      <p class="banner-desc" *ngIf="!suscripcion()?.activa">
-        Accede ilimitadamente a todos los libros de Imperius por solo <strong>{{ suscripcion()?.costoSuscripcion ?? 250 }} Dracoins</strong> a la semana (incluye 2 descargas semanales).
-      </p>
-      <p class="banner-desc" *ngIf="suscripcion()?.activa">
-        <span *ngIf="suscripcion()?.autoRenovacion">Tu suscripción está activa (renovación automática habilitada). Vence el: <strong>{{ suscripcion()?.fechaVencimiento | date: 'dd/MM/yyyy HH:mm' }}</strong>.</span>
-        <span *ngIf="!suscripcion()?.autoRenovacion">Tu suscripción está activa (renovación automática cancelada). Expira definitivamente el: <strong>{{ suscripcion()?.fechaVencimiento | date: 'dd/MM/yyyy HH:mm' }}</strong>.</span>
-        <br/>
-        <strong>Descargas semanales: {{ suscripcion()?.descargasRealizadas ?? 0 }} de {{ suscripcion()?.descargasPermitidas ?? 2 }} utilizadas.</strong>
-      </p>
-    </div>
-    
-    <button *ngIf="suscripcion()?.activa && suscripcion()?.autoRenovacion" (click)="cancelarSuscripcion()" class="suscripcion-btn cancel" [disabled]="loading()">
-      Cancelar Suscripción
-    </button>
-    <button *ngIf="!suscripcion()?.activa || !suscripcion()?.autoRenovacion" (click)="suscribirse()" class="suscripcion-btn" [disabled]="loading()">
-      <svg lucideIcon="coins" class="btn-icon-inline"></svg>
-      {{ suscripcion()?.activa ? 'Reactivar Renovación (' + (suscripcion()?.costoSuscripcion ?? 250) + ' Dc)' : 'Suscribirse por 1 semana (' + (suscripcion()?.costoSuscripcion ?? 250) + ' Dc)' }}
-    </button>
-  </div>
-
-  <!-- Panel de control de Tabs Principales (Todos / Mis Libros) -->
+  <!-- Panel de control de Tabs Principales (Todos / Mis Libros / Suscripción) -->
   <div class="tab-selector-bar">
     <button 
       class="tab-btn" 
@@ -111,158 +69,238 @@
     >
       Mis Libros
     </button>
+    <button 
+      class="tab-btn" 
+      [class.active]="tabActivo() === 'suscripcion'"
+      (click)="cambiarTab('suscripcion')"
+    >
+      Suscripción
+    </button>
   </div>
 
-  <!-- Controles de Filtros y Búsqueda -->
-  <div class="controls-panel">
-    <div class="search-bar-wrapper">
-      <svg lucideIcon="search" class="search-icon"></svg>
-      <input 
-        type="text" 
-        placeholder="Buscar por título, autor..." 
-        [(ngModel)]="busquedaInput"
-        (keyup.enter)="buscarLibros()"
-        class="search-input"
-      />
-      <button (click)="buscarLibros()" class="search-button">Buscar</button>
+  <div *ngIf="tabActivo() !== 'suscripcion'">
+    <!-- Controles de Filtros y Búsqueda -->
+    <div class="controls-panel">
+      <div class="search-bar-wrapper">
+        <svg lucideIcon="search" class="search-icon"></svg>
+        <input 
+          type="text" 
+          placeholder="Buscar por título, autor..." 
+          [(ngModel)]="busquedaInput"
+          (keyup.enter)="buscarLibros()"
+          class="search-input"
+        />
+        <button (click)="buscarLibros()" class="search-button">Buscar</button>
+      </div>
+
+      <!-- Grupos de categorías principales (Artes Arcanas, Ciencia Ficción, etc.) -->
+      <div class="category-groups-bar">
+        <button 
+          *ngFor="let grupo of gruposCategoriasVisibles()" 
+          [class.active]="grupoSeleccionado() === grupo.key"
+          (click)="seleccionarGrupo(grupo.key)"
+          class="group-tab"
+        >
+          <svg [lucideIcon]="grupo.icon" class="group-tab-icon"></svg>
+          <span class="group-tab-name">{{ grupo.nombre }}</span>
+        </button>
+      </div>
+
+      <!-- Subcategorías del grupo seleccionado -->
+      <div *ngIf="grupoSeleccionado() !== 'todas' && categoriasFiltradas().length > 0" class="subcategories-panel">
+        <div class="subcategories-title">Filtrar por subcategoría:</div>
+        <div class="subcategories-list">
+          <button 
+            [class.active]="categoriaSeleccionada() === null"
+            (click)="seleccionarSubcategoria(null)"
+            class="subcategory-pill"
+          >
+            Todas
+          </button>
+          <button 
+            *ngFor="let cat of categoriasFiltradas()" 
+            [class.active]="categoriaSeleccionada() === cat.id"
+            (click)="seleccionarSubcategoria(cat.id)"
+            class="subcategory-pill"
+          >
+            {{ cat.nombre }}
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- Grupos de categorías principales (Artes Arcanas, Ciencia Ficción, etc.) -->
-    <div class="category-groups-bar">
+    <!-- Estados de carga y vacío -->
+    <div *ngIf="loading()" class="loading-state">
+      <div class="spinner"></div>
+      <p>Consultando los archivos de la biblioteca...</p>
+    </div>
+
+    <div *ngIf="!loading() && librosFiltrados().length === 0" class="empty-state">
+      <svg lucideIcon="book-open" class="empty-icon"></svg>
+      <p *ngIf="tabActivo() === 'todos'">No se encontraron libros que coincidan con la búsqueda o los filtros.</p>
+      <p *ngIf="tabActivo() === 'mis-libros'">Todavía no has adquirido ningún libro propio en esta categoría ni posees una suscripción activa.</p>
+    </div>
+
+    <!-- Grid de Libros -->
+    <div *ngIf="!loading() && librosFiltrados().length > 0" class="books-grid">
+      <div *ngFor="let libro of librosPaginados()" class="book-card" (click)="abrirDetalle(libro)" style="cursor: pointer;">
+        
+        <!-- Controles de edición rápidos en la esquina para Administradores -->
+        <div *ngIf="esAdmin()" class="admin-card-overlay" (click)="$event.stopPropagation()">
+          <button (click)="abrirEditarLibroModal(libro)" class="card-admin-btn edit" title="Editar Libro">
+            <svg lucideIcon="edit"></svg>
+          </button>
+          <button (click)="eliminarLibro(libro)" class="card-admin-btn delete" title="Eliminar Libro">
+            <svg lucideIcon="trash-2"></svg>
+          </button>
+        </div>
+
+        <div class="book-cover" [class]="'book-cover-' + clasificarCategoria(libro.categoriaNombre)">
+          <div class="book-spine"></div>
+          <div class="book-cover-content">
+            <span class="book-format-badge" [class.pdf]="libro.formato === '.pdf'">{{ libro.formato.replace('.', '').toUpperCase() }}</span>
+            <h4 class="cover-book-title">{{ libro.titulo }}</h4>
+            <p class="cover-book-author">{{ libro.autor }}</p>
+          </div>
+        </div>
+        
+        <div class="book-details">
+          <span class="book-category">{{ libro.categoriaNombre }}</span>
+          <h3 class="book-title" [title]="libro.titulo">{{ libro.titulo }}</h3>
+          <p class="book-author">Por {{ libro.autor }}</p>
+          <p class="book-synopsis" *ngIf="libro.sinopsis">{{ libro.sinopsis }}</p>
+          <p class="book-synopsis" *ngIf="!libro.sinopsis">Sin sinopsis disponible.</p>
+
+          <div class="book-action-area" (click)="$event.stopPropagation()">
+            <!-- Libro Gratuito o Ya Comprado o con Acceso por Suscripción -->
+            <div *ngIf="libro.precioDracoins === 0 || libro.comprado || suscripcion()?.activa" class="access-box">
+              <span class="owned-tag" *ngIf="libro.precioDracoins > 0 && !suscripcion()?.activa">Adquirido</span>
+              <span class="owned-tag sub" *ngIf="suscripcion()?.activa && libro.precioDracoins > 0 && !libro.comprado">Acceso por Suscripción</span>
+              <div class="access-buttons-row">
+                <button (click)="leer(libro)" class="action-button read-button">
+                  Ver
+                </button>
+                <button (click)="descargar(libro)" class="action-button download-button" title="Descargar PDF/EPUB">
+                  Descargar
+                </button>
+              </div>
+            </div>
+
+            <!-- Libro de Pago no comprado -->
+            <div *ngIf="libro.precioDracoins > 0 && !libro.comprado && !suscripcion()?.activa" class="purchase-box">
+                <span class="price-tag">
+                  <svg lucideIcon="coins" class="inline-coin"></svg>
+                  {{ libro.precioDracoins | number }} Dc.
+                </span>
+                <button (click)="comprar(libro)" class="action-button buy-button">
+                  Adquirir
+                </button>
+              </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paginación -->
+    <div *ngIf="!loading() && paginasTotales() > 1" class="pagination-controls">
       <button 
-        *ngFor="let grupo of gruposCategoriasVisibles()" 
-        [class.active]="grupoSeleccionado() === grupo.key"
-        (click)="seleccionarGrupo(grupo.key)"
-        class="group-tab"
+        [disabled]="paginaActual() === 1" 
+        (click)="cambiarPagina(paginaActual() - 1)" 
+        class="page-nav-btn"
+        title="Página Anterior"
       >
-        <svg [lucideIcon]="grupo.icon" class="group-tab-icon"></svg>
-        <span class="group-tab-name">{{ grupo.nombre }}</span>
+        <svg lucideIcon="chevron-left" class="btn-icon"></svg> Anterior
+      </button>
+
+      <div class="page-info">
+        <span>Página</span>
+        <span class="page-number-active">{{ paginaActual() }}</span>
+        <span>de</span>
+        <span>{{ paginasTotales() }}</span>
+      </div>
+
+      <button 
+        [disabled]="paginaActual() === paginasTotales()" 
+        (click)="cambiarPagina(paginaActual() + 1)" 
+        class="page-nav-btn"
+        title="Siguiente Página"
+      >
+        Siguiente <svg lucideIcon="chevron-right" class="btn-icon"></svg>
       </button>
     </div>
-
-    <!-- Subcategorías del grupo seleccionado -->
-    <div *ngIf="grupoSeleccionado() !== 'todas' && categoriasFiltradas().length > 0" class="subcategories-panel">
-      <div class="subcategories-title">Filtrar por subcategoría:</div>
-      <div class="subcategories-list">
-        <button 
-          [class.active]="categoriaSeleccionada() === null"
-          (click)="seleccionarSubcategoria(null)"
-          class="subcategory-pill"
-        >
-          Todas
-        </button>
-        <button 
-          *ngFor="let cat of categoriasFiltradas()" 
-          [class.active]="categoriaSeleccionada() === cat.id"
-          (click)="seleccionarSubcategoria(cat.id)"
-          class="subcategory-pill"
-        >
-          {{ cat.nombre }}
-        </button>
-      </div>
-    </div>
   </div>
 
-  <!-- Estados de carga y vacío -->
-  <div *ngIf="loading()" class="loading-state">
-    <div class="spinner"></div>
-    <p>Consultando los archivos de la biblioteca...</p>
-  </div>
-
-  <div *ngIf="!loading() && librosFiltrados().length === 0" class="empty-state">
-    <svg lucideIcon="book-open" class="empty-icon"></svg>
-    <p *ngIf="tabActivo() === 'todos'">No se encontraron libros que coincidan con la búsqueda o los filtros.</p>
-    <p *ngIf="tabActivo() === 'mis-libros'">Todavía no has adquirido ningún libro propio en esta categoría ni posees una suscripción activa.</p>
-  </div>
-
-  <!-- Grid de Libros -->
-  <div *ngIf="!loading() && librosFiltrados().length > 0" class="books-grid">
-    <div *ngFor="let libro of librosPaginados()" class="book-card" (click)="abrirDetalle(libro)" style="cursor: pointer;">
-      
-      <!-- Controles de edición rápidos en la esquina para Administradores -->
-      <div *ngIf="esAdmin()" class="admin-card-overlay" (click)="$event.stopPropagation()">
-        <button (click)="abrirEditarLibroModal(libro)" class="card-admin-btn edit" title="Editar Libro">
-          <svg lucideIcon="edit"></svg>
-        </button>
-        <button (click)="eliminarLibro(libro)" class="card-admin-btn delete" title="Eliminar Libro">
-          <svg lucideIcon="trash-2"></svg>
-        </button>
+  <!-- Pestaña de Suscripción Dedicada -->
+  <div *ngIf="tabActivo() === 'suscripcion'" class="suscripcion-tab-container">
+    <div class="suscripcion-card" [class.activa]="suscripcion()?.activa">
+      <div class="suscripcion-card-header">
+        <h2 class="suscripcion-card-title">
+          <svg lucideIcon="book-open" class="suscripcion-card-icon"></svg>
+          Pase de Suscripción Semanal
+        </h2>
+        <span class="suscripcion-status-badge" [class.activa]="suscripcion()?.activa">
+          {{ suscripcion()?.activa ? 'Activa' : 'Inactiva' }}
+        </span>
       </div>
 
-      <div class="book-cover" [class]="'book-cover-' + clasificarCategoria(libro.categoriaNombre)">
-        <div class="book-spine"></div>
-        <div class="book-cover-content">
-          <span class="book-format-badge" [class.pdf]="libro.formato === '.pdf'">{{ libro.formato.replace('.', '').toUpperCase() }}</span>
-          <h4 class="cover-book-title">{{ libro.titulo }}</h4>
-          <p class="cover-book-author">{{ libro.autor }}</p>
-        </div>
-      </div>
-      
-      <div class="book-details">
-        <span class="book-category">{{ libro.categoriaNombre }}</span>
-        <h3 class="book-title" [title]="libro.titulo">{{ libro.titulo }}</h3>
-        <p class="book-author">Por {{ libro.autor }}</p>
-        <p class="book-synopsis" *ngIf="libro.sinopsis">{{ libro.sinopsis }}</p>
-        <p class="book-synopsis" *ngIf="!libro.sinopsis">Sin sinopsis disponible.</p>
+      <div class="suscripcion-card-body">
+        <p class="suscripcion-card-desc" *ngIf="!suscripcion()?.activa">
+          Disfruta de acceso ilimitado de lectura y descarga para todos los libros de la orden por un costo semanal de <strong>{{ suscripcion()?.costoSuscripcion ?? 250 }} Dracoins</strong>. El cobro es recurrente y se renovará automáticamente cada 7 días mientras tengas saldo disponible.
+        </p>
 
-        <div class="book-action-area" (click)="$event.stopPropagation()">
-          <!-- Libro Gratuito o Ya Comprado o con Acceso por Suscripción -->
-          <div *ngIf="libro.precioDracoins === 0 || libro.comprado || suscripcion()?.activa" class="access-box">
-            <span class="owned-tag" *ngIf="libro.precioDracoins > 0 && !suscripcion()?.activa">Adquirido</span>
-            <span class="owned-tag sub" *ngIf="suscripcion()?.activa && libro.precioDracoins > 0 && !libro.comprado">Acceso por Suscripción</span>
-            <div class="access-buttons-row">
-              <button (click)="leer(libro)" class="action-button read-button">
-                Ver
-              </button>
-              <button (click)="descargar(libro)" class="action-button download-button" title="Descargar PDF/EPUB">
-                Descargar
-              </button>
-            </div>
+        <div class="suscripcion-card-details" *ngIf="suscripcion()?.activa">
+          <div class="detail-row">
+            <span class="detail-label">Fecha de Vencimiento:</span>
+            <span class="detail-value"><strong>{{ suscripcion()?.fechaVencimiento | date: 'dd/MM/yyyy' : 'UTC' }}</strong></span>
           </div>
+          <div class="detail-row">
+            <span class="detail-label">Renovación Automática:</span>
+            <span class="detail-value">
+              <strong [style.color]="suscripcion()?.autoRenovacion ? 'var(--emerald)' : 'var(--danger)'">
+                {{ suscripcion()?.autoRenovacion ? 'Habilitada' : 'Cancelada' }}
+              </strong>
+            </span>
+          </div>
+          <p class="detail-disclaimer" *ngIf="!suscripcion()?.autoRenovacion">
+            * Tu suscripción no se renovará al expirar. Perderás el acceso el día indicado.
+          </p>
+        </div>
 
-          <!-- Libro de Pago no comprado -->
-          <div *ngIf="libro.precioDracoins > 0 && !libro.comprado && !suscripcion()?.activa" class="purchase-box">
-              <span class="price-tag">
-                <svg lucideIcon="coins" class="inline-coin"></svg>
-                {{ libro.precioDracoins | number }} Dc.
-              </span>
-              <button (click)="comprar(libro)" class="action-button buy-button">
-                Adquirir
-              </button>
-            </div>
+        <div class="suscripcion-card-actions">
+          <button *ngIf="suscripcion()?.activa && suscripcion()?.autoRenovacion" (click)="cancelarSuscripcion()" class="action-btn cancel-sub-btn" [disabled]="loading()">
+            Cancelar Renovación
+          </button>
+          <button *ngIf="!suscripcion()?.activa || !suscripcion()?.autoRenovacion" (click)="suscribirse()" class="action-btn activate-sub-btn" [disabled]="loading()">
+            <svg lucideIcon="coins" class="btn-icon-inline"></svg>
+            {{ suscripcion()?.activa ? 'Reactivar Renovación (' + (suscripcion()?.costoSuscripcion ?? 250) + ' Dc)' : 'Activar Suscripción (' + (suscripcion()?.costoSuscripcion ?? 250) + ' Dc)' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sección de Estadísticas de Biblioteca -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-icon-wrapper">
+          <svg lucideIcon="book-open" class="stat-card-icon"></svg>
+        </div>
+        <div class="stat-card-content">
+          <span class="stat-card-label">Libros Leídos</span>
+          <span class="stat-card-value">{{ suscripcion()?.librosVistos ?? 0 }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-card-icon-wrapper">
+          <svg lucideIcon="download" class="stat-card-icon"></svg>
+        </div>
+        <div class="stat-card-content">
+          <span class="stat-card-label">Libros Descargados</span>
+          <span class="stat-card-value">{{ suscripcion()?.librosDescargados ?? 0 }}</span>
         </div>
       </div>
     </div>
   </div>
-
-  <!-- Paginación -->
-  <div *ngIf="!loading() && paginasTotales() > 1" class="pagination-controls">
-    <button 
-      [disabled]="paginaActual() === 1" 
-      (click)="cambiarPagina(paginaActual() - 1)" 
-      class="page-nav-btn"
-      title="Página Anterior"
-    >
-      <svg lucideIcon="chevron-left" class="btn-icon"></svg> Anterior
-    </button>
-
-    <div class="page-info">
-      <span>Página</span>
-      <span class="page-number-active">{{ paginaActual() }}</span>
-      <span>de</span>
-      <span>{{ paginasTotales() }}</span>
-    </div>
-
-    <button 
-      [disabled]="paginaActual() === paginasTotales()" 
-      (click)="cambiarPagina(paginaActual() + 1)" 
-      class="page-nav-btn"
-      title="Siguiente Página"
-    >
-      Siguiente <svg lucideIcon="chevron-right" class="btn-icon"></svg>
-    </button>
-  </div>
-</div>
 
 <!-- Visor de PDF/EPUB Pantalla Completa (Lectura) -->
 <div *ngIf="libroActivo()" class="reader-overlay">
@@ -485,6 +523,228 @@
       <button (click)="mostrarModalExitoCompra.set(false); cambiarTab('mis-libros')" class="modal-btn-accept" style="flex: 1; justify-content: center; margin: 0;">
         Ir a mis libros
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE ADMINISTRACIÓN DE BIBLIOTECA -->
+<div *ngIf="mostrarAdminPanel()" class="admin-panel-overlay">
+  <div class="admin-panel-box">
+    <div class="admin-panel-header">
+      <h2>
+        <svg lucideIcon="edit" class="modal-title-icon"></svg>
+        Panel de Administración de la Biblioteca
+      </h2>
+      <button (click)="cerrarAdminPanel()" class="close-btn-admin">
+        <svg lucideIcon="x"></svg>
+      </button>
+    </div>
+
+    <!-- Sub-tabs del Panel Admin -->
+    <div class="admin-tabs-bar">
+      <button class="admin-tab-btn" [class.active]="tabAdmin() === 'balance'" (click)="cambiarTabAdmin('balance')">
+        Resumen / Balance
+      </button>
+      <button class="admin-tab-btn" [class.active]="tabAdmin() === 'libros'" (click)="cambiarTabAdmin('libros')">
+        Catálogo de Libros
+      </button>
+      <button class="admin-tab-btn" [class.active]="tabAdmin() === 'compras'" (click)="cambiarTabAdmin('compras')">
+        Historial de Compras
+      </button>
+      <button class="admin-tab-btn" [class.active]="tabAdmin() === 'descargas'" (click)="cambiarTabAdmin('descargas')">
+        Historial de Descargas
+      </button>
+      <button class="admin-tab-btn" [class.active]="tabAdmin() === 'suscritos'" (click)="cambiarTabAdmin('suscritos')">
+        Usuarios Suscritos
+      </button>
+    </div>
+
+    <div class="admin-panel-body">
+      <!-- 1. PESTAÑA: BALANCE / RESUMEN -->
+      <div *ngIf="tabAdmin() === 'balance'" class="admin-content-section animate-fade">
+        <div class="admin-stats-grid">
+          <div class="admin-stat-card">
+            <span class="admin-stat-label">Ingresos por Suscripciones (Semana)</span>
+            <span class="admin-stat-value gold">{{ balanceAdmin()?.ingresosSuscripciones | number }} Dc</span>
+          </div>
+          <div class="admin-stat-card">
+            <span class="admin-stat-label">Ingresos por Compras (Semana)</span>
+            <span class="admin-stat-value gold">{{ balanceAdmin()?.ingresosCompras | number }} Dc</span>
+          </div>
+          <div class="admin-stat-card">
+            <span class="admin-stat-label">Ingresos Totales (Semana)</span>
+            <span class="admin-stat-value gold total">{{ balanceAdmin()?.ingresosTotales | number }} Dc</span>
+          </div>
+          <div class="admin-stat-card">
+            <span class="admin-stat-label">Suscripciones Activas Hoy</span>
+            <span class="admin-stat-value">{{ balanceAdmin()?.totalSuscripcionesActivas ?? 0 }}</span>
+          </div>
+          <div class="admin-stat-card">
+            <span class="admin-stat-label">Total Libros en Catálogo</span>
+            <span class="admin-stat-value">{{ balanceAdmin()?.totalLibrosEnCatalogo ?? 0 }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. PESTAÑA: CATÁLOGO DE LIBROS (CRUD + IMPORT/EXPORT) -->
+      <div *ngIf="tabAdmin() === 'libros'" class="admin-content-section animate-fade">
+        <div class="admin-actions-row">
+          <div class="import-export-actions">
+            <button (click)="exportarBiblioteca()" class="admin-action-btn secondary" title="Exportar Catálogo a Excel">
+              <svg lucideIcon="download" class="btn-icon"></svg> Exportar Excel
+            </button>
+            <button (click)="adminFileInput.click()" class="admin-action-btn secondary" title="Importar Catálogo desde Excel">
+              <svg lucideIcon="upload" class="btn-icon"></svg> Importar Excel
+            </button>
+            <input 
+              #adminFileInput 
+              type="file" 
+              accept=".xlsx" 
+              (change)="onImportarArchivo($event)" 
+              style="display: none;" 
+            />
+          </div>
+          <button (click)="abrirNuevoLibroModal()" class="admin-action-btn">
+            <svg lucideIcon="plus" class="btn-icon"></svg> Añadir Libro
+          </button>
+        </div>
+
+        <div class="admin-table-wrapper">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Título</th>
+                <th>Autor</th>
+                <th>Categoría</th>
+                <th>Formato</th>
+                <th>Precio</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let libro of libros()">
+                <td>{{ libro.id }}</td>
+                <td class="bold">{{ libro.titulo }}</td>
+                <td>{{ libro.autor }}</td>
+                <td><span class="tag-cat">{{ libro.categoriaNombre }}</span></td>
+                <td><span class="tag-fmt" [class.pdf]="libro.formato === '.pdf'">{{ libro.formato.replace('.', '').toUpperCase() }}</span></td>
+                <td class="gold">{{ libro.precioDracoins | number }} Dc.</td>
+                <td class="table-actions">
+                  <button (click)="abrirEditarLibroModal(libro)" class="action-table-btn edit" title="Editar">
+                    <svg lucideIcon="edit"></svg>
+                  </button>
+                  <button (click)="eliminarLibro(libro)" class="action-table-btn delete" title="Eliminar">
+                    <svg lucideIcon="trash-2"></svg>
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="libros().length === 0">
+                <td colspan="7" class="text-center text-muted">No hay libros registrados en el catálogo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 3. PESTAÑA: HISTORIAL DE COMPRAS -->
+      <div *ngIf="tabAdmin() === 'compras'" class="admin-content-section animate-fade">
+        <div class="admin-table-wrapper">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Alumno</th>
+                <th>Código</th>
+                <th>Libro</th>
+                <th>Fecha Compra</th>
+                <th>Monto Pagado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let compra of comprasAdmin()">
+                <td>{{ compra.id }}</td>
+                <td class="bold">{{ compra.alumnoNombre }}</td>
+                <td>{{ compra.alumnoCodigo }}</td>
+                <td>{{ compra.libroTitulo }}</td>
+                <td>{{ compra.fechaCompra | date: 'dd/MM/yyyy' : 'UTC' }}</td>
+                <td class="gold">{{ compra.montoPagado | number }} Dc.</td>
+              </tr>
+              <tr *ngIf="comprasAdmin().length === 0">
+                <td colspan="6" class="text-center text-muted">No se registran compras en el sistema.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 4. PESTAÑA: HISTORIAL DE DESCARGAS -->
+      <div *ngIf="tabAdmin() === 'descargas'" class="admin-content-section animate-fade">
+        <div class="admin-table-wrapper">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Alumno</th>
+                <th>Código</th>
+                <th>Libro</th>
+                <th>Fecha Descarga</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let descarga of descargasAdmin()">
+                <td>{{ descarga.id }}</td>
+                <td class="bold">{{ descarga.alumnoNombre }}</td>
+                <td>{{ descarga.alumnoCodigo }}</td>
+                <td>{{ descarga.libroTitulo }}</td>
+                <td>{{ descarga.fechaDescarga | date: 'dd/MM/yyyy' : 'UTC' }}</td>
+              </tr>
+              <tr *ngIf="descargasAdmin().length === 0">
+                <td colspan="5" class="text-center text-muted">No se registran descargas en el sistema.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 5. PESTAÑA: USUARIOS SUSCRITOS -->
+      <div *ngIf="tabAdmin() === 'suscritos'" class="admin-content-section animate-fade">
+        <div class="admin-table-wrapper">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Alumno</th>
+                <th>Código</th>
+                <th>Fecha Inicio</th>
+                <th>Fecha Vencimiento</th>
+                <th>Auto-Renovación</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let suscrito of suscritosAdmin()">
+                <td class="bold">{{ suscrito.alumnoNombre }}</td>
+                <td>{{ suscrito.alumnoCodigo }}</td>
+                <td>{{ suscrito.fechaInicio | date: 'dd/MM/yyyy' : 'UTC' }}</td>
+                <td>{{ suscrito.fechaVencimiento | date: 'dd/MM/yyyy' : 'UTC' }}</td>
+                <td>
+                  <span class="badge-auto" [class.enabled]="suscrito.autoRenovacion">
+                    {{ suscrito.autoRenovacion ? 'Habilitada' : 'Inhabilitada' }}
+                  </span>
+                </td>
+                <td>
+                  <button (click)="revocarSuscripcion(suscrito.idAlumno, suscrito.alumnoNombre)" class="btn-revoke-sub">
+                    Revocar Pase
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="suscritosAdmin().length === 0">
+                <td colspan="6" class="text-center text-muted">No hay alumnos suscritos actualmente.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </div>

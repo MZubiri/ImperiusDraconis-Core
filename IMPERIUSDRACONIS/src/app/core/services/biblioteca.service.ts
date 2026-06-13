@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { RuntimeConfigService } from './runtime-config.service';
-import { BibliotecaCategoria, BibliotecaLibro, SaveLibroRequest, SuscripcionStatus } from '../models/biblioteca.models';
+import { BibliotecaCategoria, BibliotecaLibro, SaveLibroRequest, SuscripcionStatus, BibliotecaCompraAdmin, BibliotecaDescargaAdmin, BibliotecaBalanceAdmin, BibliotecaSuscritoAdmin } from '../models/biblioteca.models';
 
 @Injectable({ providedIn: 'root' })
 export class BibliotecaService {
@@ -111,6 +111,36 @@ export class BibliotecaService {
     return this.http.post<{ success: boolean; count: number; message: string }>(
       `${this.runtimeConfig.apiUrl}/biblioteca/importar`,
       formData
+    );
+  }
+
+  registrarLectura(id: number): Observable<{ success: boolean }> {
+    return this.http.post<{ success: boolean }>(
+      `${this.runtimeConfig.apiUrl}/biblioteca/registrar-lectura/${id}`,
+      {}
+    );
+  }
+
+  getComprasAdmin(): Observable<BibliotecaCompraAdmin[]> {
+    return this.http.get<BibliotecaCompraAdmin[]>(`${this.runtimeConfig.apiUrl}/biblioteca/admin/compras`);
+  }
+
+  getDescargasAdmin(): Observable<BibliotecaDescargaAdmin[]> {
+    return this.http.get<BibliotecaDescargaAdmin[]>(`${this.runtimeConfig.apiUrl}/biblioteca/admin/descargas`);
+  }
+
+  getBalanceAdmin(): Observable<BibliotecaBalanceAdmin> {
+    return this.http.get<BibliotecaBalanceAdmin>(`${this.runtimeConfig.apiUrl}/biblioteca/admin/balance`);
+  }
+
+  getSuscritosAdmin(): Observable<BibliotecaSuscritoAdmin[]> {
+    return this.http.get<BibliotecaSuscritoAdmin[]>(`${this.runtimeConfig.apiUrl}/biblioteca/admin/suscritos`);
+  }
+
+  revocarSuscripcionAdmin(idAlumno: number): Observable<{ success: boolean; message: string }> {
+    return this.http.post<{ success: boolean; message: string }>(
+      `${this.runtimeConfig.apiUrl}/biblioteca/admin/revocar-suscripcion/${idAlumno}`,
+      {}
     );
   }
 }

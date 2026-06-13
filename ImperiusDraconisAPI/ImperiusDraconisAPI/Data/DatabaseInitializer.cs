@@ -86,6 +86,46 @@ public static class DatabaseInitializer
                 await createCmd.ExecuteNonQueryAsync();
             }
 
+            // 1.55 Crear permisos por defecto para Biblioteca
+            using (var checkPermisosCommand = new SqlCommand(
+                "SELECT COUNT(*) FROM dbo.Permisos WHERE Controlador = 'Biblioteca'",
+                connection))
+            {
+                var permisosCount = Convert.ToInt32(await checkPermisosCommand.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+                if (permisosCount == 0)
+                {
+                    logger.LogInformation("Creando permisos por defecto para Biblioteca...");
+                    var createPermisosSql = """
+                        -- 1. Insertar para Cargos
+                        INSERT INTO dbo.Permisos (IdCargo, Controlador, Accion, TienePermiso)
+                        SELECT C.IdCargo, N'Biblioteca', N'Index', 1
+                        FROM dbo.Cargos C
+                        WHERE NOT EXISTS (SELECT 1 FROM dbo.Permisos WHERE IdCargo = C.IdCargo AND Controlador = N'Biblioteca' AND Accion = N'Index');
+
+                        INSERT INTO dbo.Permisos (IdCargo, Controlador, Accion, TienePermiso)
+                        SELECT C.IdCargo, N'Biblioteca', N'Admin', CASE WHEN C.Nombre IN ('Maestre', 'Director', 'Administrador') THEN 1 ELSE 0 END
+                        FROM dbo.Cargos C
+                        WHERE NOT EXISTS (SELECT 1 FROM dbo.Permisos WHERE IdCargo = C.IdCargo AND Controlador = N'Biblioteca' AND Accion = N'Admin');
+
+                        -- 2. Insertar para Trabajos
+                        IF OBJECT_ID(N'dbo.PermisosTrabajos', N'U') IS NOT NULL
+                        BEGIN
+                            INSERT INTO dbo.PermisosTrabajos (IdTrabajo, Controlador, Accion, TienePermiso)
+                            SELECT T.IdTrabajo, N'Biblioteca', N'Index', 1
+                            FROM dbo.Trabajos T
+                            WHERE NOT EXISTS (SELECT 1 FROM dbo.PermisosTrabajos WHERE IdTrabajo = T.IdTrabajo AND Controlador = N'Biblioteca' AND Accion = N'Index');
+
+                            INSERT INTO dbo.PermisosTrabajos (IdTrabajo, Controlador, Accion, TienePermiso)
+                            SELECT T.IdTrabajo, N'Biblioteca', N'Admin', 0
+                            FROM dbo.Trabajos T
+                            WHERE NOT EXISTS (SELECT 1 FROM dbo.PermisosTrabajos WHERE IdTrabajo = T.IdTrabajo AND Controlador = N'Biblioteca' AND Accion = N'Admin');
+                        END
+                        """;
+                    using var createCmd = new SqlCommand(createPermisosSql, connection);
+                    await createCmd.ExecuteNonQueryAsync();
+                }
+            }
+
             // 1.6 Establecer el costo base de todos los libros a 300 DC
             using var updateCostoCommand = new SqlCommand(
                 "UPDATE dbo.BibliotecaLibros SET PrecioDracoins = 300 WHERE PrecioDracoins = 0",

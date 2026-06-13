@@ -109,6 +109,9 @@ public sealed class BibliotecaController : ControllerBase
             }
         }
 
+        // Registrar lectura en historial
+        await _bibliotecaService.RegistrarLecturaAsync(idAlumno, id, cancellationToken);
+
         // Obtener la ruta del archivo relativa
         var rutaRelativa = await _bibliotecaService.ObtenerRutaArchivoLibroAsync(id, cancellationToken);
         if (string.IsNullOrWhiteSpace(rutaRelativa))
@@ -395,5 +398,96 @@ public sealed class BibliotecaController : ControllerBase
         {
             return BadRequest(new { message = $"Error al leer el archivo Excel: {exception.Message}" });
         }
+    }
+
+    [HttpPost("registrar-lectura/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult> RegistrarLectura(int id, CancellationToken cancellationToken)
+    {
+        var idAlumnoClaim = User.Claims.FirstOrDefault(claim => claim.Type == ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(idAlumnoClaim, out var idAlumno))
+        {
+            return Unauthorized();
+        }
+
+        await _bibliotecaService.RegistrarLecturaAsync(idAlumno, id, cancellationToken);
+        return Ok(new { success = true });
+    }
+
+    [HttpGet("admin/compras")]
+    [ProducesResponseType(typeof(IReadOnlyList<BibliotecaCompraAdminDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<IReadOnlyList<BibliotecaCompraAdminDto>>> GetComprasAdmin(CancellationToken cancellationToken)
+    {
+        if (!EsAdministrador())
+        {
+            return Forbid();
+        }
+
+        var compras = await _bibliotecaService.ObtenerComprasAdminAsync(cancellationToken);
+        return Ok(compras);
+    }
+
+    [HttpGet("admin/descargas")]
+    [ProducesResponseType(typeof(IReadOnlyList<BibliotecaDescargaAdminDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<IReadOnlyList<BibliotecaDescargaAdminDto>>> GetDescargasAdmin(CancellationToken cancellationToken)
+    {
+        if (!EsAdministrador())
+        {
+            return Forbid();
+        }
+
+        var descargas = await _bibliotecaService.ObtenerDescargasAdminAsync(cancellationToken);
+        return Ok(descargas);
+    }
+
+    [HttpGet("admin/balance")]
+    [ProducesResponseType(typeof(BibliotecaBalanceAdminDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<BibliotecaBalanceAdminDto>> GetBalanceAdmin(CancellationToken cancellationToken)
+    {
+        if (!EsAdministrador())
+        {
+            return Forbid();
+        }
+
+        var balance = await _bibliotecaService.ObtenerBalanceAdminAsync(cancellationToken);
+        return Ok(balance);
+    }
+
+    [HttpGet("admin/suscritos")]
+    [ProducesResponseType(typeof(IReadOnlyList<BibliotecaSuscritoAdminDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<IReadOnlyList<BibliotecaSuscritoAdminDto>>> GetSuscritosAdmin(CancellationToken cancellationToken)
+    {
+        if (!EsAdministrador())
+        {
+            return Forbid();
+        }
+
+        var suscritos = await _bibliotecaService.ObtenerSuscritosAdminAsync(cancellationToken);
+        return Ok(suscritos);
+    }
+
+    [HttpPost("admin/revocar-suscripcion/{idAlumno:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> RevocarSuscripcionAdmin(int idAlumno, CancellationToken cancellationToken)
+    {
+        if (!EsAdministrador())
+        {
+            return Forbid();
+        }
+
+        var success = await _bibliotecaService.RevocarSuscripcionAdminAsync(idAlumno, cancellationToken);
+        if (!success)
+        {
+            return BadRequest(new { message = "No se pudo revocar la suscripción del alumno o no estaba activa." });
+        }
+
+        return Ok(new { success, message = "Suscripción revocada con éxito." });
     }
 }

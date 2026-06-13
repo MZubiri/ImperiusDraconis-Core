@@ -860,60 +860,30 @@ public sealed class BibliotecaService
         return countCompra > 0;
     }
 
-    public async Task<(bool success, string message)> RegistrarDescargaSubscripcionAsync(int idAlumno, int idLibro, CancellationToken cancellationToken)
+    public async Task<bool> RegistrarLecturaAsync(int idAlumno, int idLibro, CancellationToken cancellationToken)
     {
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        // 1. Obtener la suscripción activa actual
-        using var checkSubCmd = new SqlCommand(
-            "SELECT TOP 1 FechaInicio FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND Activa = 1 AND FechaVencimiento > GETDATE() ORDER BY FechaVencimiento DESC",
-            connection);
-        checkSubCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
-        var fechaInicioObj = await checkSubCmd.ExecuteScalarAsync(cancellationToken);
-        if (fechaInicioObj == null || fechaInicioObj == DBNull.Value)
-        {
-            return (false, "No tienes una suscripción activa.");
-        }
-        var fechaInicio = Convert.ToDateTime(fechaInicioObj, CultureInfo.InvariantCulture);
+        using var command = new SqlCommand(
+            """
+            IF EXISTS (SELECT 1 FROM BibliotecaHistorialLectura WHERE IdAlumno = @IdAlumno AND IdLibro = @IdLibro)
+            BEGIN
+                UPDATE BibliotecaHistorialLectura 
+                SET UltimoAcceso = GETDATE()
+                WHERE IdAlumno = @IdAlumno AND IdLibro = @IdLibro
+            END
+            ELSE
+            BEGIN
+                INSERT INTO BibliotecaHistorialLectura (IdAlumno, IdLibro, UltimaPaginaLeida, UltimoAcceso)
+                VALUES (@IdAlumno, @IdLibro, 1, GETDATE())
+            END
+            """, connection);
 
-        // 2. Verificar si ya descargó ESTE libro en la semana actual
-        using var checkEsteLibroCmd = new SqlCommand(
-            "SELECT COUNT(*) FROM AlumnosLibrosDescargados WHERE IdAlumno = @IdAlumno AND IdLibro = @IdLibro AND FechaDescarga >= @FechaInicio",
-            connection);
-        checkEsteLibroCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
-        checkEsteLibroCmd.Parameters.AddWithValue("@IdLibro", idLibro);
-        checkEsteLibroCmd.Parameters.AddWithValue("@FechaInicio", fechaInicio);
-        var yaDescargado = Convert.ToInt32(await checkEsteLibroCmd.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture) > 0;
+        command.Parameters.AddWithValue("@IdAlumno", idAlumno);
+        command.Parameters.AddWithValue("@IdLibro", idLibro);
 
-        if (yaDescargado)
-        {
-            // Permitir descargar de nuevo sin descontar crédito
-            return (true, "Re-descarga permitida.");
-        }
-
-        // 3. Contar cuántos libros ÚNICOS ha descargado ya esta semana
-        using var countCmd = new SqlCommand(
-            "SELECT COUNT(DISTINCT IdLibro) FROM AlumnosLibrosDescargados WHERE IdAlumno = @IdAlumno AND FechaDescarga >= @FechaInicio",
-            connection);
-        countCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
-        countCmd.Parameters.AddWithValue("@FechaInicio", fechaInicio);
-        var totalDescargados = Convert.ToInt32(await countCmd.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
-
-        if (totalDescargados >= 2)
-        {
-            return (false, "Has alcanzado el límite de 2 descargas semanales de tu suscripción. Puedes adquirir el libro de forma individual por 300 Dracoins para descargas ilimitadas.");
-        }
-
-        // 4. Registrar la descarga
-        using var insertCmd = new SqlCommand(
-            "INSERT INTO AlumnosLibrosDescargados (IdAlumno, IdLibro) VALUES (@IdAlumno, @IdLibro)",
-            connection);
-        insertCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
-        insertCmd.Parameters.AddWithValue("@IdLibro", idLibro);
-        await insertCmd.ExecuteNonQueryAsync(cancellationToken);
-
-        return (true, "Descarga registrada con éxito.");
+        return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
     }
 
     public async Task<(bool success, string message, string? relativePath)> ValidarYObtenerRutaDescargaAsync(int idAlumno, int idLibro, bool esAdmin, CancellationToken cancellationToken)
@@ -944,32 +914,219 @@ public sealed class BibliotecaService
             return (false, "El libro no existe o no está activo.", null);
         }
 
-        // 2. Si es admin o el libro es gratis (precio == 0), permitir descarga directa
-        if (esAdmin || precio == 0)
+        // 2. Si es admin, permitir descarga directa y registrar
+        if (esAdmin)
         {
+            await RegistrarDescargaInternaAsync(idAlumno, idLibro, connection, cancellationToken);
             return (true, "Descarga permitida.", rutaRelativa);
         }
 
-        // 3. Verificar si el usuario lo compró
-        using var checkCompraCmd = new SqlCommand(
-            "SELECT COUNT(*) FROM AlumnosLibrosComprados WHERE IdAlumno = @IdAlumno AND IdLibro = @IdLibro",
-            connection);
-        checkCompraCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
-        checkCompraCmd.Parameters.AddWithValue("@IdLibro", idLibro);
-        var comprado = Convert.ToInt32(await checkCompraCmd.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture) > 0;
-
-        if (comprado)
+        // 3. Validar si tiene acceso (comprado, gratis o suscripción activa)
+        var tieneAcceso = await ValidarAccesoLecturaAsync(idAlumno, idLibro, cancellationToken);
+        if (!tieneAcceso)
         {
-            return (true, "Descarga permitida.", rutaRelativa);
+            return (false, "No tienes acceso a este libro. Debes adquirirlo o suscribirte a la biblioteca.", null);
         }
 
-        // 4. Si no lo compró, verificar si tiene suscripción y procesar
-        var (descargaValida, msgDescarga) = await RegistrarDescargaSubscripcionAsync(idAlumno, idLibro, cancellationToken);
-        if (!descargaValida)
-        {
-            return (false, msgDescarga, null);
-        }
-
+        // 4. Registrar la descarga
+        await RegistrarDescargaInternaAsync(idAlumno, idLibro, connection, cancellationToken);
         return (true, "Descarga permitida.", rutaRelativa);
+    }
+
+    private async Task RegistrarDescargaInternaAsync(int idAlumno, int idLibro, SqlConnection connection, CancellationToken cancellationToken)
+    {
+        using var insertCmd = new SqlCommand(
+            "INSERT INTO AlumnosLibrosDescargados (IdAlumno, IdLibro, FechaDescarga) VALUES (@IdAlumno, @IdLibro, GETDATE())",
+            connection);
+        insertCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
+        insertCmd.Parameters.AddWithValue("@IdLibro", idLibro);
+        await insertCmd.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<BibliotecaCompraAdminDto>> ObtenerComprasAdminAsync(CancellationToken cancellationToken)
+    {
+        var result = new List<BibliotecaCompraAdminDto>();
+        using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        using var command = new SqlCommand(
+            """
+            SELECT 
+                C.Id, 
+                A.Nombre AS AlumnoNombre, 
+                A.Codigo AS AlumnoCodigo, 
+                L.Titulo AS LibroTitulo, 
+                C.FechaCompra, 
+                C.MontoPagado
+            FROM AlumnosLibrosComprados C
+            JOIN Alumnos A ON A.IdAlumno = C.IdAlumno
+            JOIN BibliotecaLibros L ON L.Id = C.IdLibro
+            ORDER BY C.FechaCompra DESC
+            """, connection);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            result.Add(new BibliotecaCompraAdminDto
+            {
+                Id = Convert.ToInt32(reader["Id"], CultureInfo.InvariantCulture),
+                AlumnoNombre = reader["AlumnoNombre"]?.ToString() ?? string.Empty,
+                AlumnoCodigo = reader["AlumnoCodigo"]?.ToString() ?? string.Empty,
+                LibroTitulo = reader["LibroTitulo"]?.ToString() ?? string.Empty,
+                FechaCompra = Convert.ToDateTime(reader["FechaCompra"], CultureInfo.InvariantCulture),
+                MontoPagado = Convert.ToDecimal(reader["MontoPagado"], CultureInfo.InvariantCulture)
+            });
+        }
+        return result;
+    }
+
+    public async Task<IReadOnlyList<BibliotecaDescargaAdminDto>> ObtenerDescargasAdminAsync(CancellationToken cancellationToken)
+    {
+        var result = new List<BibliotecaDescargaAdminDto>();
+        using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        using var command = new SqlCommand(
+            """
+            SELECT 
+                D.Id, 
+                A.Nombre AS AlumnoNombre, 
+                A.Codigo AS AlumnoCodigo, 
+                L.Titulo AS LibroTitulo, 
+                D.FechaDescarga
+            FROM AlumnosLibrosDescargados D
+            JOIN Alumnos A ON A.IdAlumno = D.IdAlumno
+            JOIN BibliotecaLibros L ON L.Id = D.IdLibro
+            ORDER BY D.FechaDescarga DESC
+            """, connection);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            result.Add(new BibliotecaDescargaAdminDto
+            {
+                Id = Convert.ToInt32(reader["Id"], CultureInfo.InvariantCulture),
+                AlumnoNombre = reader["AlumnoNombre"]?.ToString() ?? string.Empty,
+                AlumnoCodigo = reader["AlumnoCodigo"]?.ToString() ?? string.Empty,
+                LibroTitulo = reader["LibroTitulo"]?.ToString() ?? string.Empty,
+                FechaDescarga = Convert.ToDateTime(reader["FechaDescarga"], CultureInfo.InvariantCulture)
+            });
+        }
+        return result;
+    }
+
+    public async Task<BibliotecaBalanceAdminDto> ObtenerBalanceAdminAsync(CancellationToken cancellationToken)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        // Ingresos de compras de libros individuales en los últimos 7 días
+        decimal ingresosCompras = 0;
+        using (var cmdCompras = new SqlCommand(
+            "SELECT ISNULL(SUM(MontoPagado), 0) FROM AlumnosLibrosComprados WHERE FechaCompra >= DATEADD(day, -7, GETDATE())",
+            connection))
+        {
+            ingresosCompras = Convert.ToDecimal(await cmdCompras.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        }
+
+        // Ingresos de suscripciones en los últimos 7 días
+        decimal ingresosSuscripciones = 0;
+        using (var cmdSusc = new SqlCommand(
+            """
+            SELECT ISNULL(SUM(ABS(Monto)), 0) 
+            FROM MovimientosDracoins 
+            WHERE CodigoDestinatario = 'COBRO' 
+              AND FechaTransferencia >= DATEADD(day, -7, GETDATE())
+              AND (Observacion LIKE '%suscripcion%' OR Observacion LIKE '%suscripción%')
+            """, connection))
+        {
+            ingresosSuscripciones = Convert.ToDecimal(await cmdSusc.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        }
+
+        if (ingresosSuscripciones == 0)
+        {
+            using var cmdSuscTable = new SqlCommand(
+                "SELECT COUNT(*) * 250 FROM AlumnosSuscripciones WHERE FechaInicio >= DATEADD(day, -7, GETDATE())",
+                connection);
+            ingresosSuscripciones = Convert.ToDecimal(await cmdSuscTable.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        }
+
+        // Cantidad de suscripciones activas
+        int suscripcionesActivas = 0;
+        using (var cmdActivas = new SqlCommand(
+            "SELECT COUNT(*) FROM AlumnosSuscripciones WHERE FechaVencimiento > GETDATE()",
+            connection))
+        {
+            suscripcionesActivas = Convert.ToInt32(await cmdActivas.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        }
+
+        // Total de libros en catálogo
+        int totalLibros = 0;
+        using (var cmdLibros = new SqlCommand(
+            "SELECT COUNT(*) FROM BibliotecaLibros WHERE Activo = 1",
+            connection))
+        {
+            totalLibros = Convert.ToInt32(await cmdLibros.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        }
+
+        return new BibliotecaBalanceAdminDto
+        {
+            IngresosSuscripciones = ingresosSuscripciones,
+            IngresosCompras = ingresosCompras,
+            IngresosTotales = ingresosSuscripciones + ingresosCompras,
+            TotalSuscripcionesActivas = suscripcionesActivas,
+            TotalLibrosEnCatalogo = totalLibros
+        };
+    }
+
+    public async Task<IReadOnlyList<BibliotecaSuscritoAdminDto>> ObtenerSuscritosAdminAsync(CancellationToken cancellationToken)
+    {
+        var result = new List<BibliotecaSuscritoAdminDto>();
+        using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        using var command = new SqlCommand(
+            """
+            SELECT 
+                S.IdAlumno, 
+                A.Nombre AS AlumnoNombre, 
+                A.Codigo AS AlumnoCodigo, 
+                S.FechaInicio, 
+                S.FechaVencimiento, 
+                S.Activa AS AutoRenovacion
+            FROM AlumnosSuscripciones S
+            JOIN Alumnos A ON A.IdAlumno = S.IdAlumno
+            WHERE S.FechaVencimiento > GETDATE()
+            ORDER BY S.FechaVencimiento DESC
+            """, connection);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            result.Add(new BibliotecaSuscritoAdminDto
+            {
+                IdAlumno = Convert.ToInt32(reader["IdAlumno"], CultureInfo.InvariantCulture),
+                AlumnoNombre = reader["AlumnoNombre"]?.ToString() ?? string.Empty,
+                AlumnoCodigo = reader["AlumnoCodigo"]?.ToString() ?? string.Empty,
+                FechaInicio = Convert.ToDateTime(reader["FechaInicio"], CultureInfo.InvariantCulture),
+                FechaVencimiento = Convert.ToDateTime(reader["FechaVencimiento"], CultureInfo.InvariantCulture),
+                AutoRenovacion = Convert.ToBoolean(reader["AutoRenovacion"], CultureInfo.InvariantCulture)
+            });
+        }
+        return result;
+    }
+
+    public async Task<bool> RevocarSuscripcionAdminAsync(int idAlumno, CancellationToken cancellationToken)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        using var command = new SqlCommand(
+            "UPDATE AlumnosSuscripciones SET Activa = 0, FechaVencimiento = GETDATE() WHERE IdAlumno = @IdAlumno AND FechaVencimiento > GETDATE()",
+            connection);
+        command.Parameters.AddWithValue("@IdAlumno", idAlumno);
+
+        var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
+        return rowsAffected > 0;
     }
 }

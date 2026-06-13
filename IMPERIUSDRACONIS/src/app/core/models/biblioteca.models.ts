@@ -36,4 +36,40 @@ export interface SuscripcionStatus {
   descargasRealizadas: number;
   descargasPermitidas: number;
   autoRenovacion: boolean;
+  librosVistos: number;
+  librosDescargados: number;
+}
+
+export interface BibliotecaCompraAdmin {
+  id: number;
+  alumnoNombre: string;
+  alumnoCodigo: string;
+  libroTitulo: string;
+  fechaCompra: string;
+  montoPagado: number;
+}
+
+export interface BibliotecaDescargaAdmin {
+  id: number;
+  alumnoNombre: string;
+  alumnoCodigo: string;
+  libroTitulo: string;
+  fechaDescarga: string;
+}
+
+export interface BibliotecaBalanceAdmin {
+  ingresosSuscripciones: number;
+  ingresosCompras: number;
+  ingresosTotales: number;
+  totalSuscripcionesActivas: number;
+  totalLibrosEnCatalogo: number;
+}
+
+export interface BibliotecaSuscritoAdmin {
+  idAlumno: number;
+  alumnoNombre: string;
+  alumnoCodigo: string;
+  fechaInicio: string;
+  fechaVencimiento: string;
+  autoRenovacion: boolean;
 }

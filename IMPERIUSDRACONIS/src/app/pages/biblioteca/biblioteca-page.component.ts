@@ -29,7 +29,7 @@ import {
   provideLucideIcons
 } from '@lucide/angular';
 import { finalize } from 'rxjs';
-import { BibliotecaCategoria, BibliotecaLibro, SaveLibroRequest, SuscripcionStatus } from '../../core/models/biblioteca.models';
+import { BibliotecaCategoria, BibliotecaLibro, SaveLibroRequest, SuscripcionStatus, BibliotecaCompraAdmin, BibliotecaDescargaAdmin, BibliotecaBalanceAdmin, BibliotecaSuscritoAdmin } from '../../core/models/biblioteca.models';
 import { BibliotecaService } from '../../core/services/biblioteca.service';
 import { AuthService } from '../../core/services/auth.service';
 
@@ -168,7 +168,16 @@ export class BibliotecaPageComponent implements OnInit {
   libros = signal<BibliotecaLibro[]>([]);
   categoriaSeleccionada = signal<number | null>(null);
   busquedaInput = signal<string>('');
-  tabActivo = signal<'todos' | 'mis-libros'>('todos');
+  tabActivo = signal<'todos' | 'mis-libros' | 'suscripcion'>('todos');
+
+  // Estados del Panel de Administración
+  mostrarAdminPanel = signal<boolean>(false);
+  tabAdmin = signal<'balance' | 'libros' | 'compras' | 'descargas' | 'suscritos'>('balance');
+  balanceAdmin = signal<BibliotecaBalanceAdmin | null>(null);
+  comprasAdmin = signal<BibliotecaCompraAdmin[]>([]);
+  descargasAdmin = signal<BibliotecaDescargaAdmin[]>([]);
+  suscritosAdmin = signal<BibliotecaSuscritoAdmin[]>([]);
+  busquedaAdmin = signal<string>('');
 
   // Paginación
   paginaActual = signal<number>(1);
@@ -363,9 +372,15 @@ export class BibliotecaPageComponent implements OnInit {
     }
   }
 
-  cambiarTab(tab: 'todos' | 'mis-libros'): void {
+  cambiarTab(tab: 'todos' | 'mis-libros' | 'suscripcion'): void {
     this.tabActivo.set(tab);
-    this.buscarLibros();
+    if (tab !== 'suscripcion') {
+      this.buscarLibros();
+    } else {
+      this.bibliotecaService.getSuscripcionStatus().subscribe({
+        next: (status) => this.suscripcion.set(status)
+      });
+    }
   }
 
   comprar(libro: BibliotecaLibro): void {
@@ -463,6 +478,15 @@ export class BibliotecaPageComponent implements OnInit {
     this.libroActivo.set(libro);
     const rawUrl = this.bibliotecaService.getLeerUrl(libro.id);
     this.libroUrlSafe.set(this.sanitizer.bypassSecurityTrustResourceUrl(rawUrl));
+    
+    this.bibliotecaService.registrarLectura(libro.id).subscribe({
+      next: () => {
+        // Recargar el estado de suscripción para actualizar las estadísticas de libros leídos
+        this.bibliotecaService.getSuscripcionStatus().subscribe({
+          next: (status) => this.suscripcion.set(status)
+        });
+      }
+    });
   }
 
   cerrarLectura(): void {
@@ -653,6 +677,81 @@ export class BibliotecaPageComponent implements OnInit {
       },
       () => {
         input.value = '';
+      }
+    );
+  }
+
+  // --- MÉTODOS DEL PANEL DE ADMINISTRACIÓN ---
+
+  abrirAdminPanel(): void {
+    this.tabAdmin.set('balance');
+    this.cargarAdminDatos();
+    this.mostrarAdminPanel.set(true);
+  }
+
+  cerrarAdminPanel(): void {
+    this.mostrarAdminPanel.set(false);
+  }
+
+  cambiarTabAdmin(tab: 'balance' | 'libros' | 'compras' | 'descargas' | 'suscritos'): void {
+    this.tabAdmin.set(tab);
+    this.cargarAdminDatos();
+  }
+
+  cargarAdminDatos(): void {
+    const tab = this.tabAdmin();
+    this.loading.set(true);
+
+    if (tab === 'balance') {
+      this.bibliotecaService.getBalanceAdmin().pipe(
+        finalize(() => this.loading.set(false))
+      ).subscribe({
+        next: (res) => this.balanceAdmin.set(res),
+        error: (err) => this.mostrarAlerta('Error', err.error?.message || 'Error al cargar el balance.')
+      });
+    } else if (tab === 'compras') {
+      this.bibliotecaService.getComprasAdmin().pipe(
+        finalize(() => this.loading.set(false))
+      ).subscribe({
+        next: (res) => this.comprasAdmin.set(res),
+        error: (err) => this.mostrarAlerta('Error', err.error?.message || 'Error al cargar el historial de compras.')
+      });
+    } else if (tab === 'descargas') {
+      this.bibliotecaService.getDescargasAdmin().pipe(
+        finalize(() => this.loading.set(false))
+      ).subscribe({
+        next: (res) => this.descargasAdmin.set(res),
+        error: (err) => this.mostrarAlerta('Error', err.error?.message || 'Error al cargar el historial de descargas.')
+      });
+    } else if (tab === 'suscritos') {
+      this.bibliotecaService.getSuscritosAdmin().pipe(
+        finalize(() => this.loading.set(false))
+      ).subscribe({
+        next: (res) => this.suscritosAdmin.set(res),
+        error: (err) => this.mostrarAlerta('Error', err.error?.message || 'Error al cargar los alumnos suscritos.')
+      });
+    } else {
+      this.loading.set(false);
+    }
+  }
+
+  revocarSuscripcion(idAlumno: number, nombre: string): void {
+    this.mostrarConfirmacion(
+      'Revocar Suscripción',
+      `¿Estás seguro de que deseas revocar inmediatamente el pase de biblioteca para ${nombre}? Perderá el acceso de forma instantánea.`,
+      () => {
+        this.loading.set(true);
+        this.bibliotecaService.revocarSuscripcionAdmin(idAlumno).pipe(
+          finalize(() => this.loading.set(false))
+        ).subscribe({
+          next: (res) => {
+            this.mostrarAlerta('Éxito', res.message);
+            this.cargarAdminDatos(); // Recargar pestaña de suscritos
+          },
+          error: (err) => {
+            this.mostrarAlerta('Error', err.error?.message || 'Ocurrió un error al revocar la suscripción.');
+          }
+        });
       }
     );
   }
