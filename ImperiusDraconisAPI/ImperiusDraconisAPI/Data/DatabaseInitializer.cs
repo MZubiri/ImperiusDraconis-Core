@@ -113,6 +113,7 @@ public static class DatabaseInitializer
             }
 
             using var command = new SqlCommand(commandText, connection);
+            command.CommandTimeout = 300; // 5 minutos para evitar timeouts en siembras grandes de datos
             await command.ExecuteNonQueryAsync();
         }
     }
