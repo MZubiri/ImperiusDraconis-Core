@@ -6,6 +6,7 @@
   font-family: 'Outfit', 'Inter', sans-serif;
   min-width: 0;
   width: 100%;
+  overflow-x: hidden;
 }
 
 .lock-screen-container {
@@ -312,6 +313,9 @@
   border-bottom: 2px solid var(--border);
   padding-bottom: 0px;
   margin-bottom: 25px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .tab-btn {
@@ -340,6 +344,9 @@
   flex-direction: column;
   gap: 20px;
   margin-bottom: 40px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .search-bar-wrapper {
@@ -576,6 +583,9 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
   gap: 30px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .book-card {
@@ -1549,6 +1559,45 @@
 /* ESTILOS RESPONSIVE (MÓVIL / TABLET) */
 @media (max-width: 768px) {
 
+  /* ================================================
+   * FIX GENERAL: evitar desborde horizontal en móvil
+   * ================================================ */
+  .module-layout {
+    overflow-x: hidden;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .tab-selector-bar,
+  .controls-panel,
+  .books-grid,
+  .category-groups-bar {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* ================================================
+   * TABS PRINCIPALES (Todos los Libros / Mis Libros)
+   * ================================================ */
+  .tab-selector-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 4px;
+    padding-bottom: 0;
+  }
+
+  .tab-selector-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
 
   .header-actions {
     justify-content: center;
@@ -1565,20 +1614,20 @@
   }
 
   .admin-action-btn {
-  background: var(--gold);
-  color: var(--button-text);
-  border: 1px solid var(--gold);
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px var(--accent-soft);
-}
+    background: var(--gold);
+    color: var(--button-text);
+    border: 1px solid var(--gold);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px var(--accent-soft);
+  }
 
   .suscripcion-banner {
     flex-direction: column;
@@ -1596,21 +1645,23 @@
   }
 
   .suscripcion-btn {
-  background: var(--gold);
-  color: var(--button-text);
-  border: 1px solid var(--gold);
-  padding: 12px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s ease;
-}
+    background: var(--gold);
+    color: var(--button-text);
+    border: 1px solid var(--gold);
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+  }
 
-  /* Desplazamiento horizontal de categorías en móviles */
+  /* ================================================
+   * BARRA DE CATEGORÍAS (scroll horizontal)
+   * ================================================ */
   .category-groups-bar {
     display: flex !important;
     overflow-x: auto;
@@ -1634,8 +1685,9 @@
   }
 
   .group-tab {
-    flex: 0 0 110px;
-    padding: 8px;
+    flex: 0 0 100px;
+    min-width: 100px;
+    padding: 8px 6px;
   }
 
   .group-tab-icon {
@@ -1647,16 +1699,26 @@
     font-size: 11px;
   }
 
+  /* ================================================
+   * BARRA DE BÚSQUEDA
+   * ================================================ */
   .search-bar-wrapper {
     max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
   }
 
+  /* ================================================
+   * GRID DE LIBROS
+   * ================================================ */
   .books-grid {
-    grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
-    gap: 20px;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
   }
 
-  /* Modales responsive */
+  /* ================================================
+   * MODALES RESPONSIVE
+   * ================================================ */
   .crud-modal-box, .detail-modal-box, .custom-modal-box {
     width: 95%;
     max-height: 90vh;
@@ -1686,7 +1748,9 @@
     text-align: left;
   }
 
-  /* Subcategorías con scroll horizontal en móvil */
+  /* ================================================
+   * SUBCATEGORÍAS (scroll horizontal)
+   * ================================================ */
   .subcategories-list {
     display: flex !important;
     overflow-x: auto;
@@ -1714,7 +1778,9 @@
     white-space: nowrap;
   }
 
-  /* Header actions responsive grid */
+  /* ================================================
+   * HEADER ACTIONS (botones del hero)
+   * ================================================ */
   .header-actions {
     display: flex !important;
     flex-wrap: wrap;
@@ -1726,20 +1792,20 @@
   }
 
   .header-actions .admin-action-btn {
-  background: var(--gold);
-  color: var(--button-text);
-  border: 1px solid var(--gold);
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px var(--accent-soft);
-}
+    background: var(--gold);
+    color: var(--button-text);
+    border: 1px solid var(--gold);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px var(--accent-soft);
+  }
 
   .header-actions .dracoins-badge {
     flex: 1 1 100%;
@@ -1747,7 +1813,9 @@
     width: 100% !important;
   }
 
-  /* Reader header responsive */
+  /* ================================================
+   * READER HEADER RESPONSIVE
+   * ================================================ */
   .reader-header {
     padding: 10px 14px !important;
     flex-wrap: wrap;
@@ -1787,11 +1855,11 @@
   
   .detail-modal-footer .modal-btn-cancel {
     width: 100%;
-    order: 2; /* Pone el botón Cerrar abajo */
+    order: 2;
   }
   .detail-actions {
     width: 100%;
-    order: 1; /* Pone los botones de acción arriba */
+    order: 1;
   }
 
   .form-row {
@@ -1803,6 +1871,29 @@
 @media (max-width: 480px) {
   .books-grid {
     grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .book-cover {
+    height: 160px;
+  }
+
+  /* Tarjetas de libros: reducir padding en móvil chico */
+  .book-details {
+    padding: 14px;
+  }
+
+  .book-title {
+    font-size: 15px;
+  }
+
+  .tab-selector-bar {
+    gap: 0;
+  }
+
+  .tab-btn {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
   }
 }
 
