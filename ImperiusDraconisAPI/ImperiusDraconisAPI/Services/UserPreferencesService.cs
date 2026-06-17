@@ -19,7 +19,8 @@ public sealed class UserPreferencesService
         "ravenclaw",
         "slytherin",
         "dark",
-        "corporate"
+        "corporate",
+        "kawaii"
     };
     private readonly SqlConnectionFactory _connectionFactory;
 

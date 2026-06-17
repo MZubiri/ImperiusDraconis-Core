@@ -77,7 +77,7 @@ export class AppShellComponent {
     { value: 'slytherin', label: 'Slytherin', asset: '/theme-assets/slytherin-shield.webp' },
     { value: 'dark', label: 'Oscuro', asset: '/theme-assets/imperius-logo.webp' },
     { value: 'corporate', label: 'Corporativo', asset: '/theme-assets/imperius-logo.webp' },
-    { value: 'kawaii', label: 'Kawaii 🌸', asset: '/theme-assets/imperius-logo.webp' }
+    { value: 'kawaii', label: 'Kawaii', asset: '/theme-assets/imperius-logo.webp' }
   ] as const;
   theme = 'imperius';
   readonly menu = [
