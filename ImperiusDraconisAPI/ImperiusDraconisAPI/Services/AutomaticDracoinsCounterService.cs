@@ -27,6 +27,16 @@ public sealed partial class AutomaticDracoinsCounterService
             throw new BusinessRuleException("Pega el texto de la dinamica antes de analizar.");
         }
 
+        if (string.Equals(request.RuleSet, "flash-dracoins", StringComparison.OrdinalIgnoreCase))
+        {
+            return AnalyzeFlash(text, FlashDracoinsTopPoints, DefaultOtherParticipantPoints, heartsOnly: false);
+        }
+
+        if (string.Equals(request.RuleSet, "flash-puntos", StringComparison.OrdinalIgnoreCase))
+        {
+            return AnalyzeFlash(text, FlashPuntosTopPoints, FlashPuntosOtherParticipantPoints, heartsOnly: true);
+        }
+
         var warnings = new List<string>();
         var (detectedName, blocks) = ParseBlocks(text);
         if (blocks.Count == 0)
@@ -38,7 +48,7 @@ public sealed partial class AutomaticDracoinsCounterService
         var adjustments = request.RoundAdjustments
             .GroupBy(item => item.RoundNumber)
             .ToDictionary(group => group.Key, group => group.Last());
-        var rule = CounterRule.From(request.RuleSet);
+        var rule = new CounterRule(DefaultTopPoints, DefaultOtherParticipantPoints, true);
         var rounds = blocks
             .Select(block => ParseRound(block, adjustments.GetValueOrDefault(block.RoundNumber), warnings, rule))
             .ToArray();
@@ -47,6 +57,98 @@ public sealed partial class AutomaticDracoinsCounterService
         var totals = BuildTotals(rounds.SelectMany(round => round.PointsByParticipant));
         return BuildResponse(detectedName, rounds, warnings, totals);
     }
+
+    private static AutomaticDracoinsAnalyzeResponse AnalyzeFlash(
+        string text,
+        IReadOnlyList<int> topPoints,
+        int otherParticipantPoints,
+        bool heartsOnly)
+    {
+        var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .ToArray();
+        var firstLineParticipants = lines.Length == 0
+            ? []
+            : ParseFlashParticipants(lines[0], heartsOnly);
+        var detectedName = firstLineParticipants.Count == 0 && lines.Length > 0 ? lines[0] : string.Empty;
+        var participantLines = string.IsNullOrWhiteSpace(detectedName) ? lines : lines.Skip(1);
+        var participants = participantLines
+            .SelectMany(line => ParseFlashParticipants(line, heartsOnly))
+            .ToArray();
+        var warnings = new List<string>();
+
+        if (participants.Length == 0)
+        {
+            warnings.Add(heartsOnly
+                ? "No se detectaron corazones de casas en el flash."
+                : "No se detectaron emojis de participantes en el flash.");
+        }
+
+        var scores = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var index = 0; index < participants.Length; index++)
+        {
+            var points = index < topPoints.Count ? topPoints[index] : otherParticipantPoints;
+            AddPoints(scores, participants[index], points);
+        }
+
+        return BuildResponse(
+            detectedName,
+            [],
+            warnings,
+            BuildTotals(scores.Select(item => new AutomaticDracoinsParticipantResultDto
+            {
+                Participant = item.Key,
+                Dracoins = item.Value
+            })));
+    }
+
+    private static IReadOnlyList<string> ParseFlashParticipants(string value, bool heartsOnly)
+    {
+        var participants = new List<string>();
+
+        for (var index = 0; index < value.Length;)
+        {
+            if (value[index] == '(')
+            {
+                var endIndex = value.IndexOf(')', index + 1);
+                if (endIndex >= 0)
+                {
+                    var participantGroup = NormalizeParticipant(RemoveWhitespace(value[(index + 1)..endIndex]));
+                    if (!heartsOnly && IsRealEmojiCluster(participantGroup))
+                    {
+                        participants.Add(participantGroup);
+                    }
+
+                    index = endIndex + 1;
+                    continue;
+                }
+            }
+
+            var element = GetNextTextElement(value, index);
+            var normalized = NormalizeParticipant(element.Text);
+            var participant = heartsOnly ? NormalizeHouseHeart(normalized) : normalized;
+            if ((!heartsOnly && IsRealEmojiCluster(participant)) ||
+                (heartsOnly && !string.IsNullOrWhiteSpace(participant)))
+            {
+                participants.Add(participant);
+            }
+
+            index += element.Length;
+        }
+
+        return participants;
+    }
+
+    private static string NormalizeHouseHeart(string value) =>
+        value switch
+        {
+            "❤" or "❤️" => "❤️",
+            "💚" => "💚",
+            "💙" => "💙",
+            "💛" => "💛",
+            _ => string.Empty
+        };
 
     private static AutomaticDracoinsRoundDto ParseRound(
         RoundBlock block,
@@ -477,23 +579,7 @@ public sealed partial class AutomaticDracoinsCounterService
         IReadOnlyCollection<string> ExtraLines,
         IReadOnlyCollection<string> Lines);
 
-    private sealed record CounterRule(IReadOnlyList<int> TopPoints, int OtherParticipantPoints, bool AllowMultiplier)
-    {
-        public static CounterRule From(string? ruleSet)
-        {
-            if (string.Equals(ruleSet, "flash-dracoins", StringComparison.OrdinalIgnoreCase))
-            {
-                return new CounterRule(FlashDracoinsTopPoints, DefaultOtherParticipantPoints, false);
-            }
-
-            if (string.Equals(ruleSet, "flash-puntos", StringComparison.OrdinalIgnoreCase))
-            {
-                return new CounterRule(FlashPuntosTopPoints, FlashPuntosOtherParticipantPoints, false);
-            }
-
-            return new CounterRule(DefaultTopPoints, DefaultOtherParticipantPoints, true);
-        }
-    }
+    private sealed record CounterRule(IReadOnlyList<int> TopPoints, int OtherParticipantPoints, bool AllowMultiplier);
 
     [GeneratedRegex(@"^\s*(?<number>\d+)\s*[\.\-\)]\s*")]
     private static partial Regex ClassicRoundStartRegex();

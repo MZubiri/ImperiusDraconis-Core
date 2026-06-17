@@ -187,37 +187,19 @@ export class DinamicasPageComponent {
   readonly canRegisterDracoinsFromCounter = computed(
     () => this.dracoinsCounterShowTotals() && this.dracoinsCounterMatchedCount() > 0
   );
-  readonly flashPointsMatches = computed<DracoinsCounterMatch[]>(() => {
-    const totals = this.flashPointsAnalysis()?.totals ?? [];
-    if (totals.length === 0) {
-      return [];
-    }
-
-    const studentsByEmoji = this.buildStudentsByEmojiKey();
-    return totals.map((total) => ({
-      participant: total.participant,
-      dracoins: total.dracoins,
-      student: studentsByEmoji.get(this.createEmojiKey(total.participant)) ?? null
-    }));
-  });
-  readonly flashPointsMatchedCount = computed(() =>
-    this.flashPointsMatches().filter((match) => match.student?.idCasa).length
-  );
-  readonly flashPointsUnmatchedCount = computed(() =>
-    this.flashPointsMatches().filter((match) => !match.student?.idCasa).length
-  );
   readonly flashPointsHouseTotals = computed(() => {
     const totals = new Map<number, { idCasa: number; nombreCasa: string; points: number }>();
-    for (const match of this.flashPointsMatches()) {
-      if (!match.student?.idCasa || match.dracoins <= 0) {
+    for (const result of this.flashPointsAnalysis()?.totals ?? []) {
+      const house = this.houseForHeart(result.participant);
+      if (!house || result.dracoins <= 0) {
         continue;
       }
 
-      const current = totals.get(match.student.idCasa);
-      totals.set(match.student.idCasa, {
-        idCasa: match.student.idCasa,
-        nombreCasa: match.student.casaNombre || 'Casa sin nombre',
-        points: (current?.points ?? 0) + match.dracoins
+      const current = totals.get(house.idCasa);
+      totals.set(house.idCasa, {
+        idCasa: house.idCasa,
+        nombreCasa: house.nombreCasa,
+        points: (current?.points ?? 0) + result.dracoins
       });
     }
 
@@ -1319,7 +1301,9 @@ export class DinamicasPageComponent {
       .subscribe({
         next: (analysis) => {
           this.dracoinsCounterAnalysis.set(analysis);
-          this.dracoinsCounterShowTotals.set(showTotals);
+          this.dracoinsCounterShowTotals.set(
+            this.dracoinsCounterRuleSet === 'flash-dracoins' || showTotals
+          );
           if (analysis.detectedName && !this.nombreDinamica.trim()) {
             this.nombreDinamica = analysis.detectedName;
           }
@@ -1341,6 +1325,29 @@ export class DinamicasPageComponent {
     }
 
     return result;
+  }
+
+  private houseForHeart(heart: string): EditablePointsHouse | null {
+    const expectedName =
+      heart === '❤️'
+        ? 'gryffindor'
+        : heart === '💚'
+          ? 'slytherin'
+          : heart === '💙'
+            ? 'ravenclaw'
+            : heart === '💛'
+              ? 'hufflepuff'
+              : '';
+
+    if (!expectedName) {
+      return null;
+    }
+
+    return (
+      this.pointsHouses().find((house) =>
+        house.nombreCasa.trim().toLowerCase().includes(expectedName)
+      ) ?? null
+    );
   }
 
   private createEmojiKey(value: string): string {

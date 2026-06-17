@@ -83,34 +83,38 @@ public sealed class AutomaticDracoinsCounterServiceTests
         var result = _service.Analyze(new AutomaticDracoinsAnalyzeRequest
         {
             Text = """
-                1. 🐍🦁🦅🐝🐾🌸
-                🐺🐈
-                > DOBLES
+                Flash de criaturas
+                🐍🦁(🦅🐝)🐾🌸🐺🐈
                 """,
             RuleSet = "flash-dracoins"
         });
 
+        Assert.Equal("Flash de criaturas", result.DetectedName);
         Assert.Equal(20, DracoinsFor(result, "🐍"));
-        Assert.Equal(20, DracoinsFor(result, "🌸"));
-        Assert.Equal(10, DracoinsFor(result, "🐺"));
-        Assert.Equal(1, result.Rounds.Single().Multiplier);
+        Assert.Equal(20, DracoinsFor(result, "🦅🐝"));
+        Assert.Equal(20, DracoinsFor(result, "🐺"));
+        Assert.Equal(10, DracoinsFor(result, "🐈"));
+        Assert.Empty(result.Rounds);
     }
 
     [Fact]
-    public void Analyze_AppliesFlashPuntosRuleWithFixedTopSix()
+    public void Analyze_AppliesFlashPuntosRuleUsingOnlyHouseHearts()
     {
         var result = _service.Analyze(new AutomaticDracoinsAnalyzeRequest
         {
             Text = """
-                1. 🐍🦁🦅🐝🐾🌸
-                🐺🐈
+                Flash de casas
+                ❤️💚🐍💙💛❤️💚💙
                 """,
             RuleSet = "flash-puntos"
         });
 
-        Assert.Equal(50, DracoinsFor(result, "🐍"));
-        Assert.Equal(50, DracoinsFor(result, "🌸"));
-        Assert.Equal(20, DracoinsFor(result, "🐺"));
+        Assert.Equal(100, DracoinsFor(result, "❤️"));
+        Assert.Equal(100, DracoinsFor(result, "💚"));
+        Assert.Equal(70, DracoinsFor(result, "💙"));
+        Assert.Equal(50, DracoinsFor(result, "💛"));
+        Assert.DoesNotContain(result.Totals, item => item.Participant == "🐍");
+        Assert.Empty(result.Rounds);
     }
 
     [Fact]
