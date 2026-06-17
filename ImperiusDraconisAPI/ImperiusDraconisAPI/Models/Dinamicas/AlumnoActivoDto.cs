@@ -10,5 +10,9 @@ public sealed class AlumnoActivoDto
 
     public string Emojis { get; init; } = string.Empty;
 
+    public int? IdCasa { get; init; }
+
+    public string CasaNombre { get; init; } = string.Empty;
+
     public decimal Dracoins { get; init; }
 }

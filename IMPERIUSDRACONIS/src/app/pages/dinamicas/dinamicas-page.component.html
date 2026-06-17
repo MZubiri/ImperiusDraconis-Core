@@ -148,19 +148,19 @@
         <div class="modal-head">
           <div>
             <span class="pill success">Calculadora</span>
-            <h2>Contador de Dracoins</h2>
+            <h2>{{ dracoinsCounterRuleSet === 'flash-dracoins' ? 'Flash de Dracoins' : 'Contador de Dracoins' }}</h2>
           </div>
           <button class="icon-button close-modal-button" type="button" title="Cerrar" (click)="closeDracoinsCounterModal()">×</button>
         </div>
 
         <div class="create-form">
           <label class="field">
-            <span>Mensaje completo de la dinámica</span>
+              <span>Mensaje completo de la dinámica</span>
             <textarea
               name="dracoinsCounterText"
               [(ngModel)]="dracoinsCounterText"
               rows="10"
-              placeholder="Pega aquí la dinámica completa..."
+              [placeholder]="dracoinsCounterRuleSet === 'flash-dracoins' ? 'Pega aquí el ranking del flash...' : 'Pega aquí la dinámica completa...'"
             ></textarea>
           </label>
 
@@ -212,7 +212,7 @@
                     <thead>
                       <tr>
                         <th>Ronda</th>
-                        <th>Multiplicador</th>
+                        <th>Regla</th>
                         <th>Top</th>
                         <th>Otros</th>
                       </tr>
@@ -222,14 +222,18 @@
                         <tr>
                           <td>{{ round.roundNumber }}</td>
                           <td>
-                            <select
-                              [value]="round.multiplier"
-                              (change)="updateDracoinsCounterRound(round.roundNumber, coerceNullableNumber($any($event.target).value) ?? 1)"
-                            >
-                              <option [value]="1">Normal x1</option>
-                              <option [value]="2">Doble x2</option>
-                              <option [value]="3">Triple x3</option>
-                            </select>
+                            @if (dracoinsCounterRuleSet === 'flash-dracoins') {
+                              <span>Top 6: 20 DC / resto: 10 DC</span>
+                            } @else {
+                              <select
+                                [value]="round.multiplier"
+                                (change)="updateDracoinsCounterRound(round.roundNumber, coerceNullableNumber($any($event.target).value) ?? 1)"
+                              >
+                                <option [value]="1">Normal x1</option>
+                                <option [value]="2">Doble x2</option>
+                                <option [value]="3">Triple x3</option>
+                              </select>
+                            }
                           </td>
                           <td>{{ round.topParticipants.join(' ') || '-' }}</td>
                           <td>{{ round.otherParticipants.join(' ') || '-' }}</td>
@@ -270,7 +274,7 @@
                         <tr>
                           <th>Emoji</th>
                           <th>Alumno</th>
-                          <th>Dracoins</th>
+                          <th>{{ dracoinsCounterRuleSet === 'flash-dracoins' ? 'DC flash' : 'Dracoins' }}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -566,6 +570,7 @@
 
         <div class="actions">
           <button class="ghost-button" type="button" (click)="openDracoinsCounterModal()">Contador de Dracoins</button>
+          <button class="ghost-button" type="button" (click)="openFlashDracoinsCounterModal()">Flash de Dracoins</button>
         </div>
 
         <form class="create-form" (ngSubmit)="submitDracoinsDinamica()">
@@ -672,6 +677,10 @@
             <input type="radio" name="pointsRegistrationMode" value="automatic" [(ngModel)]="pointsRegistrationMode" />
             <span>Contador automático</span>
           </label>
+          <label>
+            <input type="radio" name="pointsRegistrationMode" value="flash" [(ngModel)]="pointsRegistrationMode" />
+            <span>Flash</span>
+          </label>
         </div>
 
         @if (pointsRegistrationMode === 'manual') {
@@ -756,7 +765,7 @@
             <button class="ghost-button" type="button" (click)="loadPointsHouses()">Recargar casas</button>
           </div>
         </form>
-        } @else {
+        } @else if (pointsRegistrationMode === 'automatic') {
           <div class="create-form automatic-points-form">
             <label class="field">
               <span>Texto completo de la dinámica</span>
@@ -929,6 +938,128 @@
                   (click)="submitAutomaticPoints()"
                 >
                   {{ submittingAutomaticPoints() ? 'Registrando...' : 'Registrar como dinámica' }}
+                </button>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="create-form automatic-points-form">
+            <label class="field">
+              <span>Ranking del flash</span>
+              <textarea
+                name="flashPointsText"
+                [(ngModel)]="flashPointsText"
+                rows="12"
+                placeholder="Pega aquí el ranking del flash..."
+              ></textarea>
+            </label>
+
+            <div class="actions">
+              <button
+                class="primary-button"
+                type="button"
+                [disabled]="analyzingFlashPoints() || !flashPointsText.trim()"
+                (click)="analyzeFlashPoints()"
+              >
+                {{ analyzingFlashPoints() ? 'Analizando...' : 'Analizar flash' }}
+              </button>
+              <button class="ghost-button" type="button" (click)="resetFlashPoints()">Limpiar</button>
+            </div>
+
+            @if (flashPointsAnalysis(); as flash) {
+              <div class="filters-grid points-form-grid">
+                <label class="field">
+                  <span>Nombre del flash</span>
+                  <input type="text" name="flashPointsName" [(ngModel)]="flashPointsName" />
+                </label>
+                <label class="field">
+                  <span>Regla</span>
+                  <input type="text" value="Top 6: 50 pts / resto: 20 pts" readonly />
+                </label>
+              </div>
+
+              <label class="field">
+                <span>Observación</span>
+                <textarea
+                  name="flashPointsObservation"
+                  [(ngModel)]="flashPointsObservation"
+                  rows="3"
+                  placeholder="Detalle opcional para la dinámica"
+                ></textarea>
+              </label>
+
+              @if (flash.warnings.length > 0) {
+                <section class="automatic-warning-list">
+                  <strong>Advertencias</strong>
+                  @for (warning of flash.warnings; track warning) {
+                    <p>{{ warning }}</p>
+                  }
+                </section>
+              }
+
+              <section class="automatic-preview-section">
+                <h3>Participantes detectados</h3>
+                <div class="detail-meta compact-detail-meta">
+                  <div>
+                    <span>Relacionados</span>
+                    <strong>{{ flashPointsMatchedCount() }} alumnos</strong>
+                  </div>
+                  <div>
+                    <span>Sin casa/emoji</span>
+                    <strong>{{ flashPointsUnmatchedCount() }}</strong>
+                  </div>
+                </div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Emoji</th>
+                        <th>Alumno</th>
+                        <th>Casa</th>
+                        <th>Puntos</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (match of flashPointsMatches(); track match.participant) {
+                        <tr>
+                          <td>{{ match.participant }}</td>
+                          <td>
+                            @if (match.student) {
+                              <strong>{{ match.student.codigo }}</strong>
+                              <p class="cell-text">{{ match.student.nombre }}</p>
+                            } @else {
+                              <span class="empty-state">Sin emoji asignado</span>
+                            }
+                          </td>
+                          <td>{{ match.student?.casaNombre || '-' }}</td>
+                          <td>{{ match.dracoins | number: '1.0-0' }} pts</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section class="automatic-preview-section">
+                <h3>Total acumulado por casa</h3>
+                <div class="automatic-total-grid">
+                  @for (house of flashPointsHouseTotals(); track house.idCasa) {
+                    <article>
+                      <span>{{ house.nombreCasa }}</span>
+                      <strong>{{ house.points | number: '1.0-0' }} pts</strong>
+                    </article>
+                  }
+                </div>
+              </section>
+
+              <div class="actions">
+                <button
+                  class="primary-button"
+                  type="button"
+                  [disabled]="submittingFlashPoints() || !flashPointsName.trim() || flashPointsHouseTotals().length === 0"
+                  (click)="submitFlashPoints()"
+                >
+                  {{ submittingFlashPoints() ? 'Registrando...' : 'Registrar flash' }}
                 </button>
               </div>
             }

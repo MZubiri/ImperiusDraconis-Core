@@ -78,6 +78,42 @@ public sealed class AutomaticDracoinsCounterServiceTests
     }
 
     [Fact]
+    public void Analyze_AppliesFlashDracoinsRuleWithFixedTopSix()
+    {
+        var result = _service.Analyze(new AutomaticDracoinsAnalyzeRequest
+        {
+            Text = """
+                1. 🐍🦁🦅🐝🐾🌸
+                🐺🐈
+                > DOBLES
+                """,
+            RuleSet = "flash-dracoins"
+        });
+
+        Assert.Equal(20, DracoinsFor(result, "🐍"));
+        Assert.Equal(20, DracoinsFor(result, "🌸"));
+        Assert.Equal(10, DracoinsFor(result, "🐺"));
+        Assert.Equal(1, result.Rounds.Single().Multiplier);
+    }
+
+    [Fact]
+    public void Analyze_AppliesFlashPuntosRuleWithFixedTopSix()
+    {
+        var result = _service.Analyze(new AutomaticDracoinsAnalyzeRequest
+        {
+            Text = """
+                1. 🐍🦁🦅🐝🐾🌸
+                🐺🐈
+                """,
+            RuleSet = "flash-puntos"
+        });
+
+        Assert.Equal(50, DracoinsFor(result, "🐍"));
+        Assert.Equal(50, DracoinsFor(result, "🌸"));
+        Assert.Equal(20, DracoinsFor(result, "🐺"));
+    }
+
+    [Fact]
     public void Analyze_IgnoresParticipantsRepeatedInTopWhenParsingOthers()
     {
         var result = Analyze(

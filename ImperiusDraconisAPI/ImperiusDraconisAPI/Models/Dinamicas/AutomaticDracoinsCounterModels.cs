@@ -8,6 +8,9 @@ public sealed class AutomaticDracoinsAnalyzeRequest
     [MaxLength(50000)]
     public string Text { get; set; } = string.Empty;
 
+    [MaxLength(40)]
+    public string? RuleSet { get; set; }
+
     public List<AutomaticDracoinsRoundAdjustmentRequest> RoundAdjustments { get; set; } = [];
 }
 

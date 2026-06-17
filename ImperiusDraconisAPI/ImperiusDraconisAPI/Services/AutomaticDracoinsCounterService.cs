@@ -8,8 +8,11 @@ namespace ImperiusDraconisAPI.Services;
 
 public sealed partial class AutomaticDracoinsCounterService
 {
-    private static readonly int[] TopPoints = [30, 25, 20, 15];
-    private const int OtherParticipantPoints = 10;
+    private static readonly int[] DefaultTopPoints = [30, 25, 20, 15];
+    private static readonly int[] FlashDracoinsTopPoints = [20, 20, 20, 20, 20, 20];
+    private static readonly int[] FlashPuntosTopPoints = [50, 50, 50, 50, 50, 50];
+    private const int DefaultOtherParticipantPoints = 10;
+    private const int FlashPuntosOtherParticipantPoints = 20;
     private static readonly HashSet<int> InvisibleCodepoints =
     [
         0x2060, 0x200B, 0xFEFF, 0x200E, 0x200F,
@@ -35,8 +38,9 @@ public sealed partial class AutomaticDracoinsCounterService
         var adjustments = request.RoundAdjustments
             .GroupBy(item => item.RoundNumber)
             .ToDictionary(group => group.Key, group => group.Last());
+        var rule = CounterRule.From(request.RuleSet);
         var rounds = blocks
-            .Select(block => ParseRound(block, adjustments.GetValueOrDefault(block.RoundNumber), warnings))
+            .Select(block => ParseRound(block, adjustments.GetValueOrDefault(block.RoundNumber), warnings, rule))
             .ToArray();
 
         AddSequenceWarnings(rounds, warnings);
@@ -47,7 +51,8 @@ public sealed partial class AutomaticDracoinsCounterService
     private static AutomaticDracoinsRoundDto ParseRound(
         RoundBlock block,
         AutomaticDracoinsRoundAdjustmentRequest? adjustment,
-        List<string> warnings)
+        List<string> warnings,
+        CounterRule rule)
     {
         var detectedMultiplier = block.Lines.Select(DetectMultiplier).FirstOrDefault(multiplier => multiplier > 1);
         if (detectedMultiplier == 0)
@@ -55,10 +60,10 @@ public sealed partial class AutomaticDracoinsCounterService
             detectedMultiplier = 1;
         }
 
-        var multiplier = adjustment?.Multiplier ?? detectedMultiplier;
+        var multiplier = rule.AllowMultiplier ? adjustment?.Multiplier ?? detectedMultiplier : 1;
         var topParticipants = ParseParticipantsFromLine(block.TopLine).ToArray();
         var otherParticipantsRaw = ParseParticipantsFromLine(block.OtherLine).ToArray();
-        var topScored = topParticipants.Take(4).ToArray();
+        var topScored = topParticipants.Take(rule.TopPoints.Count).ToArray();
         var topScoredSet = topScored.ToHashSet(StringComparer.Ordinal);
         var ignored = otherParticipantsRaw.Where(topScoredSet.Contains).ToArray();
         var otherParticipants = otherParticipantsRaw.Where(participant => !topScoredSet.Contains(participant)).ToArray();
@@ -68,14 +73,14 @@ public sealed partial class AutomaticDracoinsCounterService
             warnings.Add($"Ronda {block.RoundNumber}: no tiene segunda linea.");
         }
 
-        if (topParticipants.Length < 4)
+        if (topParticipants.Length < rule.TopPoints.Count)
         {
-            warnings.Add($"Ronda {block.RoundNumber}: top tiene menos de 4 participantes.");
+            warnings.Add($"Ronda {block.RoundNumber}: top tiene menos de {rule.TopPoints.Count} participantes.");
         }
 
-        if (topParticipants.Length > 4)
+        if (topParticipants.Length > rule.TopPoints.Count)
         {
-            warnings.Add($"Ronda {block.RoundNumber}: top tiene mas de 4 participantes; solo se usan los primeros 4.");
+            warnings.Add($"Ronda {block.RoundNumber}: top tiene mas de {rule.TopPoints.Count} participantes; solo se usan los primeros {rule.TopPoints.Count}.");
         }
 
         if (ignored.Length > 0)
@@ -101,12 +106,12 @@ public sealed partial class AutomaticDracoinsCounterService
         var scores = new Dictionary<string, int>(StringComparer.Ordinal);
         for (var index = 0; index < topScored.Length; index++)
         {
-            AddPoints(scores, topScored[index], TopPoints[index] * multiplier);
+            AddPoints(scores, topScored[index], rule.TopPoints[index] * multiplier);
         }
 
         foreach (var participant in otherParticipants)
         {
-            AddPoints(scores, participant, OtherParticipantPoints * multiplier);
+            AddPoints(scores, participant, rule.OtherParticipantPoints * multiplier);
         }
 
         return new AutomaticDracoinsRoundDto
@@ -471,6 +476,24 @@ public sealed partial class AutomaticDracoinsCounterService
         string OtherLine,
         IReadOnlyCollection<string> ExtraLines,
         IReadOnlyCollection<string> Lines);
+
+    private sealed record CounterRule(IReadOnlyList<int> TopPoints, int OtherParticipantPoints, bool AllowMultiplier)
+    {
+        public static CounterRule From(string? ruleSet)
+        {
+            if (string.Equals(ruleSet, "flash-dracoins", StringComparison.OrdinalIgnoreCase))
+            {
+                return new CounterRule(FlashDracoinsTopPoints, DefaultOtherParticipantPoints, false);
+            }
+
+            if (string.Equals(ruleSet, "flash-puntos", StringComparison.OrdinalIgnoreCase))
+            {
+                return new CounterRule(FlashPuntosTopPoints, FlashPuntosOtherParticipantPoints, false);
+            }
+
+            return new CounterRule(DefaultTopPoints, DefaultOtherParticipantPoints, true);
+        }
+    }
 
     [GeneratedRegex(@"^\s*(?<number>\d+)\s*[\.\-\)]\s*")]
     private static partial Regex ClassicRoundStartRegex();

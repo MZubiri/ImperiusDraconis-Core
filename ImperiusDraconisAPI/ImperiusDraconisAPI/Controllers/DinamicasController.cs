@@ -42,7 +42,7 @@ public sealed class DinamicasController : ControllerBase
     }
 
     [HttpPost("dracoins-contador/analizar")]
-    [HasPermission(RegistrarDinamicaPorDracoinsPermission)]
+    [HasPermission(RegistrarDinamicaPorDracoinsPermission, RegistrarPuntosPermission)]
     [ProducesResponseType(typeof(AutomaticDracoinsAnalyzeResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public ActionResult<AutomaticDracoinsAnalyzeResponse> AnalyzeDracoinsCounter(
@@ -156,7 +156,7 @@ public sealed class DinamicasController : ControllerBase
     }
 
     [HttpGet("alumnos-activos")]
-    [HasPermission(RegistrarDinamicaPorDracoinsPermission)]
+    [HasPermission(RegistrarDinamicaPorDracoinsPermission, RegistrarPuntosPermission)]
     [ProducesResponseType(typeof(IReadOnlyCollection<AlumnoActivoDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyCollection<AlumnoActivoDto>>> GetActiveStudents(
         CancellationToken cancellationToken)

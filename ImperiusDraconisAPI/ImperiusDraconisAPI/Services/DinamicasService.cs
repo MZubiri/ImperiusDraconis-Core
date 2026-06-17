@@ -213,10 +213,18 @@ public sealed class DinamicasService
         var items = new List<AlumnoActivoDto>();
         using var command = new SqlCommand(
             """
-            SELECT IdAlumno, Codigo, Nombre, Emojis, Dracoins
-            FROM Alumnos
-            WHERE Activo = 1
-            ORDER BY Codigo
+            SELECT
+                A.IdAlumno,
+                A.Codigo,
+                A.Nombre,
+                A.Emojis,
+                A.IdCasa,
+                C.Nombre AS CasaNombre,
+                A.Dracoins
+            FROM Alumnos A
+            LEFT JOIN Casas C ON C.IdCasa = A.IdCasa
+            WHERE A.Activo = 1
+            ORDER BY A.Codigo
             """,
             connection);
 
@@ -229,6 +237,8 @@ public sealed class DinamicasService
                 Codigo = GetString(reader, "Codigo"),
                 Nombre = GetString(reader, "Nombre"),
                 Emojis = GetString(reader, "Emojis"),
+                IdCasa = GetNullableInt(reader, "IdCasa"),
+                CasaNombre = GetString(reader, "CasaNombre"),
                 Dracoins = GetDecimal(reader, "Dracoins")
             });
         }

@@ -46,7 +46,8 @@ interface DracoinsCounterMatch {
 }
 
 type DinamicasSection = 'listado' | 'registrar' | 'puntos' | 'agenda';
-type PointsRegistrationMode = 'manual' | 'automatic';
+type PointsRegistrationMode = 'manual' | 'automatic' | 'flash';
+type DracoinsCounterRuleSet = 'normal' | 'flash-dracoins';
 type AgendaModalMode = 'create' | 'edit' | null;
 
 @Component({
@@ -85,6 +86,7 @@ export class DinamicasPageComponent {
   readonly pointsHouses = signal<EditablePointsHouse[]>([]);
   readonly automaticPointsAnalysis = signal<AutomaticPointsAnalysis | null>(null);
   readonly dracoinsCounterAnalysis = signal<AutomaticDracoinsAnalysis | null>(null);
+  readonly flashPointsAnalysis = signal<AutomaticDracoinsAnalysis | null>(null);
   readonly formatCorrectionPreview = signal<{
     type: FormatCorrectionType;
     originalText: string;
@@ -108,6 +110,8 @@ export class DinamicasPageComponent {
   readonly submittingPoints = signal(false);
   readonly analyzingAutomaticPoints = signal(false);
   readonly submittingAutomaticPoints = signal(false);
+  readonly analyzingFlashPoints = signal(false);
+  readonly submittingFlashPoints = signal(false);
   readonly submittingAgenda = signal(false);
   readonly deletingDinamicaId = signal<number | null>(null);
   readonly deletingAgendaId = signal<number | null>(null);
@@ -183,6 +187,42 @@ export class DinamicasPageComponent {
   readonly canRegisterDracoinsFromCounter = computed(
     () => this.dracoinsCounterShowTotals() && this.dracoinsCounterMatchedCount() > 0
   );
+  readonly flashPointsMatches = computed<DracoinsCounterMatch[]>(() => {
+    const totals = this.flashPointsAnalysis()?.totals ?? [];
+    if (totals.length === 0) {
+      return [];
+    }
+
+    const studentsByEmoji = this.buildStudentsByEmojiKey();
+    return totals.map((total) => ({
+      participant: total.participant,
+      dracoins: total.dracoins,
+      student: studentsByEmoji.get(this.createEmojiKey(total.participant)) ?? null
+    }));
+  });
+  readonly flashPointsMatchedCount = computed(() =>
+    this.flashPointsMatches().filter((match) => match.student?.idCasa).length
+  );
+  readonly flashPointsUnmatchedCount = computed(() =>
+    this.flashPointsMatches().filter((match) => !match.student?.idCasa).length
+  );
+  readonly flashPointsHouseTotals = computed(() => {
+    const totals = new Map<number, { idCasa: number; nombreCasa: string; points: number }>();
+    for (const match of this.flashPointsMatches()) {
+      if (!match.student?.idCasa || match.dracoins <= 0) {
+        continue;
+      }
+
+      const current = totals.get(match.student.idCasa);
+      totals.set(match.student.idCasa, {
+        idCasa: match.student.idCasa,
+        nombreCasa: match.student.casaNombre || 'Casa sin nombre',
+        points: (current?.points ?? 0) + match.dracoins
+      });
+    }
+
+    return [...totals.values()].sort((left, right) => left.nombreCasa.localeCompare(right.nombreCasa));
+  });
 
   nombre = '';
   tipo = '';
@@ -194,6 +234,7 @@ export class DinamicasPageComponent {
   nombreDinamica = '';
   observacionDinamica = '';
   dracoinsCounterText = '';
+  dracoinsCounterRuleSet: DracoinsCounterRuleSet = 'normal';
   nombreDinamicaPuntos = '';
   subtipoDinamicaPuntos = 'Normal';
   observacionDinamicaPuntos = '';
@@ -203,6 +244,9 @@ export class DinamicasPageComponent {
   automaticPointsSubtype = 'Normal';
   automaticPointsObservation = '';
   automaticPointsRequestId = this.createRequestId();
+  flashPointsText = '';
+  flashPointsName = '';
+  flashPointsObservation = '';
   studentSearch = '';
 
   agendaFilterDate = '';
@@ -223,7 +267,7 @@ export class DinamicasPageComponent {
       this.loadDinamicas();
     }
 
-    if (this.canRegisterDracoins()) {
+    if (this.canRegisterDracoins() || this.canRegisterPoints()) {
       this.loadActiveStudents();
     }
 
@@ -347,7 +391,7 @@ export class DinamicasPageComponent {
   }
 
   loadActiveStudents(): void {
-    if (!this.canRegisterDracoins()) {
+    if (!this.canRegisterDracoins() && !this.canRegisterPoints()) {
       return;
     }
 
@@ -701,6 +745,22 @@ export class DinamicasPageComponent {
 
     this.errorMessage.set('');
     this.successMessage.set('');
+    this.dracoinsCounterRuleSet = 'normal';
+    this.dracoinsCounterAnalysis.set(null);
+    this.dracoinsCounterShowTotals.set(false);
+    this.dracoinsCounterOpen.set(true);
+  }
+
+  openFlashDracoinsCounterModal(): void {
+    if (!this.canRegisterDracoins()) {
+      return;
+    }
+
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.dracoinsCounterRuleSet = 'flash-dracoins';
+    this.dracoinsCounterAnalysis.set(null);
+    this.dracoinsCounterShowTotals.set(false);
     this.dracoinsCounterOpen.set(true);
   }
 
@@ -715,6 +775,84 @@ export class DinamicasPageComponent {
 
   countDracoinsCounter(): void {
     this.runDracoinsCounter(true);
+  }
+
+  analyzeFlashPoints(): void {
+    if (!this.canRegisterPoints()) {
+      return;
+    }
+
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.analyzingFlashPoints.set(true);
+
+    this.dinamicasService
+      .analyzeDracoinsCounter({
+        text: this.flashPointsText,
+        ruleSet: 'flash-puntos',
+        roundAdjustments: []
+      })
+      .pipe(
+        finalize(() => this.analyzingFlashPoints.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (analysis) => {
+          this.flashPointsAnalysis.set(analysis);
+          if (analysis.detectedName && !this.flashPointsName.trim()) {
+            this.flashPointsName = analysis.detectedName;
+          }
+        },
+        error: (error) =>
+          this.errorMessage.set(
+            this.readErrorMessage(error, 'No se pudo analizar el flash por puntos.')
+          )
+      });
+  }
+
+  submitFlashPoints(): void {
+    if (!this.canRegisterPoints() || this.flashPointsHouseTotals().length === 0) {
+      return;
+    }
+
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.submittingFlashPoints.set(true);
+
+    this.marcadoresService
+      .createUpdate({
+        nombreDinamica: this.flashPointsName.trim(),
+        subtipoDinamica: 'Flash',
+        observacion: this.flashPointsObservation.trim() || null,
+        puntosPorCasa: this.flashPointsHouseTotals().map((house) => ({
+          idCasa: house.idCasa,
+          puntos: house.points
+        }))
+      })
+      .pipe(
+        finalize(() => this.submittingFlashPoints.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (response) => {
+          this.successMessage.set(`Flash por puntos #${response.idDinamica} registrado correctamente.`);
+          this.resetFlashPoints();
+          if (this.canViewIndex()) {
+            this.loadDinamicas(1);
+          }
+        },
+        error: (error) =>
+          this.errorMessage.set(
+            this.readErrorMessage(error, 'No se pudo registrar el flash por puntos.')
+          )
+      });
+  }
+
+  resetFlashPoints(): void {
+    this.flashPointsText = '';
+    this.flashPointsName = '';
+    this.flashPointsObservation = '';
+    this.flashPointsAnalysis.set(null);
   }
 
   updateDracoinsCounterRound(roundNumber: number, multiplier: number): void {
@@ -1168,6 +1306,7 @@ export class DinamicasPageComponent {
     this.dinamicasService
       .analyzeDracoinsCounter({
         text: this.dracoinsCounterText,
+        ruleSet: this.dracoinsCounterRuleSet,
         roundAdjustments: (this.dracoinsCounterAnalysis()?.rounds ?? []).map((round) => ({
           roundNumber: round.roundNumber,
           multiplier: round.multiplier

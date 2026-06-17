@@ -64,6 +64,8 @@ export interface AlumnoActivo {
   codigo: string;
   nombre: string;
   emojis: string;
+  idCasa: number | null;
+  casaNombre: string;
   dracoins: number;
 }
 
@@ -157,6 +159,7 @@ export interface AutomaticDracoinsRoundAdjustment {
 
 export interface AutomaticDracoinsAnalyzeRequest {
   text: string;
+  ruleSet?: 'normal' | 'flash-dracoins' | 'flash-puntos';
   roundAdjustments: AutomaticDracoinsRoundAdjustment[];
 }
 
