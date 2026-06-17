@@ -80,3 +80,13 @@ export interface AlumnoFilters {
   ordenarPor?: string;
   orden?: 'asc' | 'desc';
 }
+
+export interface CumpleanosItem {
+  idAlumno: number;
+  nombre: string;
+  fotoPerfil: string;
+  categoria: string;
+  casaNombre: string;
+  mes: number;
+  dia: number;
+}

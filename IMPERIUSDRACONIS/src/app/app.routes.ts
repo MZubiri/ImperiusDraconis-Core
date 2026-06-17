@@ -31,6 +31,8 @@ const loadTiendaPage = () =>
   import('./pages/tienda/tienda-page.component').then((module) => module.TiendaPageComponent);
 const loadAuditoriaPage = () =>
   import('./pages/auditoria/auditoria-page.component').then((module) => module.AuditoriaPageComponent);
+const loadCumpleanosPage = () =>
+  import('./pages/cumpleanos/cumpleanos-page.component').then((module) => module.CumpleanosPageComponent);
 
 export const routes: Routes = [
   {
@@ -284,6 +286,14 @@ export const routes: Routes = [
           import('./pages/biblioteca/biblioteca-page.component').then(
             (module) => module.BibliotecaPageComponent
           )
+      },
+      {
+        path: 'cumpleanos',
+        loadComponent: loadCumpleanosPage
+      },
+      {
+        path: 'Cumpleanos',
+        loadComponent: loadCumpleanosPage
       }
     ]
   },

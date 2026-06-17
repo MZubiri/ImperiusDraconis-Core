@@ -1,0 +1,107 @@
+<div class="cumpleanos-layout">
+
+  <!-- Hero -->
+  <section class="card hero">
+    <div class="hero-copy">
+      <h1>🎂 Cumpleaños</h1>
+      <p>Consulta los cumpleaños de todos los alumnos activos. Filtra por mes para encontrar los próximos.</p>
+    </div>
+  </section>
+
+  <!-- Sin permiso -->
+  @if (!hasPermission('Alumnos:Cumpleanos')) {
+    <section class="card blocked">
+      <p>🔒 No tienes permiso para ver esta sección.</p>
+    </section>
+  } @else {
+
+    <!-- Filtros -->
+    <section class="card filters-card">
+      <div class="filters-row">
+        <div class="filter-field">
+          <label for="filtro-mes">Filtrar por mes</label>
+          <select
+            id="filtro-mes"
+            [(ngModel)]="mesSeleccionado"
+            (ngModelChange)="onMesChange()"
+          >
+            <option [ngValue]="null">Todos los meses</option>
+            @for (mes of meses; track mes.value) {
+              <option [ngValue]="mes.value">{{ mes.label }}</option>
+            }
+          </select>
+        </div>
+
+        @if (mesSeleccionado !== null) {
+          <button class="btn-ghost" type="button" (click)="limpiarFiltro()">
+            ✕ Limpiar filtro
+          </button>
+        }
+      </div>
+    </section>
+
+    <!-- Loading -->
+    @if (loading()) {
+      <section class="card message">
+        <div class="loading-dots">
+          <span></span><span></span><span></span>
+        </div>
+        <p>Cargando cumpleaños...</p>
+      </section>
+    }
+
+    <!-- Error -->
+    @if (!loading() && error()) {
+      <section class="card message error-msg">
+        <p>{{ error() }}</p>
+        <button class="btn-primary" type="button" (click)="load()">Reintentar</button>
+      </section>
+    }
+
+    <!-- Vacío -->
+    @if (!loading() && !error() && items().length === 0) {
+      <section class="card message">
+        <p class="empty-icon">🎈</p>
+        <p>No hay cumpleaños registrados
+          @if (mesSeleccionado !== null) { en este mes }.
+        </p>
+      </section>
+    }
+
+    <!-- Grupos por mes -->
+    @if (!loading() && !error() && items().length > 0) {
+      @for (grupo of itemsPorMes; track grupo.mes) {
+        <section class="card month-group">
+          <h2 class="month-title">
+            <span class="month-badge">{{ grupo.label }}</span>
+            <span class="month-count">{{ grupo.items.length }} alumno{{ grupo.items.length !== 1 ? 's' : '' }}</span>
+          </h2>
+
+          <div class="birthday-grid">
+            @for (item of grupo.items; track item.idAlumno) {
+              <div class="birthday-card">
+                <div class="avatar-wrap">
+                  <img
+                    appImageFallback
+                    [src]="avatarUrl(item.fotoPerfil)"
+                    [alt]="item.nombre"
+                    class="avatar"
+                  />
+                  <span class="cake-badge">🎂</span>
+                </div>
+                <div class="info">
+                  <strong class="name">{{ item.nombre }}</strong>
+                  <span class="date">{{ formatFecha(item.dia, item.mes) }}</span>
+                  @if (item.casaNombre) {
+                    <span class="casa">{{ item.casaNombre }}</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+      }
+    }
+
+  }
+</div>

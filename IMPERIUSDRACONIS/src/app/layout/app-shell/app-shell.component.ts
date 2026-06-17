@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
   LucideBriefcaseBusiness,
+  LucideCake,
   LucideCoins,
   LucideDynamicIcon,
   LucideGauge,
@@ -32,6 +33,7 @@ import { RuntimeConfigService } from '../../core/services/runtime-config.service
   providers: [
     provideLucideIcons(
       LucideBriefcaseBusiness,
+      LucideCake,
       LucideCoins,
       LucideGauge,
       LucideGraduationCap,
@@ -96,6 +98,7 @@ export class AppShellComponent {
       ]
     },
     { label: 'Alumnos', icon: 'graduation-cap', route: '/alumnos', permission: this.alumnosPermissions },
+    { label: 'Cumpleaños', icon: 'cake', route: '/cumpleanos', permission: ['Alumnos:Cumpleanos'] as const },
     {
       label: 'Dracoins',
       icon: 'coins',

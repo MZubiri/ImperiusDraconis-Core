@@ -695,6 +695,60 @@ public sealed class AlumnosService
         return DBNull.Value;
     }
 
+    public async Task<IReadOnlyCollection<CumpleanosItemDto>> GetCumpleanosAsync(int? mes, CancellationToken cancellationToken)
+    {
+        var filtros = new List<string> { "A.Cumpleanos IS NOT NULL", "A.Activo = 1" };
+        var parameters = new List<SqlParameter>();
+
+        if (mes.HasValue && mes.Value >= 1 && mes.Value <= 12)
+        {
+            filtros.Add("MONTH(A.Cumpleanos) = @Mes");
+            parameters.Add(new SqlParameter("@Mes", mes.Value));
+        }
+
+        var whereClause = string.Join(" AND ", filtros);
+        var items = new List<CumpleanosItemDto>();
+
+        using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        using var command = new SqlCommand(
+            $"""
+             SELECT
+                 A.IdAlumno,
+                 A.Nombre,
+                 A.FotoPerfil,
+                 ISNULL(A.Categoria, 'Alumno') AS Categoria,
+                 C.Nombre AS CasaNombre,
+                 MONTH(A.Cumpleanos) AS MesCumpleanos,
+                 DAY(A.Cumpleanos) AS DiaCumpleanos
+             FROM Alumnos A
+             LEFT JOIN Casas C ON A.IdCasa = C.IdCasa
+             WHERE {whereClause}
+             ORDER BY MONTH(A.Cumpleanos), DAY(A.Cumpleanos), A.Nombre
+             """,
+            connection);
+
+        command.Parameters.AddRange(parameters.ToArray());
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(new CumpleanosItemDto
+            {
+                IdAlumno = GetRequiredInt(reader, "IdAlumno"),
+                Nombre = GetString(reader, "Nombre"),
+                FotoPerfil = GetString(reader, "FotoPerfil"),
+                Categoria = GetString(reader, "Categoria"),
+                CasaNombre = GetString(reader, "CasaNombre"),
+                Mes = GetRequiredInt(reader, "MesCumpleanos"),
+                Dia = GetRequiredInt(reader, "DiaCumpleanos")
+            });
+        }
+
+        return items;
+    }
+
     private static SqlParameter CloneParameter(SqlParameter parameter) =>
         new(parameter.ParameterName, parameter.Value);
 

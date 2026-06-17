@@ -153,4 +153,15 @@ public sealed class AlumnosController : ControllerBase
         var codigo = await _alumnosService.GetNextCodeAsync(idCasa, cancellationToken);
         return Ok(new { codigo });
     }
+
+    [HttpGet("cumpleanos")]
+    [HasPermission("Alumnos:Cumpleanos")]
+    [ProducesResponseType(typeof(IReadOnlyCollection<CumpleanosItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyCollection<CumpleanosItemDto>>> GetCumpleanos(
+        [FromQuery] int? mes,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await _alumnosService.GetCumpleanosAsync(mes, cancellationToken));
+    }
 }
+

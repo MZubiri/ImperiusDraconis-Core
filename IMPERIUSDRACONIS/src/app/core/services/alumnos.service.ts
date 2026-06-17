@@ -9,6 +9,7 @@ import {
   AlumnoNote,
   CatalogItem,
   CreateAlumnoNoteRequest,
+  CumpleanosItem,
   PagedResult,
   ResetAlumnoPasswordRequest,
   SaveAlumnoRequest
@@ -91,5 +92,13 @@ export class AlumnosService {
 
   resetPassword(idAlumno: number, payload: ResetAlumnoPasswordRequest): Observable<void> {
     return this.http.put<void>(`${this.runtimeConfig.apiUrl}/alumnos/${idAlumno}/contrasena`, payload);
+  }
+
+  getCumpleanos(mes?: number): Observable<CumpleanosItem[]> {
+    let params = new HttpParams();
+    if (mes !== undefined && mes !== null) {
+      params = params.set('mes', mes);
+    }
+    return this.http.get<CumpleanosItem[]>(`${this.runtimeConfig.apiUrl}/alumnos/cumpleanos`, { params });
   }
 }
