@@ -51,6 +51,14 @@ public static class DatabaseInitializer
                 await ExecuteSqlScriptAsync(connection, script);
             }
 
+            var alumnoEmojiPermissionScriptPath = Path.Combine(rootPath, "015_create_alumno_emoji_permission.sql");
+            if (File.Exists(alumnoEmojiPermissionScriptPath))
+            {
+                logger.LogInformation("Verificando permiso de emojis de alumnos: 015_create_alumno_emoji_permission.sql");
+                var script = await File.ReadAllTextAsync(alumnoEmojiPermissionScriptPath);
+                await ExecuteSqlScriptAsync(connection, script);
+            }
+
             if (!tableExists)
             {
                 logger.LogInformation("Iniciando creacion de tablas para Biblioteca (012_create_biblioteca_tables.sql)...");

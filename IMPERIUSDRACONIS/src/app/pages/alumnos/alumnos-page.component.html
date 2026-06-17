@@ -19,7 +19,7 @@
             <button type="button" [class.active]="activeView() === 'list'" (click)="setActiveView('list')">
               Listado
             </button>
-            @if (canEdit()) {
+            @if (canManageEmojis()) {
               <button type="button" [class.active]="activeView() === 'emojis'" (click)="setActiveView('emojis')">
                 Emojis
               </button>
@@ -177,7 +177,7 @@
             </table>
           </div>
         </section>
-        } @else if (canEdit()) {
+        } @else if (canManageEmojis()) {
         <section class="directory-card panel">
           <header class="section-head">
             <div>
@@ -186,6 +186,21 @@
             </div>
             <p>Máximo dos emojis por alumno</p>
           </header>
+
+          <div class="maintenance-toolbar">
+            <label class="field">
+              <span>Casa</span>
+              <select [(ngModel)]="idCasa" (ngModelChange)="onLiveFilterChange()">
+                <option [ngValue]="null">Todas</option>
+                @for (casa of casas(); track casa.id) {
+                  <option [ngValue]="casa.id">{{ casa.nombre }}</option>
+                }
+              </select>
+            </label>
+            <button class="ghost-button" type="button" (click)="resetFilters()">
+              Limpiar filtro
+            </button>
+          </div>
 
           <div class="table-wrap responsive-cards emoji-maintenance">
             <table>
@@ -382,11 +397,6 @@
               <label class="field">
                 <span>Nombre</span>
                 <input type="text" name="nombreAlumno" [(ngModel)]="form.nombre" placeholder="Nombre completo" />
-              </label>
-
-              <label class="field">
-                <span>Emojis</span>
-                <input type="text" name="emojisAlumno" maxlength="20" [(ngModel)]="form.emojis" placeholder="🐲" />
               </label>
 
               <label class="field">

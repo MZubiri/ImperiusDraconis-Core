@@ -181,6 +181,14 @@
   gap: 0.9rem;
 }
 
+.maintenance-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) auto;
+  gap: 0.8rem;
+  align-items: end;
+  justify-content: start;
+}
+
 .filters-summary {
   display: flex;
   justify-content: flex-end;
@@ -516,7 +524,8 @@ th {
   .table-filters,
   .filters-grid,
   .form-grid,
-  .detail-grid {
+  .detail-grid,
+  .maintenance-toolbar {
     grid-template-columns: 1fr;
   }
 

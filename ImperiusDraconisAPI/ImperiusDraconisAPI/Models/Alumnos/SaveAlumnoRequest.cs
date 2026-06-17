@@ -12,9 +12,6 @@ public sealed class SaveAlumnoRequest
     [MaxLength(100)]
     public string Nombre { get; set; } = string.Empty;
 
-    [MaxLength(20)]
-    public string? Emojis { get; set; }
-
     [MaxLength(15)]
     public string? Telefono { get; set; }
 

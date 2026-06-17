@@ -79,7 +79,7 @@ public sealed class AlumnosController : ControllerBase
     }
 
     [HttpPatch("{id:int}/emojis")]
-    [HasPermission("Alumnos:Editar")]
+    [HasPermission("Alumnos:ModificarEmojis")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

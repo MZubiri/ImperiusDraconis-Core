@@ -234,13 +234,14 @@ public sealed class AlumnosService
     public async Task<int> CreateAsync(SaveAlumnoRequest request, CancellationToken cancellationToken)
     {
         using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
         using var command = new SqlCommand(
             $"""
             INSERT INTO Alumnos
             (
                 Codigo,
                 Nombre,
-                Emojis,
                 Telefono,
                 IdCasa,
                 Puntos,
@@ -262,7 +263,6 @@ public sealed class AlumnosService
             (
                 @Codigo,
                 @Nombre,
-                @Emojis,
                 @Telefono,
                 @IdCasa,
                 @Puntos,
@@ -286,7 +286,6 @@ public sealed class AlumnosService
             connection);
 
         FillSaveParameters(command, request, includePassword: true);
-        await connection.OpenAsync(cancellationToken);
 
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
     }
@@ -302,7 +301,6 @@ public sealed class AlumnosService
             SET
                 Codigo = @Codigo,
                 Nombre = @Nombre,
-                Emojis = @Emojis,
                 Telefono = @Telefono,
                 IdCasa = @IdCasa,
                 Puntos = @Puntos,
@@ -342,6 +340,16 @@ public sealed class AlumnosService
         var emojis = NormalizeEmojis(request.Emojis);
 
         using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        var alumnoActivo = await GetAlumnoActivoAsync(connection, idAlumno, cancellationToken);
+        if (!alumnoActivo.HasValue)
+        {
+            return false;
+        }
+
+        await EnsureEmojisAvailableAsync(connection, idAlumno, emojis, alumnoActivo.Value, cancellationToken);
+
         using var command = new SqlCommand(
             """
             UPDATE Alumnos
@@ -353,7 +361,6 @@ public sealed class AlumnosService
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
         command.Parameters.AddWithValue("@Emojis", (object?)emojis ?? DBNull.Value);
 
-        await connection.OpenAsync(cancellationToken);
         return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
     }
 
@@ -671,7 +678,6 @@ public sealed class AlumnosService
     {
         command.Parameters.AddWithValue("@Codigo", request.Codigo.Trim());
         command.Parameters.AddWithValue("@Nombre", request.Nombre.Trim());
-        command.Parameters.AddWithValue("@Emojis", (object?)NormalizeEmojis(request.Emojis) ?? DBNull.Value);
         command.Parameters.AddWithValue("@Telefono", (object?)request.Telefono?.Trim() ?? DBNull.Value);
         command.Parameters.AddWithValue("@IdCasa", (object?)request.IdCasa ?? DBNull.Value);
         command.Parameters.AddWithValue("@Puntos", request.Puntos);
@@ -726,6 +732,65 @@ public sealed class AlumnosService
         return DBNull.Value;
     }
 
+    private static async Task<bool?> GetAlumnoActivoAsync(
+        SqlConnection connection,
+        int idAlumno,
+        CancellationToken cancellationToken)
+    {
+        using var command = new SqlCommand(
+            "SELECT Activo FROM Alumnos WHERE IdAlumno = @IdAlumno",
+            connection);
+        command.Parameters.AddWithValue("@IdAlumno", idAlumno);
+
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        if (result is null || result == DBNull.Value)
+        {
+            return null;
+        }
+
+        return Convert.ToBoolean(result, CultureInfo.InvariantCulture);
+    }
+
+    private static async Task EnsureEmojisAvailableAsync(
+        SqlConnection connection,
+        int? idAlumno,
+        string? emojis,
+        bool alumnoActivo,
+        CancellationToken cancellationToken)
+    {
+        if (!alumnoActivo || string.IsNullOrWhiteSpace(emojis))
+        {
+            return;
+        }
+
+        var emojiKey = CreateEmojiKey(emojis);
+
+        using var command = new SqlCommand(
+            """
+            SELECT Codigo, Emojis
+            FROM Alumnos
+            WHERE Activo = 1
+              AND NULLIF(LTRIM(RTRIM(Emojis)), N'') IS NOT NULL
+              AND (@IdAlumno IS NULL OR IdAlumno <> @IdAlumno)
+            ORDER BY Codigo
+            """,
+            connection);
+        command.Parameters.AddWithValue("@IdAlumno", (object?)idAlumno ?? DBNull.Value);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var existingEmojis = GetString(reader, "Emojis");
+            if (!string.Equals(CreateEmojiKey(existingEmojis), emojiKey, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            throw new BusinessRuleException(
+                $"El emoji o combinacion {emojis} ya esta asignado a un alumno activo ({GetString(reader, "Codigo")}).");
+        }
+    }
+
     private static string? NormalizeEmojis(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -739,12 +804,34 @@ public sealed class AlumnosService
             return null;
         }
 
-        if (new StringInfo(normalized).LengthInTextElements > 2)
+        if (GetEmojiTextElements(normalized).Count > 2)
         {
             throw new BusinessRuleException("Cada alumno puede tener como maximo dos emojis.");
         }
 
         return normalized;
+    }
+
+    private static string CreateEmojiKey(string emojis)
+    {
+        var elements = GetEmojiTextElements(emojis);
+        elements.Sort(StringComparer.Ordinal);
+        return string.Join("|", elements);
+    }
+
+    private static List<string> GetEmojiTextElements(string value)
+    {
+        var elements = new List<string>();
+        var indexes = StringInfo.ParseCombiningCharacters(value);
+
+        for (var i = 0; i < indexes.Length; i++)
+        {
+            var start = indexes[i];
+            var length = i + 1 < indexes.Length ? indexes[i + 1] - start : value.Length - start;
+            elements.Add(value.Substring(start, length));
+        }
+
+        return elements;
     }
 
     public async Task<IReadOnlyCollection<CumpleanosItemDto>> GetCumpleanosAsync(int? mes, CancellationToken cancellationToken)

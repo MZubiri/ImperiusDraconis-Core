@@ -25,7 +25,6 @@ type AlumnosViewMode = 'list' | 'emojis';
 interface AlumnoFormModel {
   codigo: string;
   nombre: string;
-  emojis: string;
   telefono: string;
   idCasa: number | null;
   idCargo: number | null;
@@ -63,6 +62,7 @@ export class AlumnosPageComponent {
     'Alumnos:Detalle',
     'Alumnos:Crear',
     'Alumnos:Editar',
+    'Alumnos:ModificarEmojis',
     'Alumnos:Eliminar',
     'Alumnos:Notas',
     'Alumnos:CambiarContraseña'
@@ -110,6 +110,7 @@ export class AlumnosPageComponent {
   );
   readonly canCreate = computed(() => this.auth.hasPermission('Alumnos:Crear'));
   readonly canEdit = computed(() => this.auth.hasPermission('Alumnos:Editar'));
+  readonly canManageEmojis = computed(() => this.auth.hasPermission('Alumnos:ModificarEmojis'));
   readonly canDelete = computed(() => this.auth.hasPermission('Alumnos:Eliminar'));
   readonly canNotes = computed(() => this.auth.hasPermission('Alumnos:Notas'));
   readonly canResetPassword = computed(() => this.auth.hasPermission('Alumnos:CambiarContraseña'));
@@ -156,7 +157,7 @@ export class AlumnosPageComponent {
       return;
     }
 
-    if (this.canList() || this.canCreate() || this.canEdit()) {
+    if (this.canList() || this.canCreate() || this.canEdit() || this.canManageEmojis()) {
       this.loadCatalogs();
     }
 
@@ -704,7 +705,6 @@ export class AlumnosPageComponent {
     return {
       codigo,
       nombre,
-      emojis: this.normalizeEmojis(this.form.emojis),
       telefono: this.normalizeText(this.form.telefono),
       idCasa: this.form.idCasa,
       nivel: creating ? null : this.normalizeText(this.form.nivel),
@@ -728,7 +728,6 @@ export class AlumnosPageComponent {
     return {
       codigo: alumno.codigo,
       nombre: alumno.nombre,
-      emojis: alumno.emojis,
       telefono: alumno.telefono,
       idCasa: alumno.idCasa,
       idCargo: alumno.idCargo,
@@ -750,7 +749,6 @@ export class AlumnosPageComponent {
     return {
       codigo: '',
       nombre: '',
-      emojis: '',
       telefono: '',
       idCasa: null,
       idCargo: null,
@@ -809,7 +807,7 @@ export class AlumnosPageComponent {
   }
 
   saveAlumnoEmojis(alumno: AlumnoListItem): void {
-    if (!this.canEdit()) {
+    if (!this.canManageEmojis()) {
       return;
     }
 

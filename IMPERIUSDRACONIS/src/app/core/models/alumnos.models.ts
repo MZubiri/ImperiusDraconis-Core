@@ -39,7 +39,6 @@ export interface AlumnoNote {
 export interface SaveAlumnoRequest {
   codigo: string;
   nombre: string;
-  emojis: string | null;
   telefono: string | null;
   idCasa: number | null;
   nivel: string | null;

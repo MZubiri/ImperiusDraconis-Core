@@ -61,6 +61,7 @@ export class AppShellComponent {
     'Alumnos:Detalle',
     'Alumnos:Crear',
     'Alumnos:Editar',
+    'Alumnos:ModificarEmojis',
     'Alumnos:Eliminar',
     'Alumnos:Notas',
     'Alumnos:CambiarContraseña'
