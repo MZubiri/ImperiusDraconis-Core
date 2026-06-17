@@ -20,10 +20,12 @@ import { ImageFallbackDirective } from '../../shared/directives/image-fallback.d
 
 type FormMode = 'create' | 'edit';
 type AlumnoModalMode = 'detail' | 'form' | 'notes' | 'password';
+type AlumnosViewMode = 'list' | 'emojis';
 
 interface AlumnoFormModel {
   codigo: string;
   nombre: string;
+  emojis: string;
   telefono: string;
   idCasa: number | null;
   idCargo: number | null;
@@ -85,8 +87,10 @@ export class AlumnosPageComponent {
   readonly deleting = signal(false);
   readonly savingNote = signal(false);
   readonly resettingPassword = signal(false);
+  readonly emojiSavingId = signal<number | null>(null);
   readonly errorMessage = signal('');
   readonly successMessage = signal('');
+  readonly activeView = signal<AlumnosViewMode>('list');
   readonly formMode = signal<FormMode | null>(null);
   readonly showFormPanel = signal(false);
   readonly showNotesPanel = signal(false);
@@ -99,6 +103,7 @@ export class AlumnosPageComponent {
   private filterReloadTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly alumnos = computed(() => this.resultado()?.items ?? []);
+  readonly emojiDrafts = signal<Record<number, string>>({});
   readonly canList = computed(() => this.auth.hasPermission('Alumnos:Index'));
   readonly canDetail = computed(
     () => this.auth.hasPermission('Alumnos:Index') || this.auth.hasPermission('Alumnos:Detalle')
@@ -193,6 +198,7 @@ export class AlumnosPageComponent {
       .subscribe({
         next: (response) => {
           this.resultado.set(response);
+          this.syncEmojiDrafts(response.items);
         },
         error: (error) => {
           this.errorMessage.set(this.readErrorMessage(error, 'No se pudo cargar la lista de alumnos.'));
@@ -698,6 +704,7 @@ export class AlumnosPageComponent {
     return {
       codigo,
       nombre,
+      emojis: this.normalizeEmojis(this.form.emojis),
       telefono: this.normalizeText(this.form.telefono),
       idCasa: this.form.idCasa,
       nivel: creating ? null : this.normalizeText(this.form.nivel),
@@ -721,6 +728,7 @@ export class AlumnosPageComponent {
     return {
       codigo: alumno.codigo,
       nombre: alumno.nombre,
+      emojis: alumno.emojis,
       telefono: alumno.telefono,
       idCasa: alumno.idCasa,
       idCargo: alumno.idCargo,
@@ -742,6 +750,7 @@ export class AlumnosPageComponent {
     return {
       codigo: '',
       nombre: '',
+      emojis: '',
       telefono: '',
       idCasa: null,
       idCargo: null,
@@ -776,6 +785,63 @@ export class AlumnosPageComponent {
     };
   }
 
+  setActiveView(view: AlumnosViewMode): void {
+    this.activeView.set(view);
+  }
+
+  emojiDraftValue(idAlumno: number): string {
+    return this.emojiDrafts()[idAlumno] ?? '';
+  }
+
+  onEmojiDraftChange(alumno: AlumnoListItem, value: string): void {
+    const normalized = this.normalizeEmojis(value) ?? '';
+    this.emojiDrafts.update((current) => ({
+      ...current,
+      [alumno.idAlumno]: normalized
+    }));
+  }
+
+  resetEmojiDraft(alumno: AlumnoListItem): void {
+    this.emojiDrafts.update((current) => ({
+      ...current,
+      [alumno.idAlumno]: alumno.emojis ?? ''
+    }));
+  }
+
+  saveAlumnoEmojis(alumno: AlumnoListItem): void {
+    if (!this.canEdit()) {
+      return;
+    }
+
+    const emojis = this.normalizeEmojis(this.emojiDraftValue(alumno.idAlumno));
+    if (this.countEmojiTextElements(emojis ?? '') > 2) {
+      this.errorMessage.set('Cada alumno puede tener máximo dos emojis.');
+      return;
+    }
+
+    this.clearMessages();
+    this.emojiSavingId.set(alumno.idAlumno);
+
+    this.alumnosService
+      .updateAlumnoEmojis(alumno.idAlumno, { emojis })
+      .pipe(
+        finalize(() => this.emojiSavingId.set(null)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: () => {
+          this.successMessage.set(`Emojis de ${alumno.codigo} actualizados.`);
+          if (this.selectedAlumno()?.idAlumno === alumno.idAlumno && this.canDetail()) {
+            this.openAlumno(alumno.idAlumno);
+          }
+          this.loadAlumnos(this.resultado()?.paginaActual ?? 1);
+        },
+        error: (error) => {
+          this.errorMessage.set(this.readErrorMessage(error, 'No se pudieron guardar los emojis del alumno.'));
+        }
+      });
+  }
+
   getPaisOption(nombrePais: string): PaisOption | undefined {
     const normalizedPais = nombrePais.trim().toLowerCase();
     return this.paises.find((pais) => pais.nombre.toLowerCase() === normalizedPais);
@@ -806,6 +872,40 @@ export class AlumnosPageComponent {
   private normalizeText(value: string): string | null {
     const trimmed = value.trim();
     return trimmed ? trimmed : null;
+  }
+
+  private normalizeEmojis(value: string): string | null {
+    const normalized = value.replace(/\s+/g, '');
+    return normalized ? normalized : null;
+  }
+
+  private syncEmojiDrafts(items: AlumnoListItem[]): void {
+    this.emojiDrafts.update((current) => {
+      const next = { ...current };
+      for (const alumno of items) {
+        next[alumno.idAlumno] = alumno.emojis ?? '';
+      }
+
+      return next;
+    });
+  }
+
+  private countEmojiTextElements(value: string): number {
+    const intlWithSegmenter = Intl as typeof Intl & {
+      Segmenter?: new (
+        locales?: string | string[],
+        options?: { granularity: 'grapheme' }
+      ) => { segment: (input: string) => Iterable<unknown> };
+    };
+    const segmenter = typeof Intl !== 'undefined' && intlWithSegmenter.Segmenter
+      ? new intlWithSegmenter.Segmenter(undefined, { granularity: 'grapheme' })
+      : null;
+
+    if (segmenter) {
+      return Array.from(segmenter.segment(value)).length;
+    }
+
+    return Array.from(value).length;
   }
 
   private toDateInputValue(value: string | null): string {

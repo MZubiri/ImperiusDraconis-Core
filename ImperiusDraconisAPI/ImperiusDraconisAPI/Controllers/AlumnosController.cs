@@ -46,9 +46,16 @@ public sealed class AlumnosController : ControllerBase
         [FromBody] SaveAlumnoRequest request,
         CancellationToken cancellationToken)
     {
-        var id = await _alumnosService.CreateAsync(request, cancellationToken);
-        var alumno = await _alumnosService.GetByIdAsync(id, cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { id }, alumno);
+        try
+        {
+            var id = await _alumnosService.CreateAsync(request, cancellationToken);
+            var alumno = await _alumnosService.GetByIdAsync(id, cancellationToken);
+            return CreatedAtAction(nameof(GetById), new { id }, alumno);
+        }
+        catch (BusinessRuleException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
     }
 
     [HttpPut("{id:int}")]
@@ -60,8 +67,36 @@ public sealed class AlumnosController : ControllerBase
         [FromBody] SaveAlumnoRequest request,
         CancellationToken cancellationToken)
     {
-        var updated = await _alumnosService.UpdateAsync(id, request, cancellationToken);
-        return updated ? NoContent() : NotFound();
+        try
+        {
+            var updated = await _alumnosService.UpdateAsync(id, request, cancellationToken);
+            return updated ? NoContent() : NotFound();
+        }
+        catch (BusinessRuleException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+    }
+
+    [HttpPatch("{id:int}/emojis")]
+    [HasPermission("Alumnos:Editar")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> UpdateEmojis(
+        int id,
+        [FromBody] UpdateAlumnoEmojisRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var updated = await _alumnosService.UpdateEmojisAsync(id, request, cancellationToken);
+            return updated ? NoContent() : NotFound();
+        }
+        catch (BusinessRuleException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
     }
 
     [HttpPatch("{id:int}/estado")]
@@ -164,4 +199,3 @@ public sealed class AlumnosController : ControllerBase
         return Ok(await _alumnosService.GetCumpleanosAsync(mes, cancellationToken));
     }
 }
-

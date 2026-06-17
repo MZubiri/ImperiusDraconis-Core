@@ -8,6 +8,8 @@ public sealed class AlumnoDetailDto
 
     public string Nombre { get; init; } = string.Empty;
 
+    public string Emojis { get; init; } = string.Empty;
+
     public string Telefono { get; init; } = string.Empty;
 
     public int? IdCasa { get; init; }

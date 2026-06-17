@@ -70,6 +70,33 @@
   display: flex;
   gap: 0.8rem;
   justify-content: end;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.view-switch {
+  display: inline-flex;
+  min-height: 44px;
+  padding: 0.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(5, 12, 22, 0.36);
+}
+
+.view-switch button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 0.9rem;
+  color: var(--text-soft);
+  background: transparent;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.view-switch button.active {
+  color: var(--text-main);
+  background: rgba(232, 197, 103, 0.16);
 }
 
 .workspace-grid {
@@ -210,13 +237,43 @@
 
 .field input,
 .field select,
-.field textarea {
+.field textarea,
+.emoji-input {
   min-height: 48px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(5, 12, 22, 0.42);
   color: var(--text-main);
   padding: 0 0.9rem;
+}
+
+.emoji-display {
+  display: inline-block;
+  min-width: 2.25rem;
+  font-size: 1.35rem;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.emoji-maintenance td {
+  vertical-align: middle;
+}
+
+.emoji-input {
+  width: min(100%, 9rem);
+  font-size: 1.25rem;
+  text-align: center;
+}
+
+.emoji-actions {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.compact-button {
+  min-height: 40px;
+  padding-inline: 0.85rem;
 }
 
 .field textarea {
@@ -506,8 +563,14 @@ th {
     justify-content: stretch;
   }
 
-  .hero-actions button {
+  .hero-actions > button,
+  .view-switch {
     width: 100%;
+  }
+
+  .view-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .filters-summary {
@@ -582,6 +645,16 @@ th {
 
   td.empty-state::before {
     content: none;
+  }
+
+  .emoji-input {
+    width: 100%;
+    text-align: left;
+  }
+
+  .emoji-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 
   .alumno-modal-shell {

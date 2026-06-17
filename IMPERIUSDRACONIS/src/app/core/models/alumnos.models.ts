@@ -7,6 +7,7 @@ export interface AlumnoListItem {
   idAlumno: number;
   codigo: string;
   nombre: string;
+  emojis: string;
   dracoins: number;
   activo: boolean;
   categoria: string;
@@ -38,6 +39,7 @@ export interface AlumnoNote {
 export interface SaveAlumnoRequest {
   codigo: string;
   nombre: string;
+  emojis: string | null;
   telefono: string | null;
   idCasa: number | null;
   nivel: string | null;
@@ -60,6 +62,10 @@ export interface CreateAlumnoNoteRequest {
 
 export interface ResetAlumnoPasswordRequest {
   nuevaContrasena: string;
+}
+
+export interface UpdateAlumnoEmojisRequest {
+  emojis: string | null;
 }
 
 export interface PagedResult<T> {

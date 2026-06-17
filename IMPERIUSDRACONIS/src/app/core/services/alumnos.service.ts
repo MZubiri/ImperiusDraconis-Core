@@ -12,7 +12,8 @@ import {
   CumpleanosItem,
   PagedResult,
   ResetAlumnoPasswordRequest,
-  SaveAlumnoRequest
+  SaveAlumnoRequest,
+  UpdateAlumnoEmojisRequest
 } from '../models/alumnos.models';
 
 interface NextCodeResponse {
@@ -60,6 +61,10 @@ export class AlumnosService {
 
   updateAlumno(idAlumno: number, payload: SaveAlumnoRequest): Observable<void> {
     return this.http.put<void>(`${this.runtimeConfig.apiUrl}/alumnos/${idAlumno}`, payload);
+  }
+
+  updateAlumnoEmojis(idAlumno: number, payload: UpdateAlumnoEmojisRequest): Observable<void> {
+    return this.http.patch<void>(`${this.runtimeConfig.apiUrl}/alumnos/${idAlumno}/emojis`, payload);
   }
 
   changeEstado(idAlumno: number, activo: boolean): Observable<void> {

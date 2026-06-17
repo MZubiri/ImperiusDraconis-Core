@@ -107,6 +107,7 @@ public sealed class AlumnosService
                         A.IdAlumno,
                         A.Codigo,
                         A.Nombre,
+                        A.Emojis,
                         A.Telefono,
                         A.IdCasa,
                         A.IdCargo,
@@ -138,6 +139,7 @@ public sealed class AlumnosService
                     IdAlumno = GetRequiredInt(reader, "IdAlumno"),
                     Codigo = GetString(reader, "Codigo"),
                     Nombre = GetString(reader, "Nombre"),
+                    Emojis = GetString(reader, "Emojis"),
                     Telefono = GetString(reader, "Telefono"),
                     IdCasa = GetNullableInt(reader, "IdCasa"),
                     IdCargo = GetNullableInt(reader, "IdCargo"),
@@ -170,6 +172,7 @@ public sealed class AlumnosService
                 A.IdAlumno,
                 A.Codigo,
                 A.Nombre,
+                A.Emojis,
                 A.Telefono,
                 A.IdCasa,
                 C.Nombre AS CasaNombre,
@@ -207,6 +210,7 @@ public sealed class AlumnosService
             IdAlumno = GetRequiredInt(reader, "IdAlumno"),
             Codigo = GetString(reader, "Codigo"),
             Nombre = GetString(reader, "Nombre"),
+            Emojis = GetString(reader, "Emojis"),
             Telefono = GetString(reader, "Telefono"),
             IdCasa = GetNullableInt(reader, "IdCasa"),
             CasaNombre = GetString(reader, "CasaNombre"),
@@ -236,6 +240,7 @@ public sealed class AlumnosService
             (
                 Codigo,
                 Nombre,
+                Emojis,
                 Telefono,
                 IdCasa,
                 Puntos,
@@ -257,6 +262,7 @@ public sealed class AlumnosService
             (
                 @Codigo,
                 @Nombre,
+                @Emojis,
                 @Telefono,
                 @IdCasa,
                 @Puntos,
@@ -296,6 +302,7 @@ public sealed class AlumnosService
             SET
                 Codigo = @Codigo,
                 Nombre = @Nombre,
+                Emojis = @Emojis,
                 Telefono = @Telefono,
                 IdCasa = @IdCasa,
                 Puntos = @Puntos,
@@ -324,6 +331,29 @@ public sealed class AlumnosService
         FillSaveParameters(command, request, includePassword: !string.IsNullOrWhiteSpace(request.Contrasena));
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
 
+        return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+    }
+
+    public async Task<bool> UpdateEmojisAsync(
+        int idAlumno,
+        UpdateAlumnoEmojisRequest request,
+        CancellationToken cancellationToken)
+    {
+        var emojis = NormalizeEmojis(request.Emojis);
+
+        using var connection = _connectionFactory.CreateConnection();
+        using var command = new SqlCommand(
+            """
+            UPDATE Alumnos
+            SET Emojis = @Emojis
+            WHERE IdAlumno = @IdAlumno
+            """,
+            connection);
+
+        command.Parameters.AddWithValue("@IdAlumno", idAlumno);
+        command.Parameters.AddWithValue("@Emojis", (object?)emojis ?? DBNull.Value);
+
+        await connection.OpenAsync(cancellationToken);
         return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
     }
 
@@ -641,6 +671,7 @@ public sealed class AlumnosService
     {
         command.Parameters.AddWithValue("@Codigo", request.Codigo.Trim());
         command.Parameters.AddWithValue("@Nombre", request.Nombre.Trim());
+        command.Parameters.AddWithValue("@Emojis", (object?)NormalizeEmojis(request.Emojis) ?? DBNull.Value);
         command.Parameters.AddWithValue("@Telefono", (object?)request.Telefono?.Trim() ?? DBNull.Value);
         command.Parameters.AddWithValue("@IdCasa", (object?)request.IdCasa ?? DBNull.Value);
         command.Parameters.AddWithValue("@Puntos", request.Puntos);
@@ -693,6 +724,27 @@ public sealed class AlumnosService
         }
 
         return DBNull.Value;
+    }
+
+    private static string? NormalizeEmojis(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = string.Concat(value.Where((character) => !char.IsWhiteSpace(character)));
+        if (normalized.Length == 0)
+        {
+            return null;
+        }
+
+        if (new StringInfo(normalized).LengthInTextElements > 2)
+        {
+            throw new BusinessRuleException("Cada alumno puede tener como maximo dos emojis.");
+        }
+
+        return normalized;
     }
 
     public async Task<IReadOnlyCollection<CumpleanosItemDto>> GetCumpleanosAsync(int? mes, CancellationToken cancellationToken)

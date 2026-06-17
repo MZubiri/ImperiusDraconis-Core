@@ -14,6 +14,18 @@
       </div>
 
       <div class="hero-actions">
+        @if (canList()) {
+          <div class="view-switch" role="tablist" aria-label="Vista de alumnos">
+            <button type="button" [class.active]="activeView() === 'list'" (click)="setActiveView('list')">
+              Listado
+            </button>
+            @if (canEdit()) {
+              <button type="button" [class.active]="activeView() === 'emojis'" (click)="setActiveView('emojis')">
+                Emojis
+              </button>
+            }
+          </div>
+        }
         @if (canCreate()) {
           <button class="primary-button" type="button" (click)="startCreate()">Nuevo alumno</button>
         }
@@ -35,6 +47,7 @@
 
     <div class="workspace-grid">
       @if (canList()) {
+        @if (activeView() === 'list') {
         <section class="directory-card panel">
           <header class="section-head">
             <div>
@@ -115,6 +128,7 @@
               <thead>
                 <tr>
                   <th>Código</th>
+                  <th>Emoji</th>
                   <th>Nombre</th>
                   <th>Casa</th>
                   <th>Cargo</th>
@@ -136,11 +150,11 @@
               <tbody>
                 @if (loading()) {
                   <tr>
-                    <td colspan="5" class="empty-state">Cargando alumnos...</td>
+                    <td colspan="6" class="empty-state">Cargando alumnos...</td>
                   </tr>
                 } @else if (alumnos().length === 0) {
                   <tr>
-                    <td colspan="5" class="empty-state">No hay alumnos para los filtros actuales.</td>
+                    <td colspan="6" class="empty-state">No hay alumnos para los filtros actuales.</td>
                   </tr>
                 } @else {
                   @for (alumno of alumnos(); track alumno.idAlumno) {
@@ -151,6 +165,7 @@
                       (click)="openAlumno(alumno.idAlumno)"
                     >
                       <td data-label="Código">{{ alumno.codigo }}</td>
+                      <td data-label="Emoji"><span class="emoji-display">{{ alumno.emojis || '-' }}</span></td>
                       <td data-label="Nombre">{{ alumno.nombre }}</td>
                       <td data-label="Casa">{{ alumno.casaNombre || '-' }}</td>
                       <td data-label="Cargo">{{ alumno.nombreCargo || '-' }}</td>
@@ -162,6 +177,81 @@
             </table>
           </div>
         </section>
+        } @else if (canEdit()) {
+        <section class="directory-card panel">
+          <header class="section-head">
+            <div>
+              <span class="pill">Mantenimiento</span>
+              <h2>Emojis de alumnos</h2>
+            </div>
+            <p>Máximo dos emojis por alumno</p>
+          </header>
+
+          <div class="table-wrap responsive-cards emoji-maintenance">
+            <table>
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Alumno</th>
+                  <th>Casa</th>
+                  <th>Emojis</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (loading()) {
+                  <tr>
+                    <td colspan="5" class="empty-state">Cargando alumnos...</td>
+                  </tr>
+                } @else if (alumnos().length === 0) {
+                  <tr>
+                    <td colspan="5" class="empty-state">No hay alumnos para los filtros actuales.</td>
+                  </tr>
+                } @else {
+                  @for (alumno of alumnos(); track alumno.idAlumno) {
+                    <tr [class.inactive-row]="!alumno.activo">
+                      <td data-label="Código">{{ alumno.codigo }}</td>
+                      <td data-label="Alumno">{{ alumno.nombre }}</td>
+                      <td data-label="Casa">{{ alumno.casaNombre || '-' }}</td>
+                      <td data-label="Emojis">
+                        <input
+                          class="emoji-input"
+                          type="text"
+                          maxlength="20"
+                          [ngModel]="emojiDraftValue(alumno.idAlumno)"
+                          (ngModelChange)="onEmojiDraftChange(alumno, $event)"
+                          placeholder="🐲"
+                        />
+                      </td>
+                      <td data-label="Acción">
+                        <div class="emoji-actions">
+                          <button
+                            class="primary-button compact-button"
+                            type="button"
+                            [disabled]="emojiSavingId() === alumno.idAlumno"
+                            (click)="saveAlumnoEmojis(alumno)"
+                          >
+                            {{ emojiSavingId() === alumno.idAlumno ? 'Guardando...' : 'Guardar' }}
+                          </button>
+                          <button class="ghost-button compact-button" type="button" (click)="resetEmojiDraft(alumno)">
+                            Revertir
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <button class="ghost-button" type="button" (click)="previousPage()">Anterior</button>
+            <span>{{ resultado()?.paginaActual ?? 1 }} / {{ resultado()?.totalPaginas ?? 1 }}</span>
+            <button class="ghost-button" type="button" (click)="nextPage()">Siguiente</button>
+          </div>
+        </section>
+        }
       } @else {
         <section class="directory-card panel compact-state">
           <span class="pill warn">Sin listado</span>
@@ -196,7 +286,10 @@
               />
               <div class="detail-profile-copy">
                 <span class="pill success">{{ selectedAlumno()!.codigo }}</span>
-                <h3>{{ selectedAlumno()!.nombre }}</h3>
+                <h3>
+                  <span class="emoji-display">{{ selectedAlumno()!.emojis }}</span>
+                  {{ selectedAlumno()!.nombre }}
+                </h3>
                 <p>{{ selectedAlumno()!.nombreCargo || 'Sin cargo' }} | {{ selectedAlumno()!.casaNombre || 'Sin casa' }}</p>
               </div>
               <span class="pill" [class.success]="selectedAlumno()!.activo" [class.warn]="!selectedAlumno()!.activo">
@@ -205,6 +298,10 @@
             </div>
 
             <div class="detail-grid">
+              <div>
+                <span>Emojis</span>
+                <strong>{{ selectedAlumno()!.emojis || 'No asignado' }}</strong>
+              </div>
               <div>
                 <span>Correo</span>
                 <strong>{{ selectedAlumno()!.correoElectronico || 'No registrado' }}</strong>
@@ -285,6 +382,11 @@
               <label class="field">
                 <span>Nombre</span>
                 <input type="text" name="nombreAlumno" [(ngModel)]="form.nombre" placeholder="Nombre completo" />
+              </label>
+
+              <label class="field">
+                <span>Emojis</span>
+                <input type="text" name="emojisAlumno" maxlength="20" [(ngModel)]="form.emojis" placeholder="🐲" />
               </label>
 
               <label class="field">

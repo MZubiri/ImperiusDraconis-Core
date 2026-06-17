@@ -8,6 +8,8 @@ public sealed class AlumnoListItemDto
 
     public string Nombre { get; init; } = string.Empty;
 
+    public string Emojis { get; init; } = string.Empty;
+
     public decimal Dracoins { get; init; }
 
     public bool Activo { get; init; }
