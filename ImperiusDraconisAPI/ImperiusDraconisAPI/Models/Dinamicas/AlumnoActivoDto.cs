@@ -8,5 +8,7 @@ public sealed class AlumnoActivoDto
 
     public string Nombre { get; init; } = string.Empty;
 
+    public string Emojis { get; init; } = string.Empty;
+
     public decimal Dracoins { get; init; }
 }

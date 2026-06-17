@@ -39,6 +39,12 @@ interface EditablePointsHouse extends MarcadorCasa {
   puntos: number;
 }
 
+interface DracoinsCounterMatch {
+  participant: string;
+  dracoins: number;
+  student: AssignableAlumno | null;
+}
+
 type DinamicasSection = 'listado' | 'registrar' | 'puntos' | 'agenda';
 type PointsRegistrationMode = 'manual' | 'automatic';
 type AgendaModalMode = 'create' | 'edit' | null;
@@ -154,6 +160,28 @@ export class DinamicasPageComponent {
   );
   readonly totalAssignedPoints = computed(() =>
     this.pointsHouses().reduce((total, house) => total + (house.puntos ?? 0), 0)
+  );
+  readonly dracoinsCounterMatches = computed<DracoinsCounterMatch[]>(() => {
+    const totals = this.dracoinsCounterAnalysis()?.totals ?? [];
+    if (totals.length === 0) {
+      return [];
+    }
+
+    const studentsByEmoji = this.buildStudentsByEmojiKey();
+    return totals.map((total) => ({
+      participant: total.participant,
+      dracoins: total.dracoins,
+      student: studentsByEmoji.get(this.createEmojiKey(total.participant)) ?? null
+    }));
+  });
+  readonly dracoinsCounterMatchedCount = computed(() =>
+    this.dracoinsCounterMatches().filter((match) => match.student !== null).length
+  );
+  readonly dracoinsCounterUnmatchedCount = computed(() =>
+    this.dracoinsCounterMatches().filter((match) => match.student === null).length
+  );
+  readonly canRegisterDracoinsFromCounter = computed(
+    () => this.dracoinsCounterShowTotals() && this.dracoinsCounterMatchedCount() > 0
   );
 
   nombre = '';
@@ -313,7 +341,9 @@ export class DinamicasPageComponent {
       return students;
     }
 
-    return students.filter((student) => `${student.codigo} ${student.nombre}`.toLowerCase().includes(search));
+    return students.filter((student) =>
+      `${student.codigo} ${student.nombre} ${student.emojis}`.toLowerCase().includes(search)
+    );
   }
 
   loadActiveStudents(): void {
@@ -717,6 +747,65 @@ export class DinamicasPageComponent {
     }
   }
 
+  registerDracoinsDinamicaFromCounter(): void {
+    if (!this.canRegisterDracoinsFromCounter()) {
+      return;
+    }
+
+    this.applyDracoinsCounterAssignments();
+    this.closeDracoinsCounterModal();
+    this.submitDracoinsDinamica();
+  }
+
+  loadDracoinsCounterIntoForm(): void {
+    if (this.dracoinsCounterMatchedCount() === 0) {
+      return;
+    }
+
+    const assignmentsCount = this.applyDracoinsCounterAssignments();
+    this.closeDracoinsCounterModal();
+    this.activeSection.set('registrar');
+
+    const unmatched = this.dracoinsCounterUnmatchedCount();
+    this.successMessage.set(
+      unmatched > 0
+        ? `Se cargaron ${assignmentsCount} alumnos en la dinámica. ${unmatched} participante(s) no tienen emoji asignado.`
+        : `Se cargaron ${assignmentsCount} alumnos en la dinámica desde el contador.`
+    );
+  }
+
+  private applyDracoinsCounterAssignments(): number {
+    const analysis = this.dracoinsCounterAnalysis();
+    const assignments = new Map<number, number>();
+
+    for (const match of this.dracoinsCounterMatches()) {
+      if (!match.student || match.dracoins <= 0) {
+        continue;
+      }
+
+      assignments.set(match.student.idAlumno, (assignments.get(match.student.idAlumno) ?? 0) + match.dracoins);
+    }
+
+    this.assignableStudents.set(
+      this.assignableStudents().map((student) => {
+        const dracoins = assignments.get(student.idAlumno) ?? null;
+        return {
+          ...student,
+          seleccionado: (dracoins ?? 0) > 0,
+          dracoinsOtorgados: dracoins
+        };
+      })
+    );
+
+    if (analysis?.detectedName && !this.nombreDinamica.trim()) {
+      this.nombreDinamica = analysis.detectedName;
+    }
+
+    this.studentSearch = '';
+
+    return assignments.size;
+  }
+
   deleteDinamica(item: DinamicaListItem): void {
     if (!this.canDeleteDinamica()) {
       return;
@@ -1092,12 +1181,48 @@ export class DinamicasPageComponent {
         next: (analysis) => {
           this.dracoinsCounterAnalysis.set(analysis);
           this.dracoinsCounterShowTotals.set(showTotals);
+          if (analysis.detectedName && !this.nombreDinamica.trim()) {
+            this.nombreDinamica = analysis.detectedName;
+          }
         },
         error: (error) =>
           this.errorMessage.set(
             this.readErrorMessage(error, 'No se pudo analizar el contador de Dracoins.')
           )
       });
+  }
+
+  private buildStudentsByEmojiKey(): Map<string, AssignableAlumno> {
+    const result = new Map<string, AssignableAlumno>();
+    for (const student of this.assignableStudents()) {
+      const key = this.createEmojiKey(student.emojis);
+      if (key) {
+        result.set(key, student);
+      }
+    }
+
+    return result;
+  }
+
+  private createEmojiKey(value: string): string {
+    const normalized = value.replace(/\s+/g, '');
+    if (!normalized) {
+      return '';
+    }
+
+    return this.getGraphemeClusters(normalized).sort().join('|');
+  }
+
+  private getGraphemeClusters(value: string): string[] {
+    const segmenter = Intl?.Segmenter
+      ? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+      : null;
+
+    if (!segmenter) {
+      return Array.from(value);
+    }
+
+    return Array.from(segmenter.segment(value), (item) => item.segment);
   }
 
   private createRequestId(): string {

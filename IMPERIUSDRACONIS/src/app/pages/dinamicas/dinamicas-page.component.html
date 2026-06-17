@@ -253,11 +253,87 @@
                 @if (counter.totals.length === 0) {
                   <p class="empty-state">No se detectaron participantes.</p>
                 } @else {
+                  <div class="detail-meta compact-detail-meta">
+                    <div>
+                      <span>Coincidencias</span>
+                      <strong>{{ dracoinsCounterMatchedCount() }} alumnos</strong>
+                    </div>
+                    <div>
+                      <span>Sin relacionar</span>
+                      <strong>{{ dracoinsCounterUnmatchedCount() }}</strong>
+                    </div>
+                  </div>
+
+                  <div class="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Emoji</th>
+                          <th>Alumno</th>
+                          <th>Dracoins</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (match of dracoinsCounterMatches(); track match.participant) {
+                          <tr>
+                            <td>{{ match.participant }}</td>
+                            <td>
+                              @if (match.student) {
+                                <strong>{{ match.student.codigo }}</strong>
+                                <p class="cell-text">{{ match.student.nombre }}</p>
+                              } @else {
+                                <span class="empty-state">Sin emoji asignado</span>
+                              }
+                            </td>
+                            <td>{{ match.dracoins | number: '1.0-0' }} DC</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+
                   <label class="field">
                     <span>Resultado para copiar</span>
                     <textarea readonly rows="8" [value]="counter.copyText"></textarea>
                   </label>
+
+                  <label class="field">
+                    <span>Nombre de la dinámica</span>
+                    <input
+                      type="text"
+                      name="counterDinamicaName"
+                      [(ngModel)]="nombreDinamica"
+                      placeholder="Ejemplo: Trivia semanal"
+                    />
+                  </label>
+
+                  <label class="field">
+                    <span>Observación de la dinámica</span>
+                    <textarea
+                      name="counterDinamicaObservation"
+                      [(ngModel)]="observacionDinamica"
+                      rows="3"
+                      placeholder="Detalle general para el listado y los movimientos"
+                    ></textarea>
+                  </label>
+
                   <div class="actions">
+                    <button
+                      class="primary-button"
+                      type="button"
+                      [disabled]="submitting() || !canRegisterDracoinsFromCounter() || !nombreDinamica.trim()"
+                      (click)="registerDracoinsDinamicaFromCounter()"
+                    >
+                      {{ submitting() ? 'Registrando...' : 'Registrar dinámica' }}
+                    </button>
+                    <button
+                      class="ghost-button"
+                      type="button"
+                      [disabled]="dracoinsCounterMatchedCount() === 0"
+                      (click)="loadDracoinsCounterIntoForm()"
+                    >
+                      Cargar al formulario
+                    </button>
                     <button class="ghost-button" type="button" (click)="copyDracoinsCounterResult()">
                       {{ dracoinsCounterCopied() ? 'Copiado' : 'Copiar resultado' }}
                     </button>
@@ -550,7 +626,7 @@
                     <tr>
                       <td>
                         <strong>{{ student.codigo }}</strong>
-                        <p class="cell-text">{{ student.nombre }}</p>
+                        <p class="cell-text">{{ student.nombre }} {{ student.emojis }}</p>
                       </td>
                       <td>
                         <input

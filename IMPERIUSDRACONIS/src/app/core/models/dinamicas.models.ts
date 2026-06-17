@@ -63,6 +63,7 @@ export interface AlumnoActivo {
   idAlumno: number;
   codigo: string;
   nombre: string;
+  emojis: string;
   dracoins: number;
 }
 

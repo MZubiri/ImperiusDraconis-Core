@@ -213,7 +213,7 @@ public sealed class DinamicasService
         var items = new List<AlumnoActivoDto>();
         using var command = new SqlCommand(
             """
-            SELECT IdAlumno, Codigo, Nombre, Dracoins
+            SELECT IdAlumno, Codigo, Nombre, Emojis, Dracoins
             FROM Alumnos
             WHERE Activo = 1
             ORDER BY Codigo
@@ -228,6 +228,7 @@ public sealed class DinamicasService
                 IdAlumno = GetRequiredInt(reader, "IdAlumno"),
                 Codigo = GetString(reader, "Codigo"),
                 Nombre = GetString(reader, "Nombre"),
+                Emojis = GetString(reader, "Emojis"),
                 Dracoins = GetDecimal(reader, "Dracoins")
             });
         }
@@ -889,7 +890,7 @@ public sealed class DinamicasService
         var parameterNames = ids.Select((_, index) => $"@IdAlumno{index}").ToArray();
         var sql =
             $"""
-            SELECT IdAlumno, Codigo, Nombre, Dracoins
+            SELECT IdAlumno, Codigo, Nombre, Emojis, Dracoins
             FROM Alumnos
             WHERE Activo = 1
               AND IdAlumno IN ({string.Join(", ", parameterNames)})
@@ -910,6 +911,7 @@ public sealed class DinamicasService
                 IdAlumno = GetRequiredInt(reader, "IdAlumno"),
                 Codigo = GetString(reader, "Codigo"),
                 Nombre = GetString(reader, "Nombre"),
+                Emojis = GetString(reader, "Emojis"),
                 Dracoins = GetDecimal(reader, "Dracoins")
             };
             result[item.IdAlumno] = item;
