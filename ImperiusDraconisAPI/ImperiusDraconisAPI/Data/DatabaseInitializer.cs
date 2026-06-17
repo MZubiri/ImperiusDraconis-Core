@@ -43,6 +43,14 @@ public static class DatabaseInitializer
                 return;
             }
 
+            var alumnoEmojisScriptPath = Path.Combine(rootPath, "014_add_alumno_emojis.sql");
+            if (File.Exists(alumnoEmojisScriptPath))
+            {
+                logger.LogInformation("Verificando migracion de emojis de alumnos: 014_add_alumno_emojis.sql");
+                var script = await File.ReadAllTextAsync(alumnoEmojisScriptPath);
+                await ExecuteSqlScriptAsync(connection, script);
+            }
+
             if (!tableExists)
             {
                 logger.LogInformation("Iniciando creacion de tablas para Biblioteca (012_create_biblioteca_tables.sql)...");
