@@ -164,6 +164,34 @@
   --theme-pattern-size: auto;
 }
 
+:root[data-theme='kawaii'] {
+  color-scheme: light;
+  --bg-night: #fff0f5;
+  --bg-deep: #ffe4ef;
+  --panel: #ffffff;
+  --panel-strong: #fff5f8;
+  --sidebar-bg: #ffffff;
+  --header-bg: rgba(255, 255, 255, 0.97);
+  --input-bg: #ffffff;
+  --border: #f9c0d6;
+  --border-strong: #f49abf;
+  --gold: #e05c95;
+  --gold-strong: #c8387a;
+  --accent-secondary: #f472b6;
+  --accent-soft: rgba(224, 92, 149, 0.1);
+  --button-text: #ffffff;
+  --emerald: #e05c95;
+  --text-main: #4a1832;
+  --text-soft: #a06080;
+  --danger: #dc2626;
+  --shadow-soft: 0 2px 12px rgba(224, 92, 149, 0.1);
+  --theme-emblem: url('/theme-assets/imperius-logo.webp');
+  --theme-pattern:
+    radial-gradient(circle, rgba(244, 114, 182, 0.06) 1px, transparent 1px),
+    radial-gradient(circle, rgba(224, 92, 149, 0.04) 1px, transparent 1px);
+  --theme-pattern-size: 24px 24px;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -662,6 +690,62 @@ body .login-copy h1 {
   background: #ffffff;
   border-color: var(--border);
 }
+
+:root[data-theme='kawaii'] body .timeline-item,
+:root[data-theme='kawaii'] body .transfer-item,
+:root[data-theme='kawaii'] body .quick-link,
+:root[data-theme='kawaii'] body .picker-item,
+:root[data-theme='kawaii'] body .copy-card,
+:root[data-theme='kawaii'] body .preview-box,
+:root[data-theme='kawaii'] body .message-box {
+  background: #fff5f8;
+}
+
+:root[data-theme='kawaii'] .section-tabs button.active,
+:root[data-theme='kawaii'] .primary-button {
+  color: #ffffff;
+}
+
+:root[data-theme='kawaii'] .pill,
+:root[data-theme='kawaii'] .tag,
+:root[data-theme='kawaii'] .ghost-button {
+  background-color: #fff0f5;
+}
+
+:root[data-theme='kawaii'] .panel,
+:root[data-theme='kawaii'] .product-row,
+:root[data-theme='kawaii'] .store-card,
+:root[data-theme='kawaii'] .cart-item,
+:root[data-theme='kawaii'] .purchase-card,
+:root[data-theme='kawaii'] .flow-item,
+:root[data-theme='kawaii'] .selection-summary,
+:root[data-theme='kawaii'] .selected-card,
+:root[data-theme='kawaii'] .editor-card,
+:root[data-theme='kawaii'] .detail-meta div,
+:root[data-theme='kawaii'] .detail-list div {
+  color: var(--text-main);
+  background-color: var(--panel) !important;
+  border-color: var(--border) !important;
+}
+
+:root[data-theme='kawaii'] input,
+:root[data-theme='kawaii'] select,
+:root[data-theme='kawaii'] textarea,
+:root[data-theme='kawaii'] .field input,
+:root[data-theme='kawaii'] .field select,
+:root[data-theme='kawaii'] .field textarea,
+:root[data-theme='kawaii'] .compact-input {
+  color: var(--text-main) !important;
+  background: var(--input-bg) !important;
+  border-color: var(--border) !important;
+}
+
+:root[data-theme='kawaii'] .section-tabs button {
+  color: var(--text-main);
+  background: #ffffff;
+  border-color: var(--border);
+}
+
 
 @media (max-width: 980px) {
   .module-hero,
