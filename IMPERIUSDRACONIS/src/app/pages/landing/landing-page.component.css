@@ -200,9 +200,9 @@
 }
 
 .winner-feature {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
+  display: grid;
+  grid-template-rows: minmax(180px, 1fr) auto;
+  align-items: center;
   min-height: 380px;
   padding: 2rem;
   border: 1px solid color-mix(in srgb, var(--house-color) 45%, #30383a);
@@ -213,15 +213,11 @@
 }
 
 .winner-emblem {
-  position: absolute;
-  top: 2rem;
-  left: 50%;
   display: grid;
   place-items: center;
-  width: min(72%, 260px);
+  width: min(76%, 230px);
   aspect-ratio: 1;
-  transform: translateX(-50%);
-  align-self: flex-start;
+  justify-self: center;
 }
 
 .winner-emblem svg {
@@ -523,7 +519,13 @@
   }
 
   .winner-feature {
-    min-height: 320px;
+    grid-template-rows: minmax(170px, auto) auto;
+    min-height: 390px;
+    padding: 1.4rem;
+  }
+
+  .winner-emblem {
+    width: min(68vw, 210px);
   }
 
   .public-footer {
