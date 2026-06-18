@@ -31,10 +31,11 @@ public sealed partial class LandingService
     public async Task<LandingPageDto> GetPublicAsync(CancellationToken cancellationToken)
     {
         var data = await GetDataAsync(includeInactive: false, cancellationToken);
+        var houses = await GetMainHousesAsync(cancellationToken);
         return new LandingPageDto
         {
             Configuracion = data.Configuracion,
-            DragonesPlata = EnsureSlots(data.DragonesPlata, "PLATA", 4),
+            DragonesPlata = EnsureSilverSlots(data.DragonesPlata, houses),
             DragonOro = data.DragonOro is { Activo: true } ? data.DragonOro : null,
             Instagram = data.Instagram,
             Tiktok = data.Tiktok,
@@ -51,7 +52,12 @@ public sealed partial class LandingService
 
         var houses = new List<LandingHouseOptionDto>();
         using var command = new SqlCommand(
-            "SELECT IdCasa, Nombre, ISNULL(Color, '') AS Color FROM Casas ORDER BY Nombre",
+            """
+            SELECT IdCasa, Nombre, ISNULL(Color, '') AS Color
+            FROM Casas
+            WHERE LOWER(LTRIM(RTRIM(Nombre))) <> 'id'
+            ORDER BY Nombre
+            """,
             connection);
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
@@ -63,17 +69,53 @@ public sealed partial class LandingService
                 Color = GetString(reader, "Color")
             });
         }
+        await reader.CloseAsync();
+
+        var orderedHouses = OrderMainHouses(houses);
+        var students = new List<LandingStudentOptionDto>();
+        using (var studentCommand = new SqlCommand(
+                   """
+                   SELECT
+                       A.IdAlumno,
+                       A.Codigo,
+                       A.Nombre,
+                       ISNULL(NULLIF(LTRIM(RTRIM(A.FotoPerfil)), ''), '~/Content/FotosPerfil/default.jpg') AS FotoPerfil,
+                       A.IdCasa,
+                       C.Nombre AS CasaNombre
+                   FROM Alumnos A
+                   INNER JOIN Casas C ON C.IdCasa = A.IdCasa
+                   WHERE A.Activo = 1
+                     AND LOWER(LTRIM(RTRIM(C.Nombre))) <> 'id'
+                   ORDER BY C.Nombre, A.Nombre
+                   """,
+                   connection))
+        {
+            using var studentReader = await studentCommand.ExecuteReaderAsync(cancellationToken);
+            while (await studentReader.ReadAsync(cancellationToken))
+            {
+                students.Add(new LandingStudentOptionDto
+                {
+                    IdAlumno = GetRequiredInt(studentReader, "IdAlumno"),
+                    Codigo = GetString(studentReader, "Codigo"),
+                    Nombre = GetString(studentReader, "Nombre"),
+                    FotoPerfil = GetString(studentReader, "FotoPerfil"),
+                    IdCasa = GetRequiredInt(studentReader, "IdCasa"),
+                    CasaNombre = GetString(studentReader, "CasaNombre")
+                });
+            }
+        }
 
         return new LandingAdminDto
         {
             Configuracion = data.Configuracion,
-            DragonesPlata = EnsureSlots(data.DragonesPlata, "PLATA", 4),
+            DragonesPlata = EnsureSilverSlots(data.DragonesPlata, orderedHouses),
             DragonOro = data.DragonOro ?? EmptyItem("ORO", 1),
             Instagram = EnsureSlots(data.Instagram, "INSTAGRAM", 2),
             Tiktok = EnsureSlots(data.Tiktok, "TIKTOK", 2),
             Gaceta = data.Gaceta,
             EscapeRooms = EnsureSlots(data.EscapeRooms, "ESCAPE", 3),
-            Casas = houses
+            Casas = orderedHouses,
+            AlumnosActivos = students
         };
     }
 
@@ -130,6 +172,9 @@ public sealed partial class LandingService
         var normalizedType = NormalizeType(type);
         ValidatePosition(normalizedType, position);
 
+        using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
         var imageUrl = request.ImagenUrlActual?.Trim() ?? string.Empty;
         if (request.ImagenFile is { Length: > 0 })
         {
@@ -139,19 +184,37 @@ public sealed partial class LandingService
                 cancellationToken);
         }
 
+        var idAlumno = normalizedType == "PLATA" ? request.IdAlumno : null;
         var title = Limit(request.Titulo, 160);
         var description = Limit(request.Descripcion, 600);
         var meta = Limit(request.Meta, 160);
         var link = NormalizeLink(normalizedType, request.EnlaceOEmbed);
         var active = normalizedType == "PLATA" || request.Activo;
 
+        if (normalizedType == "PLATA")
+        {
+            var houses = await GetMainHousesAsync(connection, cancellationToken);
+            var expectedHouse = houses.ElementAtOrDefault(position - 1)
+                ?? throw new BusinessRuleException("No se encontro la casa asignada a este lugar.");
+            var student = await GetActiveStudentAsync(connection, idAlumno, cancellationToken)
+                ?? throw new BusinessRuleException("Selecciona un alumno activo para este lugar.");
+
+            if (student.IdCasa != expectedHouse.IdCasa)
+            {
+                throw new BusinessRuleException($"El alumno seleccionado debe pertenecer a {expectedHouse.Nombre}.");
+            }
+
+            title = student.Nombre;
+            imageUrl = student.FotoPerfil;
+            meta = student.CasaNombre;
+            description = string.Empty;
+        }
+
         if (active)
         {
             ValidateActiveContent(normalizedType, title, imageUrl, link);
         }
 
-        using var connection = _connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
         using (var command = new SqlCommand(
                    """
                    MERGE LandingContenido AS Target
@@ -159,6 +222,7 @@ public sealed partial class LandingService
                    ON Target.Tipo = Source.Tipo AND Target.Posicion = Source.Posicion
                    WHEN MATCHED THEN UPDATE SET
                        Titulo = @Titulo,
+                       IdAlumno = @IdAlumno,
                        Descripcion = @Descripcion,
                        Meta = @Meta,
                        ImagenUrl = @ImagenUrl,
@@ -166,14 +230,15 @@ public sealed partial class LandingService
                        Activo = @Activo,
                        FechaActualizacion = SYSUTCDATETIME()
                    WHEN NOT MATCHED THEN INSERT
-                       (Tipo, Posicion, Titulo, Descripcion, Meta, ImagenUrl, EnlaceUrl, Activo)
+                       (Tipo, Posicion, IdAlumno, Titulo, Descripcion, Meta, ImagenUrl, EnlaceUrl, Activo)
                        VALUES
-                       (@Tipo, @Posicion, @Titulo, @Descripcion, @Meta, @ImagenUrl, @EnlaceUrl, @Activo);
+                       (@Tipo, @Posicion, @IdAlumno, @Titulo, @Descripcion, @Meta, @ImagenUrl, @EnlaceUrl, @Activo);
                    """,
                    connection))
         {
             command.Parameters.AddWithValue("@Tipo", normalizedType);
             command.Parameters.AddWithValue("@Posicion", position);
+            command.Parameters.AddWithValue("@IdAlumno", (object?)idAlumno ?? DBNull.Value);
             command.Parameters.AddWithValue("@Titulo", DbValue(title));
             command.Parameters.AddWithValue("@Descripcion", DbValue(description));
             command.Parameters.AddWithValue("@Meta", DbValue(meta));
@@ -248,10 +313,24 @@ public sealed partial class LandingService
         var items = new List<LandingContentItemDto>();
         using (var command = new SqlCommand(
                    $"""
-                   SELECT IdContenido, Tipo, Posicion, Titulo, Descripcion, Meta, ImagenUrl, EnlaceUrl, Activo
-                   FROM LandingContenido
-                   {(includeInactive ? string.Empty : "WHERE Activo = 1")}
-                   ORDER BY Tipo, Posicion
+                   SELECT
+                       LC.IdContenido,
+                       LC.Tipo,
+                       LC.Posicion,
+                       LC.IdAlumno,
+                       A.IdCasa,
+                       ISNULL(C.Nombre, '') AS CasaNombre,
+                       CASE WHEN LC.Tipo = 'PLATA' THEN ISNULL(A.Nombre, '') ELSE ISNULL(LC.Titulo, '') END AS Titulo,
+                       ISNULL(LC.Descripcion, '') AS Descripcion,
+                       CASE WHEN LC.Tipo = 'PLATA' THEN ISNULL(C.Nombre, '') ELSE ISNULL(LC.Meta, '') END AS Meta,
+                       CASE WHEN LC.Tipo = 'PLATA' THEN ISNULL(NULLIF(LTRIM(RTRIM(A.FotoPerfil)), ''), '~/Content/FotosPerfil/default.jpg') ELSE ISNULL(LC.ImagenUrl, '') END AS ImagenUrl,
+                       ISNULL(LC.EnlaceUrl, '') AS EnlaceUrl,
+                       LC.Activo
+                   FROM LandingContenido LC
+                   LEFT JOIN Alumnos A ON A.IdAlumno = LC.IdAlumno
+                   LEFT JOIN Casas C ON C.IdCasa = A.IdCasa
+                   {(includeInactive ? string.Empty : "WHERE LC.Activo = 1")}
+                   ORDER BY LC.Tipo, LC.Posicion
                    """,
                    connection))
         {
@@ -301,6 +380,44 @@ public sealed partial class LandingService
     private static LandingContentItemDto EmptyItem(string type, int position) =>
         new() { Tipo = type, Posicion = position };
 
+    private static IReadOnlyCollection<LandingContentItemDto> EnsureSilverSlots(
+        IEnumerable<LandingContentItemDto> items,
+        IReadOnlyList<LandingHouseOptionDto> houses)
+    {
+        var lookup = items.ToDictionary(item => item.Posicion);
+        return Enumerable.Range(1, 4)
+            .Select(position =>
+            {
+                var house = houses.ElementAtOrDefault(position - 1);
+                var item = lookup.GetValueOrDefault(position);
+                return item is null
+                    ? new LandingContentItemDto
+                    {
+                        Tipo = "PLATA",
+                        Posicion = position,
+                        IdCasa = house?.IdCasa,
+                        CasaNombre = house?.Nombre ?? string.Empty,
+                        Meta = house?.Nombre ?? string.Empty
+                    }
+                    : new LandingContentItemDto
+                    {
+                        IdContenido = item.IdContenido,
+                        Tipo = item.Tipo,
+                        Posicion = item.Posicion,
+                        IdAlumno = item.IdAlumno,
+                        IdCasa = house?.IdCasa ?? item.IdCasa,
+                        CasaNombre = house?.Nombre ?? item.CasaNombre,
+                        Titulo = item.Titulo,
+                        Descripcion = item.Descripcion,
+                        Meta = house?.Nombre ?? item.Meta,
+                        ImagenUrl = item.ImagenUrl,
+                        EnlaceUrl = item.EnlaceUrl,
+                        Activo = item.Activo
+                    };
+            })
+            .ToArray();
+    }
+
     private static async Task<LandingContentItemDto?> GetItemAsync(
         SqlConnection connection,
         string type,
@@ -309,9 +426,23 @@ public sealed partial class LandingService
     {
         using var command = new SqlCommand(
             """
-            SELECT IdContenido, Tipo, Posicion, Titulo, Descripcion, Meta, ImagenUrl, EnlaceUrl, Activo
-            FROM LandingContenido
-            WHERE Tipo = @Tipo AND Posicion = @Posicion
+            SELECT
+                LC.IdContenido,
+                LC.Tipo,
+                LC.Posicion,
+                LC.IdAlumno,
+                A.IdCasa,
+                ISNULL(C.Nombre, '') AS CasaNombre,
+                CASE WHEN LC.Tipo = 'PLATA' THEN ISNULL(A.Nombre, '') ELSE ISNULL(LC.Titulo, '') END AS Titulo,
+                ISNULL(LC.Descripcion, '') AS Descripcion,
+                CASE WHEN LC.Tipo = 'PLATA' THEN ISNULL(C.Nombre, '') ELSE ISNULL(LC.Meta, '') END AS Meta,
+                CASE WHEN LC.Tipo = 'PLATA' THEN ISNULL(NULLIF(LTRIM(RTRIM(A.FotoPerfil)), ''), '~/Content/FotosPerfil/default.jpg') ELSE ISNULL(LC.ImagenUrl, '') END AS ImagenUrl,
+                ISNULL(LC.EnlaceUrl, '') AS EnlaceUrl,
+                LC.Activo
+            FROM LandingContenido LC
+            LEFT JOIN Alumnos A ON A.IdAlumno = LC.IdAlumno
+            LEFT JOIN Casas C ON C.IdCasa = A.IdCasa
+            WHERE LC.Tipo = @Tipo AND LC.Posicion = @Posicion
             """,
             connection);
         command.Parameters.AddWithValue("@Tipo", type);
@@ -326,6 +457,9 @@ public sealed partial class LandingService
             IdContenido = GetRequiredInt(reader, "IdContenido"),
             Tipo = GetString(reader, "Tipo"),
             Posicion = GetRequiredInt(reader, "Posicion"),
+            IdAlumno = GetNullableInt(reader, "IdAlumno"),
+            IdCasa = GetNullableInt(reader, "IdCasa"),
+            CasaNombre = GetString(reader, "CasaNombre"),
             Titulo = GetString(reader, "Titulo"),
             Descripcion = GetString(reader, "Descripcion"),
             Meta = GetString(reader, "Meta"),
@@ -333,6 +467,97 @@ public sealed partial class LandingService
             EnlaceUrl = GetString(reader, "EnlaceUrl"),
             Activo = GetBoolean(reader, "Activo")
         };
+
+    private async Task<IReadOnlyList<LandingHouseOptionDto>> GetMainHousesAsync(
+        CancellationToken cancellationToken)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        return await GetMainHousesAsync(connection, cancellationToken);
+    }
+
+    private static async Task<IReadOnlyList<LandingHouseOptionDto>> GetMainHousesAsync(
+        SqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        var houses = new List<LandingHouseOptionDto>();
+        using var command = new SqlCommand(
+            """
+            SELECT IdCasa, Nombre, ISNULL(Color, '') AS Color
+            FROM Casas
+            WHERE LOWER(LTRIM(RTRIM(Nombre))) <> 'id'
+            """,
+            connection);
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            houses.Add(new LandingHouseOptionDto
+            {
+                IdCasa = GetRequiredInt(reader, "IdCasa"),
+                Nombre = GetString(reader, "Nombre"),
+                Color = GetString(reader, "Color")
+            });
+        }
+
+        return OrderMainHouses(houses);
+    }
+
+    private static IReadOnlyList<LandingHouseOptionDto> OrderMainHouses(
+        IEnumerable<LandingHouseOptionDto> houses) =>
+        houses
+            .OrderBy(house => HouseOrder(house.Nombre))
+            .ThenBy(house => house.Nombre)
+            .Take(4)
+            .ToArray();
+
+    private static int HouseOrder(string houseName)
+    {
+        var normalized = houseName.Trim().ToLowerInvariant();
+        if (normalized.Contains("gryffindor", StringComparison.Ordinal)) return 1;
+        if (normalized.Contains("slytherin", StringComparison.Ordinal)) return 2;
+        if (normalized.Contains("ravenclaw", StringComparison.Ordinal)) return 3;
+        if (normalized.Contains("hufflepuff", StringComparison.Ordinal)) return 4;
+        return 100;
+    }
+
+    private static async Task<LandingStudentLookup?> GetActiveStudentAsync(
+        SqlConnection connection,
+        int? idAlumno,
+        CancellationToken cancellationToken)
+    {
+        if (!idAlumno.HasValue || idAlumno <= 0)
+        {
+            return null;
+        }
+
+        using var command = new SqlCommand(
+            """
+            SELECT
+                A.IdAlumno,
+                A.Nombre,
+                ISNULL(NULLIF(LTRIM(RTRIM(A.FotoPerfil)), ''), '~/Content/FotosPerfil/default.jpg') AS FotoPerfil,
+                A.IdCasa,
+                C.Nombre AS CasaNombre
+            FROM Alumnos A
+            INNER JOIN Casas C ON C.IdCasa = A.IdCasa
+            WHERE A.IdAlumno = @IdAlumno
+              AND A.Activo = 1
+            """,
+            connection);
+        command.Parameters.AddWithValue("@IdAlumno", idAlumno.Value);
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new LandingStudentLookup(
+            GetRequiredInt(reader, "IdAlumno"),
+            GetString(reader, "Nombre"),
+            GetString(reader, "FotoPerfil"),
+            GetRequiredInt(reader, "IdCasa"),
+            GetString(reader, "CasaNombre"));
+    }
 
     private static string NormalizeType(string type)
     {
@@ -471,4 +696,11 @@ public sealed partial class LandingService
 
     [GeneratedRegex(@"/video/(?<id>\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex TiktokVideoRegex();
+
+    private sealed record LandingStudentLookup(
+        int IdAlumno,
+        string Nombre,
+        string FotoPerfil,
+        int IdCasa,
+        string CasaNombre);
 }

@@ -13,6 +13,9 @@ export interface LandingContentItem {
   idContenido: number;
   tipo: string;
   posicion: number;
+  idAlumno: number | null;
+  idCasa: number | null;
+  casaNombre: string;
   titulo: string;
   descripcion: string;
   meta: string;
@@ -39,6 +42,16 @@ export interface LandingHouseOption {
 
 export interface LandingAdmin extends LandingPage {
   casas: LandingHouseOption[];
+  alumnosActivos: LandingStudentOption[];
+}
+
+export interface LandingStudentOption {
+  idAlumno: number;
+  codigo: string;
+  nombre: string;
+  fotoPerfil: string;
+  idCasa: number;
+  casaNombre: string;
 }
 
 export interface SaveLandingConfiguration {
@@ -50,6 +63,7 @@ export interface SaveLandingConfiguration {
 }
 
 export interface SaveLandingContent {
+  idAlumno: number | null;
   titulo: string;
   descripcion: string;
   meta: string;

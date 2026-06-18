@@ -52,7 +52,14 @@
           [style.--house-color]="data()?.configuracion?.casaColor || '#c9a84f'"
         >
           <div class="winner-emblem">
-            <svg lucideIcon="trophy" aria-hidden="true"></svg>
+            @if (data()?.configuracion?.casaGanadora) {
+              <img
+                [src]="houseShieldUrl(data()!.configuracion.casaGanadora)"
+                [alt]="'Escudo de ' + data()!.configuracion.casaGanadora"
+              />
+            } @else {
+              <svg lucideIcon="trophy" aria-hidden="true"></svg>
+            }
           </div>
           <div>
             <span>{{ data()?.configuracion?.tituloCopa || 'Casa ganadora de la copa' }}</span>
@@ -70,18 +77,15 @@
           @for (dragon of data()?.dragonesPlata || []; track dragon.posicion) {
             <article class="dragon-card silver-card">
               @if (dragon.imagenUrl) {
-                <img [src]="assetUrl(dragon.imagenUrl)" [alt]="dragon.titulo" />
+                <img [src]="profileUrl(dragon.imagenUrl)" [alt]="dragon.titulo" />
               } @else {
                 <div class="dragon-placeholder">
                   <img src="/theme-assets/imperius-logo.webp" alt="" />
                 </div>
               }
               <div class="dragon-copy">
-                <span>Dragón de plata</span>
+                <span>Dragón de plata · {{ dragon.casaNombre || dragon.meta }}</span>
                 <h3>{{ dragon.titulo || 'Próximo reconocimiento' }}</h3>
-                @if (dragon.meta) {
-                  <p class="dragon-meta">{{ dragon.meta }}</p>
-                }
                 <p>{{ dragon.descripcion || 'Este lugar se actualizará en el próximo cierre quincenal.' }}</p>
               </div>
             </article>

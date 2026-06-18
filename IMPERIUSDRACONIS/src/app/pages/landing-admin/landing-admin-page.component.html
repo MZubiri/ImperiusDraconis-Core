@@ -82,10 +82,39 @@
         </div>
         <div class="item-grid">
           @for (item of silver; track item.posicion) {
-            <ng-container
-              [ngTemplateOutlet]="personEditor"
-              [ngTemplateOutletContext]="{ item: item, label: 'Dragón de plata ' + item.posicion }"
-            />
+            <article class="editor-card silver-editor">
+              <div class="editor-title">
+                <strong>{{ item.casaNombre }}</strong>
+                <span class="required-status">Un lugar fijo</span>
+              </div>
+              @if (selectedStudent(item); as student) {
+                <div class="student-preview">
+                  <img [src]="studentAvatar(student)" [alt]="student.nombre" />
+                  <div>
+                    <strong>{{ student.nombre }}</strong>
+                    <span>{{ student.codigo }}</span>
+                  </div>
+                </div>
+              } @else {
+                <div class="student-preview empty">
+                  <img [src]="studentAvatar(null)" alt="" />
+                  <span>Selecciona el alumno de {{ item.casaNombre }}</span>
+                </div>
+              }
+              <label>
+                <span>Alumno activo</span>
+                <select [(ngModel)]="item.idAlumno" [name]="'plataAlumno' + item.posicion">
+                  <option [ngValue]="null">Selecciona un alumno</option>
+                  @for (student of studentsForHouse(item.idCasa); track student.idAlumno) {
+                    <option [ngValue]="student.idAlumno">{{ student.codigo }} - {{ student.nombre }}</option>
+                  }
+                </select>
+              </label>
+              <button class="save-button" type="button" (click)="saveItem(item)" [disabled]="savingKey() === item.tipo + '-' + item.posicion || !item.idAlumno">
+                <svg lucideIcon="save" aria-hidden="true"></svg>
+                {{ savingKey() === item.tipo + '-' + item.posicion ? 'Guardando...' : 'Guardar selección' }}
+              </button>
+            </article>
           }
         </div>
       </section>
@@ -244,14 +273,10 @@
   <article class="editor-card">
     <div class="editor-title">
       <strong>{{ label }}</strong>
-      @if (item.tipo === 'PLATA') {
-        <span class="required-status">Siempre visible</span>
-      } @else {
-        <label class="active-toggle">
-          <input type="checkbox" [(ngModel)]="item.activo" [name]="item.tipo + 'Activo' + item.posicion" />
-          <span>Visible</span>
-        </label>
-      }
+      <label class="active-toggle">
+        <input type="checkbox" [(ngModel)]="item.activo" [name]="item.tipo + 'Activo' + item.posicion" />
+        <span>Visible</span>
+      </label>
     </div>
     @if (imageUrl(item)) {
       <img class="image-preview portrait" [src]="imageUrl(item)" [alt]="item.titulo" />

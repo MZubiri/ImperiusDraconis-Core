@@ -30,6 +30,7 @@ BEGIN
         IdContenido INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_LandingContenido PRIMARY KEY,
         Tipo NVARCHAR(30) NOT NULL,
         Posicion INT NOT NULL,
+        IdAlumno INT NULL,
         Titulo NVARCHAR(160) NULL,
         Descripcion NVARCHAR(600) NULL,
         Meta NVARCHAR(160) NULL,
@@ -37,8 +38,29 @@ BEGIN
         EnlaceUrl NVARCHAR(1200) NULL,
         Activo BIT NOT NULL CONSTRAINT DF_LandingContenido_Activo DEFAULT 0,
         FechaActualizacion DATETIME2 NOT NULL CONSTRAINT DF_LandingContenido_Fecha DEFAULT SYSUTCDATETIME(),
-        CONSTRAINT UQ_LandingContenido_TipoPosicion UNIQUE (Tipo, Posicion)
+        CONSTRAINT UQ_LandingContenido_TipoPosicion UNIQUE (Tipo, Posicion),
+        CONSTRAINT FK_LandingContenido_Alumnos FOREIGN KEY (IdAlumno) REFERENCES dbo.Alumnos(IdAlumno)
     );
+END
+GO
+
+IF COL_LENGTH(N'dbo.LandingContenido', N'IdAlumno') IS NULL
+BEGIN
+    ALTER TABLE dbo.LandingContenido ADD IdAlumno INT NULL;
+END
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'FK_LandingContenido_Alumnos'
+      AND parent_object_id = OBJECT_ID(N'dbo.LandingContenido')
+)
+BEGIN
+    ALTER TABLE dbo.LandingContenido
+    ADD CONSTRAINT FK_LandingContenido_Alumnos
+        FOREIGN KEY (IdAlumno) REFERENCES dbo.Alumnos(IdAlumno);
 END
 GO
 

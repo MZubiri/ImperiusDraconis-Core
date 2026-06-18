@@ -137,6 +137,7 @@
 .admin-form select,
 .admin-form textarea,
 .editor-card input,
+.editor-card select,
 .editor-card textarea {
   width: 100%;
   min-height: 42px;
@@ -194,6 +195,38 @@
   color: var(--gold);
   font-size: 0.8rem;
   font-weight: 700;
+}
+
+.student-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-height: 88px;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--input-bg);
+}
+
+.student-preview img {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.student-preview div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.student-preview span {
+  color: var(--text-soft);
+}
+
+.student-preview.empty {
+  color: var(--text-soft);
 }
 
 .active-toggle {

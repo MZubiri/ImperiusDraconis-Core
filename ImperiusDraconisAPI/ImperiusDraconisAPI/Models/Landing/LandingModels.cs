@@ -17,6 +17,7 @@ public class LandingPageDto
 public sealed class LandingAdminDto : LandingPageDto
 {
     public IReadOnlyCollection<LandingHouseOptionDto> Casas { get; init; } = [];
+    public IReadOnlyCollection<LandingStudentOptionDto> AlumnosActivos { get; init; } = [];
 }
 
 public sealed class LandingConfigurationDto
@@ -36,6 +37,9 @@ public sealed class LandingContentItemDto
     public int IdContenido { get; init; }
     public string Tipo { get; init; } = string.Empty;
     public int Posicion { get; init; }
+    public int? IdAlumno { get; init; }
+    public int? IdCasa { get; init; }
+    public string CasaNombre { get; init; } = string.Empty;
     public string Titulo { get; init; } = string.Empty;
     public string Descripcion { get; init; } = string.Empty;
     public string Meta { get; init; } = string.Empty;
@@ -49,6 +53,16 @@ public sealed class LandingHouseOptionDto
     public int IdCasa { get; init; }
     public string Nombre { get; init; } = string.Empty;
     public string Color { get; init; } = string.Empty;
+}
+
+public sealed class LandingStudentOptionDto
+{
+    public int IdAlumno { get; init; }
+    public string Codigo { get; init; } = string.Empty;
+    public string Nombre { get; init; } = string.Empty;
+    public string FotoPerfil { get; init; } = string.Empty;
+    public int IdCasa { get; init; }
+    public string CasaNombre { get; init; } = string.Empty;
 }
 
 public sealed class SaveLandingConfigurationRequest
@@ -70,6 +84,8 @@ public sealed class SaveLandingConfigurationRequest
 
 public sealed class SaveLandingContentRequest
 {
+    public int? IdAlumno { get; set; }
+
     [MaxLength(160)]
     public string? Titulo { get; set; }
 

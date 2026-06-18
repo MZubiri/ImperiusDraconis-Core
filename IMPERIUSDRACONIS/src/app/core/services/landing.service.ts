@@ -37,6 +37,9 @@ export class LandingService {
     payload: SaveLandingContent
   ): Observable<LandingContentItem> {
     const formData = new FormData();
+    if (payload.idAlumno) {
+      formData.set('idAlumno', String(payload.idAlumno));
+    }
     formData.set('titulo', payload.titulo);
     formData.set('descripcion', payload.descripcion);
     formData.set('meta', payload.meta);

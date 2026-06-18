@@ -20,8 +20,10 @@ import { finalize } from 'rxjs';
 import {
   LandingAdmin,
   LandingContentItem,
+  LandingStudentOption,
   SaveLandingContent
 } from '../../core/models/landing.models';
+import { resolveProfileAvatarUrl } from '../../core/constants/profile.constants';
 import { LandingService } from '../../core/services/landing.service';
 import { RuntimeConfigService } from '../../core/services/runtime-config.service';
 import { readHttpErrorMessage } from '../../core/utils/http-error.utils';
@@ -135,6 +137,9 @@ export class LandingAdminPageComponent {
         idContenido: 0,
         tipo: 'GACETA',
         posicion: position,
+        idAlumno: null,
+        idCasa: null,
+        casaNombre: '',
         titulo: '',
         descripcion: '',
         meta: '',
@@ -181,6 +186,24 @@ export class LandingAdminPageComponent {
     return item.imagenUrl ? this.runtimeConfig.resolveApiAssetUrl(item.imagenUrl) : '';
   }
 
+  studentsForHouse(idCasa: number | null): LandingStudentOption[] {
+    if (!idCasa) {
+      return [];
+    }
+
+    return (this.data()?.alumnosActivos ?? []).filter((student) => student.idCasa === idCasa);
+  }
+
+  selectedStudent(item: EditableLandingItem): LandingStudentOption | null {
+    return (
+      this.data()?.alumnosActivos.find((student) => student.idAlumno === item.idAlumno) ?? null
+    );
+  }
+
+  studentAvatar(student: LandingStudentOption | null): string {
+    return resolveProfileAvatarUrl(student?.fotoPerfil, this.runtimeConfig);
+  }
+
   private load(): void {
     this.landingService
       .getAdmin()
@@ -220,6 +243,7 @@ export class LandingAdminPageComponent {
 
   private toPayload(item: EditableLandingItem): SaveLandingContent {
     return {
+      idAlumno: item.idAlumno,
       titulo: item.titulo,
       descripcion: item.descripcion,
       meta: item.meta,
