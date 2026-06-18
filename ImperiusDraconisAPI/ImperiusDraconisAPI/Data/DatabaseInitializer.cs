@@ -59,6 +59,14 @@ public static class DatabaseInitializer
                 await ExecuteSqlScriptAsync(connection, script);
             }
 
+            var landingScriptPath = Path.Combine(rootPath, "016_create_public_landing.sql");
+            if (File.Exists(landingScriptPath))
+            {
+                logger.LogInformation("Verificando estructura de landing publica: 016_create_public_landing.sql");
+                var script = await File.ReadAllTextAsync(landingScriptPath);
+                await ExecuteSqlScriptAsync(connection, script);
+            }
+
             if (!tableExists)
             {
                 logger.LogInformation("Iniciando creacion de tablas para Biblioteca (012_create_biblioteca_tables.sql)...");

@@ -46,6 +46,7 @@ builder.Services.AddScoped<GameDragonService>();
 builder.Services.AddSingleton<IGeoLocationService, GeoLocationService>();
 builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
 builder.Services.AddScoped<BibliotecaService>();
+builder.Services.AddScoped<LandingService>();
 
 
 builder.Services.AddHttpClient();

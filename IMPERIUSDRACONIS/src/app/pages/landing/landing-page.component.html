@@ -1,0 +1,201 @@
+<main class="public-landing">
+  <header class="public-nav">
+    <a class="public-brand" href="#inicio" aria-label="Imperius Draconis">
+      <img src="/theme-assets/imperius-logo.webp" alt="" />
+      <span>Imperius Draconis</span>
+    </a>
+
+    <nav aria-label="Navegación pública">
+      <a href="#reconocimientos">Reconocimientos</a>
+      <a href="#publicaciones">Publicaciones</a>
+      <a href="#escape-rooms">Escape rooms</a>
+    </nav>
+
+    <a class="login-link" routerLink="/login">
+      <svg lucideIcon="log-in" aria-hidden="true"></svg>
+      <span>Iniciar sesión</span>
+    </a>
+  </header>
+
+  <section id="inicio" class="landing-hero">
+    <div class="hero-shade"></div>
+    <div class="hero-content">
+      <img class="hero-logo" src="/theme-assets/imperius-logo.webp" alt="" />
+      <p class="hero-kicker">Comunidad mágica</p>
+      <h1>{{ data()?.configuracion?.tituloPortada || 'Imperius Draconis' }}</h1>
+      <p class="hero-summary">
+        {{ data()?.configuracion?.subtituloPortada || 'La magia en tus manos' }}
+      </p>
+      <a class="hero-action" routerLink="/login">
+        Entrar al portal
+        <svg lucideIcon="arrow-right" aria-hidden="true"></svg>
+      </a>
+    </div>
+  </section>
+
+  @if (loading()) {
+    <section class="landing-status">Cargando novedades...</section>
+  } @else {
+    @if (errorMessage()) {
+      <section class="landing-status error">{{ errorMessage() }}</section>
+    }
+
+    <section id="reconocimientos" class="recognition-band">
+      <div class="section-heading">
+        <p>Reconocimientos quincenales</p>
+        <h2>La comunidad que deja huella</h2>
+      </div>
+
+      <div class="winner-layout">
+        <article
+          class="winner-feature"
+          [style.--house-color]="data()?.configuracion?.casaColor || '#c9a84f'"
+        >
+          <div class="winner-emblem">
+            <svg lucideIcon="trophy" aria-hidden="true"></svg>
+          </div>
+          <div>
+            <span>{{ data()?.configuracion?.tituloCopa || 'Casa ganadora de la copa' }}</span>
+            <h3>{{ data()?.configuracion?.casaGanadora || 'Próximamente' }}</h3>
+            <p>
+              {{
+                data()?.configuracion?.descripcionCopa ||
+                  'El próximo resultado será anunciado al cierre de la quincena.'
+              }}
+            </p>
+          </div>
+        </article>
+
+        <div class="silver-grid">
+          @for (dragon of data()?.dragonesPlata || []; track dragon.posicion) {
+            <article class="dragon-card silver-card">
+              @if (dragon.imagenUrl) {
+                <img [src]="assetUrl(dragon.imagenUrl)" [alt]="dragon.titulo" />
+              } @else {
+                <div class="dragon-placeholder">
+                  <img src="/theme-assets/imperius-logo.webp" alt="" />
+                </div>
+              }
+              <div class="dragon-copy">
+                <span>Dragón de plata</span>
+                <h3>{{ dragon.titulo || 'Próximo reconocimiento' }}</h3>
+                @if (dragon.meta) {
+                  <p class="dragon-meta">{{ dragon.meta }}</p>
+                }
+                <p>{{ dragon.descripcion || 'Este lugar se actualizará en el próximo cierre quincenal.' }}</p>
+              </div>
+            </article>
+          }
+        </div>
+      </div>
+
+      @if (data()?.dragonOro; as gold) {
+        <article class="gold-feature">
+          <img [src]="assetUrl(gold.imagenUrl)" [alt]="gold.titulo" />
+          <div>
+            <p class="gold-label">
+              <svg lucideIcon="sparkles" aria-hidden="true"></svg>
+              Distinción extraordinaria
+            </p>
+            <h2>Dragón de oro</h2>
+            <h3>{{ gold.titulo }}</h3>
+            @if (gold.meta) {
+              <p class="gold-meta">{{ gold.meta }}</p>
+            }
+            <p>{{ gold.descripcion }}</p>
+          </div>
+        </article>
+      }
+    </section>
+
+    @if ((data()?.instagram?.length || 0) + (data()?.tiktok?.length || 0) > 0) {
+      <section id="publicaciones" class="social-band">
+        <div class="section-heading">
+          <p>Desde nuestras redes</p>
+          <h2>Historias, momentos y anuncios</h2>
+        </div>
+
+        <div class="social-grid">
+          @for (post of data()?.instagram || []; track post.posicion) {
+            <article class="social-frame">
+              <header><span>Instagram</span></header>
+              <iframe
+                [src]="embedUrl(post.enlaceUrl)"
+                title="Publicación de Instagram"
+                loading="lazy"
+                allowtransparency="true"
+              ></iframe>
+            </article>
+          }
+          @for (post of data()?.tiktok || []; track post.posicion) {
+            <article class="social-frame">
+              <header><span>TikTok</span></header>
+              <iframe
+                [src]="embedUrl(post.enlaceUrl)"
+                title="Publicación de TikTok"
+                loading="lazy"
+                allow="encrypted-media"
+              ></iframe>
+            </article>
+          }
+        </div>
+      </section>
+    }
+
+    @if ((data()?.gaceta?.length || 0) > 0) {
+      <section class="gazette-band">
+        <div class="section-heading">
+          <p>Edición abierta</p>
+          <h2>La gaceta de Imperius</h2>
+        </div>
+        <div class="gazette-gallery">
+          @for (page of data()?.gaceta || []; track page.posicion) {
+            <figure>
+              <img [src]="assetUrl(page.imagenUrl)" [alt]="page.titulo || 'Página de la gaceta'" />
+              @if (page.titulo || page.descripcion) {
+                <figcaption>
+                  <strong>{{ page.titulo }}</strong>
+                  <span>{{ page.descripcion }}</span>
+                </figcaption>
+              }
+            </figure>
+          }
+        </div>
+      </section>
+    }
+
+    @if ((data()?.escapeRooms?.length || 0) > 0) {
+      <section id="escape-rooms" class="escape-band">
+        <div class="section-heading">
+          <p>Desafíos disponibles</p>
+          <h2>Elige tu próximo escape room</h2>
+        </div>
+        <div class="escape-grid">
+          @for (escape of data()?.escapeRooms || []; track escape.posicion) {
+            <a
+              class="escape-card"
+              [href]="safeExternalUrl(escape.enlaceUrl)"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img [src]="assetUrl(escape.imagenUrl)" [alt]="escape.titulo" />
+              <span class="escape-overlay"></span>
+              <span class="escape-title">
+                {{ escape.titulo }}
+                <svg lucideIcon="external-link" aria-hidden="true"></svg>
+              </span>
+            </a>
+          }
+        </div>
+      </section>
+    }
+  }
+
+  <footer class="public-footer">
+    <div>
+      <img src="/theme-assets/imperius-logo.webp" alt="" />
+      <strong>Imperius Draconis</strong>
+    </div>
+    <a routerLink="/login">Acceso al portal</a>
+  </footer>
+</main>

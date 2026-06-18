@@ -1,0 +1,301 @@
+<section class="landing-admin">
+  <header class="admin-header">
+    <div>
+      <p class="eyebrow">Contenido público</p>
+      <h1>Administrar portada</h1>
+      <p>Actualiza reconocimientos, publicaciones y experiencias sin modificar código.</p>
+    </div>
+    <a class="preview-button" href="/" target="_blank" rel="noopener">
+      <svg lucideIcon="eye" aria-hidden="true"></svg>
+      Ver portada
+    </a>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="admin-message error">{{ errorMessage() }}</div>
+  }
+  @if (successMessage()) {
+    <div class="admin-message success">{{ successMessage() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="admin-empty">Cargando contenido...</div>
+  } @else {
+    <nav class="admin-tabs" aria-label="Secciones administrables">
+      <button type="button" [class.active]="activeSection() === 'portada'" (click)="setSection('portada')">Portada y copa</button>
+      <button type="button" [class.active]="activeSection() === 'plata'" (click)="setSection('plata')">Dragones de plata</button>
+      <button type="button" [class.active]="activeSection() === 'oro'" (click)="setSection('oro')">Dragón de oro</button>
+      <button type="button" [class.active]="activeSection() === 'redes'" (click)="setSection('redes')">Redes sociales</button>
+      <button type="button" [class.active]="activeSection() === 'gaceta'" (click)="setSection('gaceta')">Gaceta</button>
+      <button type="button" [class.active]="activeSection() === 'escapes'" (click)="setSection('escapes')">Escape rooms</button>
+    </nav>
+
+    @if (activeSection() === 'portada') {
+      <form class="admin-form" (ngSubmit)="saveConfiguration()">
+        <div class="form-heading">
+          <div>
+            <h2>Portada y casa ganadora</h2>
+            <p>La casa puede cambiarse en cada cierre quincenal.</p>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label>
+            <span>Título principal</span>
+            <input name="tituloPortada" [(ngModel)]="tituloPortada" maxlength="160" required />
+          </label>
+          <label>
+            <span>Frase de portada</span>
+            <input name="subtituloPortada" [(ngModel)]="subtituloPortada" maxlength="500" />
+          </label>
+          <label>
+            <span>Casa ganadora</span>
+            <select name="idCasaGanadora" [(ngModel)]="idCasaGanadora">
+              <option [ngValue]="null">Sin anuncio actual</option>
+              @for (house of data()?.casas || []; track house.idCasa) {
+                <option [ngValue]="house.idCasa">{{ house.nombre }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Título de la copa</span>
+            <input name="tituloCopa" [(ngModel)]="tituloCopa" maxlength="160" />
+          </label>
+        </div>
+        <label>
+          <span>Descripción de la copa</span>
+          <textarea name="descripcionCopa" [(ngModel)]="descripcionCopa" rows="4" maxlength="500"></textarea>
+        </label>
+        <button class="save-button" type="submit" [disabled]="savingKey() === 'config'">
+          <svg lucideIcon="save" aria-hidden="true"></svg>
+          {{ savingKey() === 'config' ? 'Guardando...' : 'Guardar portada' }}
+        </button>
+      </form>
+    }
+
+    @if (activeSection() === 'plata') {
+      <section class="editor-section">
+        <div class="form-heading">
+          <div>
+            <h2>Dragones de plata</h2>
+            <p>Completa y activa exactamente cuatro alumnos para cada quincena.</p>
+          </div>
+        </div>
+        <div class="item-grid">
+          @for (item of silver; track item.posicion) {
+            <ng-container
+              [ngTemplateOutlet]="personEditor"
+              [ngTemplateOutletContext]="{ item: item, label: 'Dragón de plata ' + item.posicion }"
+            />
+          }
+        </div>
+      </section>
+    }
+
+    @if (activeSection() === 'oro' && gold; as item) {
+      <section class="editor-section single-editor">
+        <div class="form-heading">
+          <div>
+            <h2>Dragón de oro</h2>
+            <p>Déjalo desactivado cuando no exista una distinción vigente.</p>
+          </div>
+        </div>
+        <ng-container
+          [ngTemplateOutlet]="personEditor"
+          [ngTemplateOutletContext]="{ item: item, label: 'Dragón de oro' }"
+        />
+      </section>
+    }
+
+    @if (activeSection() === 'redes') {
+      <section class="editor-section">
+        <div class="form-heading">
+          <div>
+            <h2>Publicaciones de redes</h2>
+            <p>Pega el enlace de la publicación o el código embed completo.</p>
+          </div>
+        </div>
+        <div class="social-editors">
+          <div>
+            <h3>Instagram</h3>
+            @for (item of instagram; track item.posicion) {
+              <ng-container
+                [ngTemplateOutlet]="socialEditor"
+                [ngTemplateOutletContext]="{ item: item, label: 'Instagram ' + item.posicion }"
+              />
+            }
+          </div>
+          <div>
+            <h3>TikTok</h3>
+            @for (item of tiktok; track item.posicion) {
+              <ng-container
+                [ngTemplateOutlet]="socialEditor"
+                [ngTemplateOutletContext]="{ item: item, label: 'TikTok ' + item.posicion }"
+              />
+            }
+          </div>
+        </div>
+      </section>
+    }
+
+    @if (activeSection() === 'gaceta') {
+      <section class="editor-section">
+        <div class="form-heading">
+          <div>
+            <h2>Gaceta y anuncios</h2>
+            <p>Puedes publicar hasta doce imágenes y ordenar su aparición por posición.</p>
+          </div>
+          <button class="secondary-button" type="button" (click)="addGazetteItem()">
+            <svg lucideIcon="image-plus" aria-hidden="true"></svg>
+            Agregar imagen
+          </button>
+        </div>
+        @if (gazette.length === 0) {
+          <div class="admin-empty">Aún no hay imágenes en la gaceta.</div>
+        }
+        <div class="item-grid">
+          @for (item of gazette; track item.posicion) {
+            <article class="editor-card">
+              <div class="editor-title">
+                <strong>Imagen {{ item.posicion }}</strong>
+                <label class="active-toggle">
+                  <input type="checkbox" [(ngModel)]="item.activo" [name]="'gacetaActivo' + item.posicion" />
+                  <span>Visible</span>
+                </label>
+              </div>
+              @if (imageUrl(item)) {
+                <img class="image-preview portrait" [src]="imageUrl(item)" [alt]="item.titulo" />
+              }
+              <label>
+                <span>Título opcional</span>
+                <input [(ngModel)]="item.titulo" [name]="'gacetaTitulo' + item.posicion" maxlength="160" />
+              </label>
+              <label>
+                <span>Texto opcional</span>
+                <textarea [(ngModel)]="item.descripcion" [name]="'gacetaDescripcion' + item.posicion" rows="3" maxlength="600"></textarea>
+              </label>
+              <label class="file-field">
+                <span>Subir imagen</span>
+                <input type="file" accept="image/*" (change)="selectFile(item, $event)" />
+                <small>{{ item.imagenFile?.name || 'JPG, PNG, GIF o WEBP' }}</small>
+              </label>
+              <div class="card-actions">
+                <button class="save-button" type="button" (click)="saveItem(item)" [disabled]="savingKey() === item.tipo + '-' + item.posicion">
+                  <svg lucideIcon="save" aria-hidden="true"></svg>
+                  Guardar
+                </button>
+                <button class="delete-button" type="button" (click)="deleteGazetteItem(item)" [disabled]="savingKey() === 'delete-GACETA-' + item.posicion">
+                  <svg lucideIcon="trash-2" aria-hidden="true"></svg>
+                  Eliminar
+                </button>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+    }
+
+    @if (activeSection() === 'escapes') {
+      <section class="editor-section">
+        <div class="form-heading">
+          <div>
+            <h2>Escape rooms</h2>
+            <p>Configura los tres accesos destacados de la portada.</p>
+          </div>
+        </div>
+        <div class="item-grid three-columns">
+          @for (item of escapes; track item.posicion) {
+            <article class="editor-card">
+              <div class="editor-title">
+                <strong>Escape room {{ item.posicion }}</strong>
+                <label class="active-toggle">
+                  <input type="checkbox" [(ngModel)]="item.activo" [name]="'escapeActivo' + item.posicion" />
+                  <span>Visible</span>
+                </label>
+              </div>
+              @if (imageUrl(item)) {
+                <img class="image-preview" [src]="imageUrl(item)" [alt]="item.titulo" />
+              }
+              <label>
+                <span>Título</span>
+                <input [(ngModel)]="item.titulo" [name]="'escapeTitulo' + item.posicion" maxlength="160" />
+              </label>
+              <label>
+                <span>Enlace</span>
+                <input type="url" [(ngModel)]="item.enlaceOEmbed" [name]="'escapeUrl' + item.posicion" />
+              </label>
+              <label class="file-field">
+                <span>Imagen</span>
+                <input type="file" accept="image/*" (change)="selectFile(item, $event)" />
+                <small>{{ item.imagenFile?.name || 'JPG, PNG, GIF o WEBP' }}</small>
+              </label>
+              <button class="save-button" type="button" (click)="saveItem(item)" [disabled]="savingKey() === item.tipo + '-' + item.posicion">
+                <svg lucideIcon="save" aria-hidden="true"></svg>
+                Guardar
+              </button>
+            </article>
+          }
+        </div>
+      </section>
+    }
+  }
+</section>
+
+<ng-template #personEditor let-item="item" let-label="label">
+  <article class="editor-card">
+    <div class="editor-title">
+      <strong>{{ label }}</strong>
+      @if (item.tipo === 'PLATA') {
+        <span class="required-status">Siempre visible</span>
+      } @else {
+        <label class="active-toggle">
+          <input type="checkbox" [(ngModel)]="item.activo" [name]="item.tipo + 'Activo' + item.posicion" />
+          <span>Visible</span>
+        </label>
+      }
+    </div>
+    @if (imageUrl(item)) {
+      <img class="image-preview portrait" [src]="imageUrl(item)" [alt]="item.titulo" />
+    }
+    <label>
+      <span>Nombre del alumno</span>
+      <input [(ngModel)]="item.titulo" [name]="item.tipo + 'Titulo' + item.posicion" maxlength="160" />
+    </label>
+    <label>
+      <span>Casa, curso o dato breve</span>
+      <input [(ngModel)]="item.meta" [name]="item.tipo + 'Meta' + item.posicion" maxlength="160" />
+    </label>
+    <label>
+      <span>Descripción</span>
+      <textarea [(ngModel)]="item.descripcion" [name]="item.tipo + 'Descripcion' + item.posicion" rows="4" maxlength="600"></textarea>
+    </label>
+    <label class="file-field">
+      <span>Foto</span>
+      <input type="file" accept="image/*" (change)="selectFile(item, $event)" />
+      <small>{{ item.imagenFile?.name || 'JPG, PNG, GIF o WEBP' }}</small>
+    </label>
+    <button class="save-button" type="button" (click)="saveItem(item)" [disabled]="savingKey() === item.tipo + '-' + item.posicion">
+      <svg lucideIcon="save" aria-hidden="true"></svg>
+      {{ savingKey() === item.tipo + '-' + item.posicion ? 'Guardando...' : 'Guardar' }}
+    </button>
+  </article>
+</ng-template>
+
+<ng-template #socialEditor let-item="item" let-label="label">
+  <article class="editor-card social-editor">
+    <div class="editor-title">
+      <strong>{{ label }}</strong>
+      <label class="active-toggle">
+        <input type="checkbox" [(ngModel)]="item.activo" [name]="item.tipo + 'Activo' + item.posicion" />
+        <span>Visible</span>
+      </label>
+    </div>
+    <label>
+      <span>Enlace o código embed</span>
+      <textarea [(ngModel)]="item.enlaceOEmbed" [name]="item.tipo + 'Url' + item.posicion" rows="5"></textarea>
+    </label>
+    <button class="save-button" type="button" (click)="saveItem(item)" [disabled]="savingKey() === item.tipo + '-' + item.posicion">
+      <svg lucideIcon="save" aria-hidden="true"></svg>
+      Guardar
+    </button>
+  </article>
+</ng-template>

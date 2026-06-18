@@ -5,6 +5,12 @@ import { AppShellComponent } from './layout/app-shell/app-shell.component';
 
 const loadLoginPage = () =>
   import('./pages/login/login-page.component').then((module) => module.LoginPageComponent);
+const loadLandingPage = () =>
+  import('./pages/landing/landing-page.component').then((module) => module.LandingPageComponent);
+const loadLandingAdminPage = () =>
+  import('./pages/landing-admin/landing-admin-page.component').then(
+    (module) => module.LandingAdminPageComponent
+  );
 const loadLogoutPage = () =>
   import('./pages/login/logout-page.component').then((module) => module.LogoutPageComponent);
 const loadDashboardPage = () =>
@@ -35,6 +41,11 @@ const loadCumpleanosPage = () =>
   import('./pages/cumpleanos/cumpleanos-page.component').then((module) => module.CumpleanosPageComponent);
 
 export const routes: Routes = [
+  {
+    path: '',
+    pathMatch: 'full',
+    loadComponent: loadLandingPage
+  },
   {
     path: 'login',
     loadComponent: loadLoginPage,
@@ -69,11 +80,6 @@ export const routes: Routes = [
     component: AppShellComponent,
     canActivate: [authGuard],
     children: [
-      {
-        path: '',
-        pathMatch: 'full',
-        redirectTo: 'dashboard'
-      },
       {
         path: 'dashboard',
         loadComponent: loadDashboardPage
@@ -294,6 +300,10 @@ export const routes: Routes = [
       {
         path: 'Cumpleanos',
         loadComponent: loadCumpleanosPage
+      },
+      {
+        path: 'landing-admin',
+        loadComponent: loadLandingAdminPage
       }
     ]
   },

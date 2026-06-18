@@ -1,0 +1,307 @@
+.landing-admin {
+  display: grid;
+  gap: 1rem;
+  padding-bottom: 2rem;
+}
+
+.admin-header,
+.form-heading,
+.editor-title,
+.card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-header {
+  padding: 1.25rem 0;
+}
+
+.admin-header h1 {
+  font-size: 24px;
+}
+
+.admin-header p,
+.form-heading p {
+  margin: 0.35rem 0 0;
+  color: var(--text-soft);
+}
+
+.eyebrow {
+  margin: 0 0 0.3rem !important;
+  color: var(--gold) !important;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.preview-button,
+.save-button,
+.secondary-button,
+.delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 42px;
+  padding: 0 0.95rem;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.preview-button,
+.save-button {
+  border: 1px solid var(--gold);
+  color: var(--button-text);
+  background: var(--gold);
+  text-decoration: none;
+}
+
+.secondary-button {
+  border: 1px solid var(--border-strong);
+  color: var(--text-main);
+  background: var(--panel-strong);
+}
+
+.delete-button {
+  border: 1px solid color-mix(in srgb, var(--danger) 48%, var(--border));
+  color: var(--danger);
+  background: transparent;
+}
+
+.preview-button svg,
+.save-button svg,
+.secondary-button svg,
+.delete-button svg {
+  width: 17px;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.admin-tabs button {
+  min-height: 40px;
+  padding: 0 0.9rem;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-soft);
+  background: transparent;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.admin-tabs button.active {
+  color: var(--text-main);
+  background: var(--accent-soft);
+}
+
+.admin-form,
+.editor-section {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.admin-form label,
+.editor-card label {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.admin-form label > span,
+.editor-card label > span {
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.admin-form input,
+.admin-form select,
+.admin-form textarea,
+.editor-card input,
+.editor-card textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: none;
+  color: var(--text-main);
+  background: var(--input-bg);
+  font: inherit;
+}
+
+.admin-form textarea,
+.editor-card textarea {
+  resize: vertical;
+}
+
+.admin-form input:focus,
+.admin-form select:focus,
+.admin-form textarea:focus,
+.editor-card input:focus,
+.editor-card textarea:focus {
+  border-color: var(--gold);
+}
+
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.item-grid.three-columns {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.single-editor .editor-card {
+  width: min(620px, 100%);
+}
+
+.editor-card {
+  display: grid;
+  align-content: start;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-strong);
+}
+
+.editor-title strong {
+  font-size: 1rem;
+}
+
+.required-status {
+  color: var(--gold);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.active-toggle {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 0.45rem !important;
+}
+
+.active-toggle input {
+  width: 18px;
+  min-height: 18px;
+  accent-color: var(--gold);
+}
+
+.image-preview {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.image-preview.portrait {
+  aspect-ratio: 4 / 3;
+}
+
+.file-field {
+  padding: 0.75rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: 6px;
+}
+
+.file-field input {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.file-field small {
+  overflow: hidden;
+  color: var(--text-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.social-editors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.social-editors > div {
+  display: grid;
+  align-content: start;
+  gap: 0.8rem;
+}
+
+.admin-message,
+.admin-empty {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.admin-message.error {
+  color: #ffd4ce;
+  border-color: rgba(229, 101, 101, 0.4);
+}
+
+.admin-message.success {
+  color: #c8f5d9;
+  border-color: rgba(79, 185, 130, 0.4);
+}
+
+.admin-empty {
+  color: var(--text-soft);
+  text-align: center;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+@media (max-width: 1050px) {
+  .item-grid.three-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-header,
+  .form-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .form-grid,
+  .item-grid,
+  .social-editors {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-button,
+  .save-button,
+  .secondary-button {
+    width: 100%;
+  }
+}
