@@ -18,5 +18,6 @@ ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
 COPY --from=build /app/publish ./
+RUN mkdir -p wwwroot_backup && [ -d wwwroot/Content ] && cp -R wwwroot/Content wwwroot_backup/ || true
 
 ENTRYPOINT ["dotnet", "ImperiusDraconisAPI.dll"]

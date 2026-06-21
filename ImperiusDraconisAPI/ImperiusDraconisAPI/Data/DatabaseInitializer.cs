@@ -10,6 +10,9 @@ public static class DatabaseInitializer
         var connectionFactory = serviceProvider.GetRequiredService<SqlConnectionFactory>();
         var logger = serviceProvider.GetRequiredService<ILogger<SqlConnectionFactory>>();
 
+        // Restablecer imagenes de tienda y rincon respaldadas si hacen falta en el volumen persistente
+        RestoreBackupAssets(environment, logger);
+
         try
         {
             using var connection = connectionFactory.CreateConnection();
@@ -215,6 +218,60 @@ public static class DatabaseInitializer
             using var command = new SqlCommand(commandText, connection);
             command.CommandTimeout = 300; // 5 minutos para evitar timeouts en siembras grandes de datos
             await command.ExecuteNonQueryAsync();
+        }
+    }
+
+    private static void RestoreBackupAssets(IWebHostEnvironment environment, ILogger logger)
+    {
+        var backupPath = Path.Combine(AppContext.BaseDirectory, "wwwroot_backup", "Content");
+        var targetPath = Path.Combine(environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot"), "Content");
+
+        if (!Directory.Exists(backupPath))
+        {
+            backupPath = Path.Combine(environment.ContentRootPath, "wwwroot_backup", "Content");
+            if (!Directory.Exists(backupPath))
+            {
+                logger.LogWarning("Directorio de respaldo de assets no encontrado: wwwroot_backup/Content");
+                return;
+            }
+        }
+
+        try
+        {
+            logger.LogInformation("Restableciendo assets desde respaldo {BackupPath} hacia {TargetPath}...", backupPath, targetPath);
+            CopyDirectory(backupPath, targetPath, logger);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error al restablecer assets de respaldo.");
+        }
+    }
+
+    private static void CopyDirectory(string sourceDir, string destinationDir, ILogger logger)
+    {
+        Directory.CreateDirectory(destinationDir);
+
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var destFile = Path.Combine(destinationDir, Path.GetFileName(file));
+            if (!File.Exists(destFile))
+            {
+                try
+                {
+                    File.Copy(file, destFile);
+                    logger.LogInformation("Asset restablecido en volumen persistente: {FileName}", Path.GetFileName(file));
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error al copiar archivo {File} a {DestFile}.", file, destFile);
+                }
+            }
+        }
+
+        foreach (var subDir in Directory.GetDirectories(sourceDir))
+        {
+            var destSubDir = Path.Combine(destinationDir, Path.GetFileName(subDir));
+            CopyDirectory(subDir, destSubDir, logger);
         }
     }
 }
