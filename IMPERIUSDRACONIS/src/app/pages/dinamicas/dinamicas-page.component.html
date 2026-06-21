@@ -565,11 +565,14 @@
           </div>
           <p>Busca alumnos activos, asigna dracoins y registra la dinámica en una sola operación.</p>
         </div>
-
+        <!-- Ocultado temporalmente por discrepancias en su funcionamiento -->
+        <!--
         <div class="actions">
           <button class="ghost-button" type="button" (click)="openDracoinsCounterModal()">Contador de Dracoins</button>
           <button class="ghost-button" type="button" (click)="openFlashDracoinsCounterModal()">Flash de Dracoins</button>
         </div>
+        -->
+
 
         <form class="create-form" (ngSubmit)="submitDracoinsDinamica()">
           <label class="field">
@@ -665,7 +668,8 @@
           </div>
           <p>Registra una dinámica y suma puntos al marcador de las casas principales.</p>
         </div>
-
+        <!-- Ocultado temporalmente por discrepancias en su funcionamiento -->
+        <!--
         <div class="points-mode-selector" role="radiogroup" aria-label="Modo de registro de puntos">
           <label>
             <input type="radio" name="pointsRegistrationMode" value="manual" [(ngModel)]="pointsRegistrationMode" />
@@ -680,6 +684,8 @@
             <span>Flash</span>
           </label>
         </div>
+        -->
+
 
         @if (pointsRegistrationMode === 'manual') {
         <form class="create-form" (ngSubmit)="submitPointsDinamica()">
