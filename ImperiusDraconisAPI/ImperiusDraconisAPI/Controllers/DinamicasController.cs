@@ -165,7 +165,6 @@ public sealed class DinamicasController : ControllerBase
     }
 
     [HttpGet("agenda")]
-    [HasPermission(AgendaPermission)]
     [ProducesResponseType(typeof(IReadOnlyCollection<AgendaDinamicaDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyCollection<AgendaDinamicaDto>>> GetAgenda(
         [FromQuery] DateTime? fecha,
