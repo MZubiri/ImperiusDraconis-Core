@@ -2,15 +2,15 @@ using System.Globalization;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Permisos;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services;
 
 public sealed class PermisosService
 {
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
 
-    public PermisosService(SqlConnectionFactory connectionFactory)
+    public PermisosService(MySqlConnectionFactory connectionFactory)
     {
         _connectionFactory = connectionFactory;
     }
@@ -21,7 +21,7 @@ public sealed class PermisosService
         await connection.OpenAsync(cancellationToken);
 
         var items = new List<CatalogItemDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "SELECT IdCargo, Nombre FROM Cargos ORDER BY Nombre",
             connection);
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -43,8 +43,8 @@ public sealed class PermisosService
         await connection.OpenAsync(cancellationToken);
 
         var cargoNombre = string.Empty;
-        using (var cargoCommand = new SqlCommand(
-                   "SELECT TOP 1 Nombre FROM Cargos WHERE IdCargo = @IdCargo",
+        using (var cargoCommand = new MySqlCommand(
+                   "SELECT Nombre FROM Cargos WHERE IdCargo = @IdCargo LIMIT 1",
                    connection))
         {
             cargoCommand.Parameters.AddWithValue("@IdCargo", idCargo);
@@ -60,7 +60,7 @@ public sealed class PermisosService
         }
 
         var permisos = new List<PermisoDetalleDto>();
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    SELECT IdPermiso, Controlador, Accion, TienePermiso
                    FROM Permisos
@@ -109,7 +109,7 @@ public sealed class PermisosService
         {
             foreach (var item in items)
             {
-                using var command = new SqlCommand(
+                using var command = new MySqlCommand(
                     """
                     UPDATE Permisos
                     SET TienePermiso = @TienePermiso
@@ -117,7 +117,7 @@ public sealed class PermisosService
                       AND IdCargo = @IdCargo
                     """,
                     connection,
-                    (SqlTransaction)transaction);
+                    (MySqlTransaction)transaction);
                 command.Parameters.AddWithValue("@TienePermiso", item.TienePermiso);
                 command.Parameters.AddWithValue("@IdPermiso", item.IdPermiso);
                 command.Parameters.AddWithValue("@IdCargo", idCargo);
@@ -146,7 +146,7 @@ public sealed class PermisosService
 
         try
         {
-            using (var cargoCommand = new SqlCommand(
+            using (var cargoCommand = new MySqlCommand(
                        """
                        INSERT INTO Permisos (IdCargo, Controlador, Accion, TienePermiso)
                        SELECT C.IdCargo, @Controlador, @Accion, 0
@@ -160,14 +160,14 @@ public sealed class PermisosService
                        )
                        """,
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 cargoCommand.Parameters.AddWithValue("@Controlador", controlador);
                 cargoCommand.Parameters.AddWithValue("@Accion", accion);
                 await cargoCommand.ExecuteNonQueryAsync(cancellationToken);
             }
 
-            using (var trabajoCommand = new SqlCommand(
+            using (var trabajoCommand = new MySqlCommand(
                        """
                        INSERT INTO PermisosTrabajos (IdTrabajo, Controlador, Accion, TienePermiso)
                        SELECT T.IdTrabajo, @Controlador, @Accion, 0
@@ -181,7 +181,7 @@ public sealed class PermisosService
                        )
                        """,
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 trabajoCommand.Parameters.AddWithValue("@Controlador", controlador);
                 trabajoCommand.Parameters.AddWithValue("@Accion", accion);
@@ -197,13 +197,13 @@ public sealed class PermisosService
         }
     }
 
-    private static string GetString(SqlDataReader reader, string columnName) =>
+    private static string GetString(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? string.Empty : reader[columnName]?.ToString() ?? string.Empty;
 
-    private static int GetRequiredInt(SqlDataReader reader, string columnName) =>
+    private static int GetRequiredInt(MySqlDataReader reader, string columnName) =>
         Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static bool GetBoolean(SqlDataReader reader, string columnName) =>
+    private static bool GetBoolean(MySqlDataReader reader, string columnName) =>
         reader[columnName] != DBNull.Value && Convert.ToBoolean(reader[columnName], CultureInfo.InvariantCulture);
 
     private static string NormalizeRequired(string? value, string message, int maxLength)

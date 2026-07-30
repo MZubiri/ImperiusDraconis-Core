@@ -2,17 +2,17 @@ using System.Globalization;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Chismes;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services;
 
 public sealed class ChismesService
 {
     private const int RewardAmount = 50;
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
     private readonly LegacyAssetStorage _assetStorage;
 
-    public ChismesService(SqlConnectionFactory connectionFactory, LegacyAssetStorage assetStorage)
+    public ChismesService(MySqlConnectionFactory connectionFactory, LegacyAssetStorage assetStorage)
     {
         _connectionFactory = connectionFactory;
         _assetStorage = assetStorage;
@@ -31,7 +31,7 @@ public sealed class ChismesService
         await connection.OpenAsync(cancellationToken);
 
         var totalRegistros = 0;
-        using (var countCommand = new SqlCommand(
+        using (var countCommand = new MySqlCommand(
                    """
                    SELECT COUNT(*)
                    FROM Chismes C
@@ -48,7 +48,7 @@ public sealed class ChismesService
         }
 
         var rows = new List<ChismeDto>();
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    SELECT
                        C.IdChisme,
@@ -62,7 +62,7 @@ public sealed class ChismesService
                    WHERE (@FechaInicio IS NULL OR C.FechaEnvio >= @FechaInicio)
                      AND (@FechaFin IS NULL OR C.FechaEnvio <= @FechaFin)
                    ORDER BY C.FechaEnvio DESC, C.IdChisme DESC
-                   OFFSET @Offset ROWS FETCH NEXT @Fetch ROWS ONLY
+                   LIMIT @Fetch OFFSET @Offset
                    """,
                    connection))
         {
@@ -141,14 +141,14 @@ public sealed class ChismesService
         try
         {
             int idChisme;
-            using (var command = new SqlCommand(
+            using (var command = new MySqlCommand(
                        """
                        INSERT INTO Chismes (IdAlumno, Texto)
                        OUTPUT INSERTED.IdChisme
                        VALUES (@IdAlumno, @Texto)
                        """,
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 command.Parameters.AddWithValue("@IdAlumno", idAlumno);
                 command.Parameters.AddWithValue("@Texto", string.IsNullOrWhiteSpace(texto) ? DBNull.Value : texto);
@@ -165,10 +165,10 @@ public sealed class ChismesService
                     Path.Combine("Content", "chismes"),
                     cancellationToken);
 
-                using var insertImageCommand = new SqlCommand(
+                using var insertImageCommand = new MySqlCommand(
                     "INSERT INTO ChismeImagenes (IdChisme, RutaImagen) VALUES (@IdChisme, @RutaImagen)",
                     connection,
-                    (SqlTransaction)transaction);
+                    (MySqlTransaction)transaction);
                 insertImageCommand.Parameters.AddWithValue("@IdChisme", idChisme);
                 insertImageCommand.Parameters.AddWithValue("@RutaImagen", path);
                 await insertImageCommand.ExecuteNonQueryAsync(cancellationToken);
@@ -176,24 +176,24 @@ public sealed class ChismesService
                 imagePaths.Add(path);
             }
 
-            using (var rewardCommand = new SqlCommand(
+            using (var rewardCommand = new MySqlCommand(
                        "UPDATE Alumnos SET Dracoins = Dracoins + @Monto WHERE IdAlumno = @IdAlumno",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 rewardCommand.Parameters.AddWithValue("@Monto", RewardAmount);
                 rewardCommand.Parameters.AddWithValue("@IdAlumno", idAlumno);
                 await rewardCommand.ExecuteNonQueryAsync(cancellationToken);
             }
 
-            using (var movementCommand = new SqlCommand(
+            using (var movementCommand = new MySqlCommand(
                        """
                        INSERT INTO MovimientosDracoins
                        (CodigoRemitente, CodigoDestinatario, Monto, FechaTransferencia, Observacion)
                        VALUES ('CHISME', @CodigoDestinatario, @Monto, @FechaTransferencia, @Observacion)
                        """,
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 movementCommand.Parameters.AddWithValue("@CodigoDestinatario", alumno.Codigo);
                 movementCommand.Parameters.AddWithValue("@Monto", RewardAmount);
@@ -221,13 +221,13 @@ public sealed class ChismesService
     }
 
     private static async Task<AlumnoLookup?> GetAlumnoAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idAlumno,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
-            "SELECT TOP 1 IdAlumno, Codigo FROM Alumnos WHERE IdAlumno = @IdAlumno AND Activo = 1",
+        using var command = new MySqlCommand(
+            "SELECT IdAlumno, Codigo FROM Alumnos WHERE IdAlumno = @IdAlumno AND Activo = 1 LIMIT 1",
             connection,
             transaction);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -246,8 +246,8 @@ public sealed class ChismesService
     }
 
     private static async Task<Dictionary<int, string[]>> GetImagesByChismeIdsAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         IEnumerable<int> idsChisme,
         CancellationToken cancellationToken)
     {
@@ -273,7 +273,7 @@ public sealed class ChismesService
             ORDER BY IdImagen
             """;
 
-        using var command = new SqlCommand(sql, connection, transaction);
+        using var command = new MySqlCommand(sql, connection, transaction);
         for (var index = 0; index < ids.Length; index++)
         {
             command.Parameters.AddWithValue(parameterNames[index], ids[index]);
@@ -296,13 +296,13 @@ public sealed class ChismesService
         return result.ToDictionary(item => item.Key, item => item.Value.ToArray());
     }
 
-    private static string GetString(SqlDataReader reader, string columnName) =>
+    private static string GetString(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? string.Empty : reader[columnName]?.ToString() ?? string.Empty;
 
-    private static int GetRequiredInt(SqlDataReader reader, string columnName) =>
+    private static int GetRequiredInt(MySqlDataReader reader, string columnName) =>
         Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static DateTime GetDateTime(SqlDataReader reader, string columnName) =>
+    private static DateTime GetDateTime(MySqlDataReader reader, string columnName) =>
         Convert.ToDateTime(reader[columnName], CultureInfo.InvariantCulture);
 
     private sealed class AlumnoLookup

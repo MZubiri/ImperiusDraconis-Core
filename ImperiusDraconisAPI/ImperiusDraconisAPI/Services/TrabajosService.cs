@@ -2,15 +2,15 @@ using System.Globalization;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Trabajos;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services;
 
 public sealed class TrabajosService
 {
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
 
-    public TrabajosService(SqlConnectionFactory connectionFactory)
+    public TrabajosService(MySqlConnectionFactory connectionFactory)
     {
         _connectionFactory = connectionFactory;
     }
@@ -42,7 +42,7 @@ public sealed class TrabajosService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             INSERT INTO Trabajos (Nombre, Descripcion)
             VALUES (@Nombre, @Descripcion);
@@ -68,7 +68,7 @@ public sealed class TrabajosService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             UPDATE Trabajos
             SET Nombre = @Nombre,
@@ -94,29 +94,29 @@ public sealed class TrabajosService
 
         try
         {
-            using (var deleteAssignments = new SqlCommand(
+            using (var deleteAssignments = new MySqlCommand(
                        "DELETE FROM AlumnosTrabajos WHERE IdTrabajo = @IdTrabajo",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 deleteAssignments.Parameters.AddWithValue("@IdTrabajo", idTrabajo);
                 await deleteAssignments.ExecuteNonQueryAsync(cancellationToken);
             }
 
-            using (var deletePermissions = new SqlCommand(
+            using (var deletePermissions = new MySqlCommand(
                        "DELETE FROM PermisosTrabajos WHERE IdTrabajo = @IdTrabajo",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 deletePermissions.Parameters.AddWithValue("@IdTrabajo", idTrabajo);
                 await deletePermissions.ExecuteNonQueryAsync(cancellationToken);
             }
 
             int affected;
-            using (var deleteTrabajo = new SqlCommand(
+            using (var deleteTrabajo = new MySqlCommand(
                        "DELETE FROM Trabajos WHERE IdTrabajo = @IdTrabajo",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 deleteTrabajo.Parameters.AddWithValue("@IdTrabajo", idTrabajo);
                 affected = await deleteTrabajo.ExecuteNonQueryAsync(cancellationToken);
@@ -172,10 +172,10 @@ public sealed class TrabajosService
 
         try
         {
-            using (var deleteCommand = new SqlCommand(
+            using (var deleteCommand = new MySqlCommand(
                        "DELETE FROM AlumnosTrabajos WHERE IdAlumno = @IdAlumno",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 deleteCommand.Parameters.AddWithValue("@IdAlumno", idAlumno);
                 await deleteCommand.ExecuteNonQueryAsync(cancellationToken);
@@ -183,13 +183,13 @@ public sealed class TrabajosService
 
             foreach (var trabajoId in trabajoIds)
             {
-                using var insertCommand = new SqlCommand(
+                using var insertCommand = new MySqlCommand(
                     """
                     INSERT INTO AlumnosTrabajos (IdAlumno, IdTrabajo, FechaAsignacion)
                     VALUES (@IdAlumno, @IdTrabajo, @FechaAsignacion)
                     """,
                     connection,
-                    (SqlTransaction)transaction);
+                    (MySqlTransaction)transaction);
                 insertCommand.Parameters.AddWithValue("@IdAlumno", idAlumno);
                 insertCommand.Parameters.AddWithValue("@IdTrabajo", trabajoId);
                 insertCommand.Parameters.AddWithValue("@FechaAsignacion", DateTime.Now);
@@ -248,11 +248,11 @@ public sealed class TrabajosService
 
         try
         {
-            await EnsureTrabajoPermissionRowsAsync(connection, (SqlTransaction)transaction, idTrabajo, cancellationToken);
+            await EnsureTrabajoPermissionRowsAsync(connection, (MySqlTransaction)transaction, idTrabajo, cancellationToken);
 
             foreach (var item in items)
             {
-                using var command = new SqlCommand(
+                using var command = new MySqlCommand(
                     """
                     UPDATE PermisosTrabajos
                     SET TienePermiso = @TienePermiso
@@ -261,7 +261,7 @@ public sealed class TrabajosService
                       AND Accion = @Accion
                     """,
                     connection,
-                    (SqlTransaction)transaction);
+                    (MySqlTransaction)transaction);
                 command.Parameters.AddWithValue("@TienePermiso", item.TienePermiso);
                 command.Parameters.AddWithValue("@IdTrabajo", idTrabajo);
                 command.Parameters.AddWithValue("@Controlador", item.Controlador);
@@ -281,12 +281,12 @@ public sealed class TrabajosService
     }
 
     private static async Task<IReadOnlyCollection<CatalogItemDto>> GetAlumnosActivosAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         CancellationToken cancellationToken)
     {
         var items = new List<CatalogItemDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT IdAlumno, Codigo, Nombre
             FROM Alumnos
@@ -309,12 +309,12 @@ public sealed class TrabajosService
     }
 
     private static async Task<IReadOnlyCollection<TrabajoOptionDto>> GetTrabajosAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         CancellationToken cancellationToken)
     {
         var items = new List<TrabajoOptionDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT IdTrabajo, Nombre, Descripcion
             FROM Trabajos
@@ -337,12 +337,12 @@ public sealed class TrabajosService
     }
 
     private static async Task<TrabajoOptionDto?> GetTrabajoByIdAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idTrabajo,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT IdTrabajo, Nombre, Descripcion
             FROM Trabajos
@@ -367,12 +367,12 @@ public sealed class TrabajosService
     }
 
     private static async Task<bool> TrabajoExistsAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idTrabajo,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "SELECT COUNT(*) FROM Trabajos WHERE IdTrabajo = @IdTrabajo",
             connection,
             transaction);
@@ -381,12 +381,12 @@ public sealed class TrabajosService
     }
 
     private static async Task EnsureTrabajoPermissionRowsAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idTrabajo,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             INSERT INTO PermisosTrabajos (IdTrabajo, Controlador, Accion, TienePermiso)
             SELECT @IdTrabajo, P.Controlador, P.Accion, 0
@@ -410,8 +410,8 @@ public sealed class TrabajosService
     }
 
     private static async Task<TrabajoPermisosDto?> GetPermissionsInternalAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idTrabajo,
         CancellationToken cancellationToken)
     {
@@ -422,7 +422,7 @@ public sealed class TrabajosService
         }
 
         var items = new List<TrabajoPermisoItemDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT IdPermisoTrabajo, Controlador, Accion, TienePermiso
             FROM PermisosTrabajos
@@ -454,12 +454,12 @@ public sealed class TrabajosService
     }
 
     private static async Task<bool> AlumnoExistsAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idAlumno,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "SELECT COUNT(*) FROM Alumnos WHERE IdAlumno = @IdAlumno AND Activo = 1",
             connection,
             transaction);
@@ -469,19 +469,20 @@ public sealed class TrabajosService
     }
 
     private static async Task<TrabajoAlumnoAssignmentsDto?> GetAssignmentsInternalAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idAlumno,
         CancellationToken cancellationToken)
     {
         string codigoAlumno;
         string nombreAlumno;
-        using (var alumnoCommand = new SqlCommand(
+        using (var alumnoCommand = new MySqlCommand(
                    """
-                   SELECT TOP 1 Codigo, Nombre
+                   SELECT Codigo, Nombre
                    FROM Alumnos
                    WHERE IdAlumno = @IdAlumno
                      AND Activo = 1
+                   LIMIT 1
                    """,
                    connection,
                    transaction))
@@ -498,7 +499,7 @@ public sealed class TrabajosService
         }
 
         var items = new List<TrabajoAssignmentItemDto>();
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    SELECT
                        T.IdTrabajo,
@@ -537,13 +538,13 @@ public sealed class TrabajosService
         };
     }
 
-    private static string GetString(SqlDataReader reader, string columnName) =>
+    private static string GetString(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? string.Empty : reader[columnName]?.ToString() ?? string.Empty;
 
-    private static int GetRequiredInt(SqlDataReader reader, string columnName) =>
+    private static int GetRequiredInt(MySqlDataReader reader, string columnName) =>
         Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static bool GetBoolean(SqlDataReader reader, string columnName) =>
+    private static bool GetBoolean(MySqlDataReader reader, string columnName) =>
         reader[columnName] != DBNull.Value && Convert.ToBoolean(reader[columnName], CultureInfo.InvariantCulture);
 
     private static string NormalizeRequired(string? value, string message, int maxLength)

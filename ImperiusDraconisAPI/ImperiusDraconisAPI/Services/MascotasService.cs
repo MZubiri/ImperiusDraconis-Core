@@ -3,7 +3,7 @@ using System.Text;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Mascotas;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services;
 
@@ -18,9 +18,9 @@ public sealed class MascotasService
         "En libertad"
     ];
 
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
 
-    public MascotasService(SqlConnectionFactory connectionFactory)
+    public MascotasService(MySqlConnectionFactory connectionFactory)
     {
         _connectionFactory = connectionFactory;
     }
@@ -31,7 +31,7 @@ public sealed class MascotasService
         await connection.OpenAsync(cancellationToken);
 
         var totalMascotasCatalogo = 0;
-        using (var countMascotasCommand = new SqlCommand("SELECT COUNT(*) FROM Mascotas", connection))
+        using (var countMascotasCommand = new MySqlCommand("SELECT COUNT(*) FROM Mascotas", connection))
         {
             totalMascotasCatalogo = Convert.ToInt32(
                 await countMascotasCommand.ExecuteScalarAsync(cancellationToken),
@@ -39,7 +39,7 @@ public sealed class MascotasService
         }
 
         var totalsByState = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    SELECT Estado, COUNT(*) AS Total
                    FROM MascotasPorAlumno
@@ -55,7 +55,7 @@ public sealed class MascotasService
         }
 
         var totalPendientesCobro = 0;
-        using (var dueCommand = new SqlCommand(
+        using (var dueCommand = new MySqlCommand(
                    """
                    SELECT COUNT(*)
                    FROM MascotasPorAlumno
@@ -142,7 +142,7 @@ public sealed class MascotasService
             request,
             cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             INSERT INTO MascotasPorAlumno
             (
@@ -203,7 +203,7 @@ public sealed class MascotasService
             request,
             cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             UPDATE MascotasPorAlumno
             SET IdAlumno = @IdAlumno,
@@ -246,7 +246,7 @@ public sealed class MascotasService
         var subsidiadaPor = NormalizeOptional(request.SubsidiadaPor, maxLength: 100);
         var observaciones = NormalizeOptional(request.Observaciones, maxLength: 255);
 
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    UPDATE MascotasPorAlumno
                    SET Estado = @Estado,
@@ -271,7 +271,7 @@ public sealed class MascotasService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "DELETE FROM MascotasPorAlumno WHERE IdMascotaAlumno = @IdMascotaAlumno",
             connection);
         command.Parameters.AddWithValue("@IdMascotaAlumno", idMascotaAlumno);
@@ -316,7 +316,7 @@ public sealed class MascotasService
             {
                 var candidate = await GetWeeklyChargeCandidateByIdInternalAsync(
                     connection,
-                    (SqlTransaction)transaction,
+                    (MySqlTransaction)transaction,
                     idMascotaAlumno,
                     cancellationToken);
 
@@ -333,17 +333,17 @@ public sealed class MascotasService
 
                 if (candidate.DracoinsDisponibles >= candidate.PrecioMantenimiento)
                 {
-                    using (var updateAlumnoCommand = new SqlCommand(
+                    using (var updateAlumnoCommand = new MySqlCommand(
                                "UPDATE Alumnos SET Dracoins = Dracoins - @Monto WHERE IdAlumno = @IdAlumno",
                                connection,
-                               (SqlTransaction)transaction))
+                               (MySqlTransaction)transaction))
                     {
                         updateAlumnoCommand.Parameters.AddWithValue("@Monto", candidate.PrecioMantenimiento);
                         updateAlumnoCommand.Parameters.AddWithValue("@IdAlumno", candidate.IdAlumno);
                         await updateAlumnoCommand.ExecuteNonQueryAsync(cancellationToken);
                     }
 
-                    using (var updateMascotaCommand = new SqlCommand(
+                    using (var updateMascotaCommand = new MySqlCommand(
                                """
                                UPDATE MascotasPorAlumno
                                SET FechaUltimoPago = @FechaUltimoPago,
@@ -351,21 +351,21 @@ public sealed class MascotasService
                                WHERE IdMascotaAlumno = @IdMascotaAlumno
                                """,
                                connection,
-                               (SqlTransaction)transaction))
+                               (MySqlTransaction)transaction))
                     {
                         updateMascotaCommand.Parameters.AddWithValue("@FechaUltimoPago", fechaHoy);
                         updateMascotaCommand.Parameters.AddWithValue("@IdMascotaAlumno", candidate.IdMascotaAlumno);
                         await updateMascotaCommand.ExecuteNonQueryAsync(cancellationToken);
                     }
 
-                    using (var insertMovementCommand = new SqlCommand(
+                    using (var insertMovementCommand = new MySqlCommand(
                                """
                                INSERT INTO MovimientosDracoins
                                (CodigoRemitente, CodigoDestinatario, Monto, FechaTransferencia, Observacion)
                                VALUES (@CodigoRemitente, 'COBRO', @Monto, @FechaTransferencia, @Observacion)
                                """,
                                connection,
-                               (SqlTransaction)transaction))
+                               (MySqlTransaction)transaction))
                     {
                         insertMovementCommand.Parameters.AddWithValue("@CodigoRemitente", candidate.CodigoAlumno);
                         insertMovementCommand.Parameters.AddWithValue("@Monto", -decimal.ToInt32(candidate.PrecioMantenimiento));
@@ -380,10 +380,10 @@ public sealed class MascotasService
                     continue;
                 }
 
-                using (var updateMascotaCommand = new SqlCommand(
+                using (var updateMascotaCommand = new MySqlCommand(
                            "UPDATE MascotasPorAlumno SET Estado = 'No activa' WHERE IdMascotaAlumno = @IdMascotaAlumno",
                            connection,
-                           (SqlTransaction)transaction))
+                           (MySqlTransaction)transaction))
                 {
                     updateMascotaCommand.Parameters.AddWithValue("@IdMascotaAlumno", candidate.IdMascotaAlumno);
                     await updateMascotaCommand.ExecuteNonQueryAsync(cancellationToken);
@@ -415,7 +415,7 @@ public sealed class MascotasService
         await connection.OpenAsync(cancellationToken);
 
         var items = new List<MascotaMatrixRowDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 A.IdAlumno,
@@ -508,8 +508,8 @@ public sealed class MascotasService
     }
 
     private async Task<NormalizedMascotaAssignment> NormalizeAndValidateAssignmentAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         SaveMascotaAssignmentRequest request,
         CancellationToken cancellationToken)
     {
@@ -551,8 +551,8 @@ public sealed class MascotasService
     }
 
     private async Task<IReadOnlyCollection<MascotaCatalogItemDto>> GetCatalogInternalAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         bool? activo,
         CancellationToken cancellationToken)
     {
@@ -568,7 +568,7 @@ public sealed class MascotasService
             WHERE 1 = 1
             """);
 
-        using var command = new SqlCommand { Connection = connection, Transaction = transaction };
+        using var command = new MySqlCommand { Connection = connection, Transaction = transaction };
         if (activo.HasValue)
         {
             query.Append(" AND Activo = @Activo");
@@ -596,12 +596,12 @@ public sealed class MascotasService
     }
 
     private async Task<IReadOnlyCollection<MascotaAlumnoOptionDto>> GetActiveAlumnoOptionsAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         CancellationToken cancellationToken)
     {
         var items = new List<MascotaAlumnoOptionDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT IdAlumno, Codigo, Nombre
             FROM Alumnos
@@ -626,8 +626,8 @@ public sealed class MascotasService
     }
 
     private async Task<IReadOnlyCollection<MascotaAssignmentDto>> GetAssignmentsInternalAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         string? filtroEstado,
         string? busqueda,
         bool? soloPendientesCobro,
@@ -648,15 +648,15 @@ public sealed class MascotasService
                 MPA.FechaUltimoPago,
                 M.PrecioCompra,
                 M.PrecioMantenimiento,
-                ISNULL(MPA.SubsidiadaPor, '') AS SubsidiadaPor,
-                ISNULL(MPA.Observaciones, '') AS Observaciones
+                COALESCE(MPA.SubsidiadaPor, '') AS SubsidiadaPor,
+                COALESCE(MPA.Observaciones, '') AS Observaciones
             FROM MascotasPorAlumno MPA
             INNER JOIN Alumnos A ON A.IdAlumno = MPA.IdAlumno
             INNER JOIN Mascotas M ON M.IdMascota = MPA.IdMascota
             WHERE 1 = 1
             """);
 
-        using var command = new SqlCommand { Connection = connection, Transaction = transaction };
+        using var command = new MySqlCommand { Connection = connection, Transaction = transaction };
 
         if (normalizedFilter == "suscrita")
         {
@@ -726,12 +726,12 @@ public sealed class MascotasService
     }
 
     private async Task<MascotaAssignmentDto?> GetAssignmentByIdInternalAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idMascotaAlumno,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 MPA.IdMascotaAlumno,
@@ -745,8 +745,8 @@ public sealed class MascotasService
                 MPA.FechaUltimoPago,
                 M.PrecioCompra,
                 M.PrecioMantenimiento,
-                ISNULL(MPA.SubsidiadaPor, '') AS SubsidiadaPor,
-                ISNULL(MPA.Observaciones, '') AS Observaciones
+                COALESCE(MPA.SubsidiadaPor, '') AS SubsidiadaPor,
+                COALESCE(MPA.Observaciones, '') AS Observaciones
             FROM MascotasPorAlumno MPA
             INNER JOIN Alumnos A ON A.IdAlumno = MPA.IdAlumno
             INNER JOIN Mascotas M ON M.IdMascota = MPA.IdMascota
@@ -786,12 +786,12 @@ public sealed class MascotasService
     }
 
     private async Task<IReadOnlyCollection<MascotaWeeklyChargeCandidateDto>> GetWeeklyChargeCandidatesInternalAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         CancellationToken cancellationToken)
     {
         var items = new List<MascotaWeeklyChargeCandidateDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 MPA.IdMascotaAlumno,
@@ -836,12 +836,12 @@ public sealed class MascotasService
     }
 
     private async Task<MascotaWeeklyChargeCandidateDto?> GetWeeklyChargeCandidateByIdInternalAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         int idMascotaAlumno,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 MPA.IdMascotaAlumno,
@@ -887,12 +887,12 @@ public sealed class MascotasService
     }
 
     private static async Task<bool> ActiveAlumnoExistsAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idAlumno,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "SELECT COUNT(*) FROM Alumnos WHERE IdAlumno = @IdAlumno AND Activo = 1",
             connection,
             transaction);
@@ -902,12 +902,12 @@ public sealed class MascotasService
     }
 
     private static async Task<bool> ActiveMascotaExistsAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idMascota,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "SELECT COUNT(*) FROM Mascotas WHERE IdMascota = @IdMascota AND Activo = 1",
             connection,
             transaction);
@@ -917,12 +917,12 @@ public sealed class MascotasService
     }
 
     private static async Task<bool> AssignmentExistsAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idMascotaAlumno,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "SELECT COUNT(*) FROM MascotasPorAlumno WHERE IdMascotaAlumno = @IdMascotaAlumno",
             connection,
             transaction);
@@ -931,27 +931,27 @@ public sealed class MascotasService
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture) > 0;
     }
 
-    private static string GetString(SqlDataReader reader, string columnName) =>
+    private static string GetString(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? string.Empty
             : Convert.ToString(reader[columnName], CultureInfo.InvariantCulture) ?? string.Empty;
 
-    private static int GetRequiredInt(SqlDataReader reader, string columnName) =>
+    private static int GetRequiredInt(MySqlDataReader reader, string columnName) =>
         Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static int? GetNullableInt(SqlDataReader reader, string columnName) =>
+    private static int? GetNullableInt(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? null : Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static decimal GetRequiredDecimal(SqlDataReader reader, string columnName) =>
+    private static decimal GetRequiredDecimal(MySqlDataReader reader, string columnName) =>
         Convert.ToDecimal(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static bool GetRequiredBoolean(SqlDataReader reader, string columnName) =>
+    private static bool GetRequiredBoolean(MySqlDataReader reader, string columnName) =>
         Convert.ToBoolean(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static DateTime GetDateTime(SqlDataReader reader, string columnName) =>
+    private static DateTime GetDateTime(MySqlDataReader reader, string columnName) =>
         Convert.ToDateTime(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static DateTime? GetNullableDateTime(SqlDataReader reader, string columnName) =>
+    private static DateTime? GetNullableDateTime(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? null
             : Convert.ToDateTime(reader[columnName], CultureInfo.InvariantCulture);

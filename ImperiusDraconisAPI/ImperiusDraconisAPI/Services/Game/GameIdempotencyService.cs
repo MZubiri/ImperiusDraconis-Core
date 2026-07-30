@@ -1,21 +1,21 @@
 using System.Data;
 using System.Security.Cryptography;
 using ImperiusDraconisAPI.Common;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services.Game;
 
 public sealed class GameIdempotencyService
 {
     public async Task<IdempotencyReservation> ReserveAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         string operation,
         string idempotencyKey,
         byte[] requestHash,
         CancellationToken cancellationToken)
     {
-        await using var selectCommand = new SqlCommand(
+        await using var selectCommand = new MySqlCommand(
             """
             SELECT Id, RequestHash, Status, ResponseJson
             FROM dbo.GameIdempotency WITH (UPDLOCK, HOLDLOCK)
@@ -24,8 +24,8 @@ public sealed class GameIdempotencyService
             """,
             connection,
             transaction);
-        selectCommand.Parameters.Add("@Operation", SqlDbType.NVarChar, 100).Value = operation;
-        selectCommand.Parameters.Add("@IdempotencyKey", SqlDbType.NVarChar, 100).Value = idempotencyKey;
+        selectCommand.Parameters.Add("@Operation", MySqlDbType.VarChar, 100).Value = operation;
+        selectCommand.Parameters.Add("@IdempotencyKey", MySqlDbType.VarChar, 100).Value = idempotencyKey;
 
         await using (var reader = await selectCommand.ExecuteReaderAsync(cancellationToken))
         {
@@ -52,7 +52,7 @@ public sealed class GameIdempotencyService
             }
         }
 
-        await using var insertCommand = new SqlCommand(
+        await using var insertCommand = new MySqlCommand(
             """
             INSERT INTO dbo.GameIdempotency
                 (Operation, IdempotencyKey, RequestHash, Status)
@@ -62,22 +62,22 @@ public sealed class GameIdempotencyService
             """,
             connection,
             transaction);
-        insertCommand.Parameters.Add("@Operation", SqlDbType.NVarChar, 100).Value = operation;
-        insertCommand.Parameters.Add("@IdempotencyKey", SqlDbType.NVarChar, 100).Value = idempotencyKey;
-        insertCommand.Parameters.Add("@RequestHash", SqlDbType.Binary, 32).Value = requestHash;
+        insertCommand.Parameters.Add("@Operation", MySqlDbType.VarChar, 100).Value = operation;
+        insertCommand.Parameters.Add("@IdempotencyKey", MySqlDbType.VarChar, 100).Value = idempotencyKey;
+        insertCommand.Parameters.Add("@RequestHash", MySqlDbType.Binary, 32).Value = requestHash;
 
         var id = Convert.ToInt64(await insertCommand.ExecuteScalarAsync(cancellationToken));
         return new IdempotencyReservation(id, null);
     }
 
     public async Task CompleteAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         long id,
         string responseJson,
         CancellationToken cancellationToken)
     {
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             UPDATE dbo.GameIdempotency
             SET Status = N'Completed',
@@ -89,8 +89,8 @@ public sealed class GameIdempotencyService
             """,
             connection,
             transaction);
-        command.Parameters.Add("@Id", SqlDbType.BigInt).Value = id;
-        command.Parameters.Add("@ResponseJson", SqlDbType.NVarChar, -1).Value = responseJson;
+        command.Parameters.Add("@Id", MySqlDbType.Int64).Value = id;
+        command.Parameters.Add("@ResponseJson", MySqlDbType.VarChar, -1).Value = responseJson;
 
         if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
         {

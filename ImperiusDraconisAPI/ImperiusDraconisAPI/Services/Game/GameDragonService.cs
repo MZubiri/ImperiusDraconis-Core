@@ -7,17 +7,17 @@ using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Game.Dragons;
 using ImperiusDraconisAPI.Models.Game.Players;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services.Game;
 
 public sealed class GameDragonService
 {
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
     private readonly GameIdempotencyService _idempotencyService;
 
     public GameDragonService(
-        SqlConnectionFactory connectionFactory,
+        MySqlConnectionFactory connectionFactory,
         GameIdempotencyService idempotencyService)
     {
         _connectionFactory = connectionFactory;
@@ -60,7 +60,7 @@ public sealed class GameDragonService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+        await using var transaction = (MySqlTransaction)await connection.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
 
@@ -86,16 +86,16 @@ public sealed class GameDragonService
             }
 
             // 1. Obtener IdAlumno del usuario Roblox que hace la llamada
-            await using var linkCommand = new SqlCommand(
+            await using var linkCommand = new MySqlCommand(
                 """
-                SELECT L.IdAlumno, CONVERT(BIT, ISNULL(A.Activo, 0))
+                SELECT L.IdAlumno, CONVERT(BIT, COALESCE(A.Activo, 0))
                 FROM dbo.GameRobloxLinks L
                 INNER JOIN dbo.Alumnos A ON A.IdAlumno = L.IdAlumno
                 WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;
                 """,
                 connection,
                 transaction);
-            linkCommand.Parameters.Add("@RobloxUserId", SqlDbType.BigInt).Value = request.RobloxUserId;
+            linkCommand.Parameters.Add("@RobloxUserId", MySqlDbType.Int64).Value = request.RobloxUserId;
 
             int callerIdAlumno;
             await using (var reader = await linkCommand.ExecuteReaderAsync(cancellationToken))
@@ -120,7 +120,7 @@ public sealed class GameDragonService
             }
 
             // 2. Obtener dragon con bloqueo
-            await using var dragonCommand = new SqlCommand(
+            await using var dragonCommand = new MySqlCommand(
                 """
                 SELECT IdAlumno, Status, Selected
                 FROM dbo.GameDragons WITH (UPDLOCK, HOLDLOCK)
@@ -128,7 +128,7 @@ public sealed class GameDragonService
                 """,
                 connection,
                 transaction);
-            dragonCommand.Parameters.Add("@Id", SqlDbType.BigInt).Value = dragonId;
+            dragonCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = dragonId;
 
             int dragonIdAlumno;
             string dragonStatus;
@@ -171,7 +171,7 @@ public sealed class GameDragonService
             if (!dragonSelected)
             {
                 // Desmarcar todos los demas dragones de este alumno
-                await using var deselectCommand = new SqlCommand(
+                await using var deselectCommand = new MySqlCommand(
                     """
                     UPDATE dbo.GameDragons
                     SET Selected = 0
@@ -179,11 +179,11 @@ public sealed class GameDragonService
                     """,
                     connection,
                     transaction);
-                deselectCommand.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = callerIdAlumno;
+                deselectCommand.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = callerIdAlumno;
                 await deselectCommand.ExecuteNonQueryAsync(cancellationToken);
 
                 // Seleccionar el dragon objetivo
-                await using var selectCommand = new SqlCommand(
+                await using var selectCommand = new MySqlCommand(
                     """
                     UPDATE dbo.GameDragons
                     SET Selected = 1
@@ -191,7 +191,7 @@ public sealed class GameDragonService
                     """,
                     connection,
                     transaction);
-                selectCommand.Parameters.Add("@Id", SqlDbType.BigInt).Value = dragonId;
+                selectCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = dragonId;
                 await selectCommand.ExecuteNonQueryAsync(cancellationToken);
             }
 
@@ -228,14 +228,14 @@ public sealed class GameDragonService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             SELECT 
                 D.Id,
                 D.Name,
                 D.Rarity,
                 D.Temperament,
-                ISNULL(E.EggDefinitionCode, N'') AS SpeciesCode,
+                COALESCE(E.EggDefinitionCode, N'') AS SpeciesCode,
                 D.Level,
                 D.Stage,
                 D.HatchedAt,
@@ -252,7 +252,7 @@ public sealed class GameDragonService
             ORDER BY D.HatchedAt, D.Id;
             """,
             connection);
-        command.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = idAlumno;
+        command.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = idAlumno;
 
         var dragons = new List<GameBootstrapDragonDto>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);

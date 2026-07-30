@@ -1,12 +1,12 @@
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Data;
 
-public sealed class SqlConnectionFactory
+public sealed class MySqlConnectionFactory
 {
     private readonly string _connectionString;
 
-    public SqlConnectionFactory(IConfiguration configuration)
+    public MySqlConnectionFactory(IConfiguration configuration)
     {
         _connectionString = configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
 
@@ -17,5 +17,5 @@ public sealed class SqlConnectionFactory
         }
     }
 
-    public SqlConnection CreateConnection() => new(_connectionString);
+    public MySqlConnection CreateConnection() => new(_connectionString);
 }

@@ -10,7 +10,7 @@ using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Configuration;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Auth;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -20,14 +20,14 @@ namespace ImperiusDraconisAPI.Services;
 public sealed class AuthService
 {
     private const string PasswordColumn = "[Contraseña]";
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
     private readonly JwtOptions _jwtOptions;
     private readonly SmtpOptions _smtpOptions;
     private readonly AuthRecoveryOptions _authRecoveryOptions;
     private readonly IHostEnvironment _hostEnvironment;
 
     public AuthService(
-        SqlConnectionFactory connectionFactory,
+        MySqlConnectionFactory connectionFactory,
         IOptions<JwtOptions> jwtOptions,
         IOptions<SmtpOptions> smtpOptions,
         IOptions<AuthRecoveryOptions> authRecoveryOptions,
@@ -48,7 +48,7 @@ public sealed class AuthService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand("ValidarLogin", connection)
+        using var command = new MySqlCommand("ValidarLogin", connection)
         {
             CommandType = CommandType.StoredProcedure
         };
@@ -115,16 +115,17 @@ public sealed class AuthService
         await connection.OpenAsync(cancellationToken);
 
         RecoveryTargetDto? target = null;
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
-                   SELECT TOP 1
-                       IdAlumno,
-                       Codigo,
-                       Nombre,
-                       CorreoElectronico
-                   FROM Alumnos
-                   WHERE Activo = 1
-                     AND LTRIM(RTRIM(ISNULL(CorreoElectronico, ''))) = @Correo
+                    SELECT
+                        IdAlumno,
+                        Codigo,
+                        Nombre,
+                        CorreoElectronico
+                    FROM Alumnos
+                    WHERE Activo = 1
+                      AND LTRIM(RTRIM(COALESCE(CorreoElectronico, ''))) = @Correo
+                    LIMIT 1
                    """,
                    connection))
         {
@@ -149,7 +150,7 @@ public sealed class AuthService
         }
 
         var temporaryPassword = GenerateTemporaryPassword();
-        using (var updateCommand = new SqlCommand(
+        using (var updateCommand = new MySqlCommand(
                    $"UPDATE Alumnos SET {PasswordColumn} = @Contrasena WHERE IdAlumno = @IdAlumno",
                    connection))
         {
@@ -191,11 +192,11 @@ public sealed class AuthService
     }
 
     private async Task<AuthenticatedUserDto?> GetCurrentUserAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         int idAlumno,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 A.IdAlumno,
@@ -204,8 +205,8 @@ public sealed class AuthService
                 A.IdCasa,
                 C.Nombre AS CasaNombre,
                 A.IdCargo,
-                ISNULL(CG.Nombre, '') AS CargoNombre,
-                ISNULL(A.Categoria, 'Alumno') AS Categoria,
+                COALESCE(CG.Nombre, '') AS CargoNombre,
+                COALESCE(A.Categoria, 'Alumno') AS Categoria,
                 A.Genero,
                 A.FotoPerfil,
                 A.Dracoins
@@ -264,12 +265,12 @@ public sealed class AuthService
     }
 
     private async Task<IReadOnlyList<int>> GetTrabajosAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         int idAlumno,
         CancellationToken cancellationToken)
     {
         var trabajos = new List<int>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "SELECT IdTrabajo FROM AlumnosTrabajos WHERE IdAlumno = @IdAlumno",
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -284,7 +285,7 @@ public sealed class AuthService
     }
 
     private async Task<IReadOnlyList<string>> GetPermisosAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         int? idCargo,
         IReadOnlyCollection<int> trabajos,
         CancellationToken cancellationToken)
@@ -298,7 +299,7 @@ public sealed class AuthService
 
         if (idCargo.HasValue)
         {
-            using var cargoCommand = new SqlCommand(
+            using var cargoCommand = new MySqlCommand(
                 """
                 SELECT DISTINCT Controlador + ':' + Accion AS Permiso
                 FROM Permisos
@@ -328,7 +329,7 @@ public sealed class AuthService
                   AND IdTrabajo IN ({string.Join(", ", parameterNames)})
                 """;
 
-            using var trabajosCommand = new SqlCommand(sql, connection);
+            using var trabajosCommand = new MySqlCommand(sql, connection);
             for (var index = 0; index < trabajos.Count; index++)
             {
                 trabajosCommand.Parameters.AddWithValue(parameterNames[index], trabajos.ElementAt(index));
@@ -472,25 +473,25 @@ public sealed class AuthService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand("SELECT IdAlumno FROM Alumnos WHERE Codigo = @Codigo", connection);
+        using var command = new MySqlCommand("SELECT IdAlumno FROM Alumnos WHERE Codigo = @Codigo", connection);
         command.Parameters.AddWithValue("@Codigo", codigo.Trim());
 
         object? result = await command.ExecuteScalarAsync(cancellationToken);
         return result == DBNull.Value || result == null ? null : Convert.ToInt32(result);
     }
 
-    private static string GetString(SqlDataReader reader, string columnName) =>
+    private static string GetString(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? string.Empty : reader[columnName]?.ToString() ?? string.Empty;
 
-    private static int GetRequiredInt(SqlDataReader reader, string columnName) =>
+    private static int GetRequiredInt(MySqlDataReader reader, string columnName) =>
         Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static int? GetNullableInt(SqlDataReader reader, string columnName) =>
+    private static int? GetNullableInt(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? null
             : Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static decimal GetDecimal(SqlDataReader reader, string columnName) =>
+    private static decimal GetDecimal(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? 0m
             : Convert.ToDecimal(reader[columnName], CultureInfo.InvariantCulture);

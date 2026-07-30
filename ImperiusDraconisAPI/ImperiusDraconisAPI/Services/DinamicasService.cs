@@ -3,15 +3,15 @@ using System.Text;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Dinamicas;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services;
 
 public sealed class DinamicasService
 {
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
 
-    public DinamicasService(SqlConnectionFactory connectionFactory)
+    public DinamicasService(MySqlConnectionFactory connectionFactory)
     {
         _connectionFactory = connectionFactory;
     }
@@ -29,7 +29,7 @@ public sealed class DinamicasService
         var whereClause = BuildWhereClause(query, out var parameters);
 
         var totalRegistros = 0;
-        using (var countCommand = new SqlCommand(
+        using (var countCommand = new MySqlCommand(
                    $"""
                    SELECT COUNT(*)
                    FROM Dinamicas D
@@ -43,22 +43,22 @@ public sealed class DinamicasService
         }
 
         var items = new List<DinamicaListItemDto>();
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    $"""
                    SELECT
                        D.IdDinamica,
                        D.Fecha,
                        D.Nombre,
-                       ISNULL(D.Tipo, '') AS Tipo,
-                       ISNULL(D.Subtipo, '') AS Subtipo,
+                       COALESCE(D.Tipo, '') AS Tipo,
+                       COALESCE(D.Subtipo, '') AS Subtipo,
                        D.IdResponsable,
-                       ISNULL(A.Nombre, '') AS NombreResponsable,
-                       ISNULL(D.Observacion, '') AS Observacion
+                       COALESCE(A.Nombre, '') AS NombreResponsable,
+                       COALESCE(D.Observacion, '') AS Observacion
                    FROM Dinamicas D
                    LEFT JOIN Alumnos A ON D.IdResponsable = A.IdAlumno
                    {whereClause}
                    ORDER BY D.IdDinamica DESC
-                   OFFSET @Offset ROWS FETCH NEXT @Fetch ROWS ONLY
+                   LIMIT @Fetch OFFSET @Offset
                    """,
                    connection))
         {
@@ -104,7 +104,7 @@ public sealed class DinamicasService
         }
 
         var resultados = new List<PuntosCasaDetalleDto>();
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    SELECT
                        R.IdCasa,
@@ -159,14 +159,14 @@ public sealed class DinamicasService
         }
 
         var resultados = new List<DracoinDinamicaDetalleItemDto>();
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    SELECT
                        DD.IdAlumno,
                        A.Codigo AS CodigoAlumno,
                        A.Nombre AS NombreAlumno,
                        DD.DracoinsOtorgados,
-                       ISNULL(DD.Observacion, '') AS Observacion
+                       COALESCE(DD.Observacion, '') AS Observacion
                    FROM DracoinsDinamica DD
                    INNER JOIN Alumnos A ON A.IdAlumno = DD.IdAlumno
                    WHERE DD.IdDinamica = @IdDinamica
@@ -211,7 +211,7 @@ public sealed class DinamicasService
         await connection.OpenAsync(cancellationToken);
 
         var items = new List<AlumnoActivoDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 A.IdAlumno,
@@ -292,14 +292,14 @@ public sealed class DinamicasService
         try
         {
             int idDinamica;
-            using (var command = new SqlCommand(
+            using (var command = new MySqlCommand(
                        """
                        INSERT INTO Dinamicas (Nombre, Tipo, Subtipo, Fecha, IdResponsable, Observacion)
                        VALUES (@Nombre, 'Dracoins', NULL, @Fecha, @IdResponsable, @Observacion);
                        SELECT CAST(SCOPE_IDENTITY() AS int);
                        """,
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 command.Parameters.AddWithValue("@Nombre", nombre);
                 command.Parameters.AddWithValue("@Fecha", DateTime.Today);
@@ -315,13 +315,13 @@ public sealed class DinamicasService
                     ? asignacion.Observacion?.Trim()
                     : observacion;
 
-                using (var insertDetailCommand = new SqlCommand(
+                using (var insertDetailCommand = new MySqlCommand(
                            """
                            INSERT INTO DracoinsDinamica (IdDinamica, IdAlumno, DracoinsOtorgados, Observacion)
                            VALUES (@IdDinamica, @IdAlumno, @DracoinsOtorgados, @Observacion)
                            """,
                            connection,
-                           (SqlTransaction)transaction))
+                           (MySqlTransaction)transaction))
                 {
                     insertDetailCommand.Parameters.AddWithValue("@IdDinamica", idDinamica);
                     insertDetailCommand.Parameters.AddWithValue("@IdAlumno", asignacion.IdAlumno);
@@ -332,24 +332,24 @@ public sealed class DinamicasService
                     await insertDetailCommand.ExecuteNonQueryAsync(cancellationToken);
                 }
 
-                using (var updateAlumnoCommand = new SqlCommand(
+                using (var updateAlumnoCommand = new MySqlCommand(
                            """
                            UPDATE Alumnos
                            SET Dracoins = Dracoins + @DracoinsOtorgados
                            WHERE IdAlumno = @IdAlumno
                            """,
                            connection,
-                           (SqlTransaction)transaction))
+                           (MySqlTransaction)transaction))
                 {
                     updateAlumnoCommand.Parameters.AddWithValue("@DracoinsOtorgados", asignacion.DracoinsOtorgados);
                     updateAlumnoCommand.Parameters.AddWithValue("@IdAlumno", asignacion.IdAlumno);
                     await updateAlumnoCommand.ExecuteNonQueryAsync(cancellationToken);
                 }
 
-                using (var movementCommand = new SqlCommand(
+                using (var movementCommand = new MySqlCommand(
                            "RegistrarMovimientoDracoins",
                            connection,
-                           (SqlTransaction)transaction))
+                           (MySqlTransaction)transaction))
                 {
                     movementCommand.CommandType = System.Data.CommandType.StoredProcedure;
                     movementCommand.Parameters.AddWithValue("@CodigoRemitente", "DINAMICA");
@@ -385,10 +385,10 @@ public sealed class DinamicasService
         try
         {
             string? tipo;
-            using (var typeCommand = new SqlCommand(
+            using (var typeCommand = new MySqlCommand(
                        "SELECT Tipo FROM Dinamicas WHERE IdDinamica = @IdDinamica",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 typeCommand.Parameters.AddWithValue("@IdDinamica", idDinamica);
                 tipo = (await typeCommand.ExecuteScalarAsync(cancellationToken))?.ToString();
@@ -402,7 +402,7 @@ public sealed class DinamicasService
 
             if (string.Equals(tipo, "Puntos", StringComparison.OrdinalIgnoreCase))
             {
-                using (var reversePointsCommand = new SqlCommand(
+                using (var reversePointsCommand = new MySqlCommand(
                            """
                            UPDATE M
                            SET M.PuntosAcumulados = M.PuntosAcumulados - T.Puntos
@@ -415,22 +415,22 @@ public sealed class DinamicasService
                            ) T ON T.IdCasa = M.IdCasa
                            """,
                            connection,
-                           (SqlTransaction)transaction))
+                           (MySqlTransaction)transaction))
                 {
                     reversePointsCommand.Parameters.AddWithValue("@IdDinamica", idDinamica);
                     await reversePointsCommand.ExecuteNonQueryAsync(cancellationToken);
                 }
 
-                using var deletePointsCommand = new SqlCommand(
+                using var deletePointsCommand = new MySqlCommand(
                     "DELETE FROM ResultadosPorCasa WHERE IdDinamica = @IdDinamica",
                     connection,
-                    (SqlTransaction)transaction);
+                    (MySqlTransaction)transaction);
                 deletePointsCommand.Parameters.AddWithValue("@IdDinamica", idDinamica);
                 await deletePointsCommand.ExecuteNonQueryAsync(cancellationToken);
             }
             else if (string.Equals(tipo, "Dracoins", StringComparison.OrdinalIgnoreCase))
             {
-                using (var reverseDracoinsCommand = new SqlCommand(
+                using (var reverseDracoinsCommand = new MySqlCommand(
                            """
                            UPDATE A
                            SET A.Dracoins = A.Dracoins - T.Total
@@ -443,22 +443,22 @@ public sealed class DinamicasService
                            ) T ON T.IdAlumno = A.IdAlumno
                            """,
                            connection,
-                           (SqlTransaction)transaction))
+                           (MySqlTransaction)transaction))
                 {
                     reverseDracoinsCommand.Parameters.AddWithValue("@IdDinamica", idDinamica);
                     await reverseDracoinsCommand.ExecuteNonQueryAsync(cancellationToken);
                 }
 
-                using var deleteDracoinsCommand = new SqlCommand(
+                using var deleteDracoinsCommand = new MySqlCommand(
                     "DELETE FROM DracoinsDinamica WHERE IdDinamica = @IdDinamica",
                     connection,
-                    (SqlTransaction)transaction);
+                    (MySqlTransaction)transaction);
                 deleteDracoinsCommand.Parameters.AddWithValue("@IdDinamica", idDinamica);
                 await deleteDracoinsCommand.ExecuteNonQueryAsync(cancellationToken);
             }
             else
             {
-                using (var reversePointsCommand = new SqlCommand(
+                using (var reversePointsCommand = new MySqlCommand(
                            """
                            UPDATE M
                            SET M.PuntosAcumulados = M.PuntosAcumulados - T.Puntos
@@ -471,22 +471,22 @@ public sealed class DinamicasService
                            ) T ON T.IdCasa = M.IdCasa
                            """,
                            connection,
-                           (SqlTransaction)transaction))
+                           (MySqlTransaction)transaction))
                 {
                     reversePointsCommand.Parameters.AddWithValue("@IdDinamica", idDinamica);
                     await reversePointsCommand.ExecuteNonQueryAsync(cancellationToken);
                 }
 
-                using (var deletePointsCommand = new SqlCommand(
+                using (var deletePointsCommand = new MySqlCommand(
                            "DELETE FROM ResultadosPorCasa WHERE IdDinamica = @IdDinamica",
                            connection,
-                           (SqlTransaction)transaction))
+                           (MySqlTransaction)transaction))
                 {
                     deletePointsCommand.Parameters.AddWithValue("@IdDinamica", idDinamica);
                     await deletePointsCommand.ExecuteNonQueryAsync(cancellationToken);
                 }
 
-                using (var reverseDracoinsCommand = new SqlCommand(
+                using (var reverseDracoinsCommand = new MySqlCommand(
                            """
                            UPDATE A
                            SET A.Dracoins = A.Dracoins - T.Total
@@ -499,26 +499,26 @@ public sealed class DinamicasService
                            ) T ON T.IdAlumno = A.IdAlumno
                            """,
                            connection,
-                           (SqlTransaction)transaction))
+                           (MySqlTransaction)transaction))
                 {
                     reverseDracoinsCommand.Parameters.AddWithValue("@IdDinamica", idDinamica);
                     await reverseDracoinsCommand.ExecuteNonQueryAsync(cancellationToken);
                 }
 
-                using (var deleteDracoinsCommand = new SqlCommand(
+                using (var deleteDracoinsCommand = new MySqlCommand(
                            "DELETE FROM DracoinsDinamica WHERE IdDinamica = @IdDinamica",
                            connection,
-                           (SqlTransaction)transaction))
+                           (MySqlTransaction)transaction))
                 {
                     deleteDracoinsCommand.Parameters.AddWithValue("@IdDinamica", idDinamica);
                     await deleteDracoinsCommand.ExecuteNonQueryAsync(cancellationToken);
                 }
             }
 
-            using (var deleteDinamicaCommand = new SqlCommand(
+            using (var deleteDinamicaCommand = new MySqlCommand(
                        "DELETE FROM Dinamicas WHERE IdDinamica = @IdDinamica",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 deleteDinamicaCommand.Parameters.AddWithValue("@IdDinamica", idDinamica);
                 var affectedRows = await deleteDinamicaCommand.ExecuteNonQueryAsync(cancellationToken);
@@ -594,13 +594,13 @@ public sealed class DinamicasService
         {
             foreach (var item in items)
             {
-                using var command = new SqlCommand(
+                using var command = new MySqlCommand(
                     """
                     INSERT INTO AgendaDinamicas (Fecha, Hora, IdAlumno, Titulo)
                     VALUES (@Fecha, @Hora, @IdAlumno, @Titulo)
                     """,
                     connection,
-                    (SqlTransaction)transaction);
+                    (MySqlTransaction)transaction);
                 command.Parameters.AddWithValue("@Fecha", fecha);
                 command.Parameters.AddWithValue("@Hora", ParseTime(item.Hora, "Hora invalida en la agenda."));
                 command.Parameters.AddWithValue("@IdAlumno", item.IdAlumno);
@@ -637,7 +637,7 @@ public sealed class DinamicasService
             throw new BusinessRuleException("El responsable seleccionado no es valido para la agenda.");
         }
 
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    UPDATE AgendaDinamicas
                    SET Fecha = @Fecha,
@@ -669,7 +669,7 @@ public sealed class DinamicasService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "DELETE FROM AgendaDinamicas WHERE IdAgenda = @IdAgenda",
             connection);
         command.Parameters.AddWithValue("@IdAgenda", idAgenda);
@@ -682,7 +682,7 @@ public sealed class DinamicasService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand("DELETE FROM AgendaDinamicas", connection);
+        using var command = new MySqlCommand("DELETE FROM AgendaDinamicas", connection);
         return await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -733,7 +733,7 @@ public sealed class DinamicasService
         return conditions.Count == 0 ? string.Empty : $"WHERE {string.Join(" AND ", conditions)}";
     }
 
-    private static void AddParameters(SqlCommand command, IReadOnlyList<(string Name, object Value)> parameters)
+    private static void AddParameters(MySqlCommand command, IReadOnlyList<(string Name, object Value)> parameters)
     {
         foreach (var parameter in parameters)
         {
@@ -742,21 +742,21 @@ public sealed class DinamicasService
     }
 
     private static async Task<DinamicaListItemDto?> GetDinamicaBaseAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         int idDinamica,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 D.IdDinamica,
                 D.Fecha,
                 D.Nombre,
-                ISNULL(D.Tipo, '') AS Tipo,
-                ISNULL(D.Subtipo, '') AS Subtipo,
+                COALESCE(D.Tipo, '') AS Tipo,
+                COALESCE(D.Subtipo, '') AS Subtipo,
                 D.IdResponsable,
-                ISNULL(A.Nombre, '') AS NombreResponsable,
-                ISNULL(D.Observacion, '') AS Observacion
+                COALESCE(A.Nombre, '') AS NombreResponsable,
+                COALESCE(D.Observacion, '') AS Observacion
             FROM Dinamicas D
             LEFT JOIN Alumnos A ON D.IdResponsable = A.IdAlumno
             WHERE D.IdDinamica = @IdDinamica
@@ -784,22 +784,22 @@ public sealed class DinamicasService
     }
 
     private static async Task<IReadOnlyList<AgendaDinamicaDto>> GetAgendaInternalAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         DateTime? fecha,
         CancellationToken cancellationToken)
     {
         var items = new List<AgendaDinamicaDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 A.IdAgenda,
                 A.Fecha,
                 A.Hora,
                 A.IdAlumno,
-                ISNULL(AL.Nombre, '') AS NombreAlumno,
-                ISNULL(C.Nombre, '') AS Cargo,
-                ISNULL(AL.Genero, '') AS Genero,
-                ISNULL(A.Titulo, '') AS Titulo
+                COALESCE(AL.Nombre, '') AS NombreAlumno,
+                COALESCE(C.Nombre, '') AS Cargo,
+                COALESCE(AL.Genero, '') AS Genero,
+                COALESCE(A.Titulo, '') AS Titulo
             FROM AgendaDinamicas A
             INNER JOIN Alumnos AL ON A.IdAlumno = AL.IdAlumno
             INNER JOIN Cargos C ON AL.IdCargo = C.IdCargo
@@ -819,21 +819,21 @@ public sealed class DinamicasService
     }
 
     private static async Task<AgendaDinamicaDto?> GetAgendaItemInternalAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         int idAgenda,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 A.IdAgenda,
                 A.Fecha,
                 A.Hora,
                 A.IdAlumno,
-                ISNULL(AL.Nombre, '') AS NombreAlumno,
-                ISNULL(C.Nombre, '') AS Cargo,
-                ISNULL(AL.Genero, '') AS Genero,
-                ISNULL(A.Titulo, '') AS Titulo
+                COALESCE(AL.Nombre, '') AS NombreAlumno,
+                COALESCE(C.Nombre, '') AS Cargo,
+                COALESCE(AL.Genero, '') AS Genero,
+                COALESCE(A.Titulo, '') AS Titulo
             FROM AgendaDinamicas A
             INNER JOIN Alumnos AL ON A.IdAlumno = AL.IdAlumno
             INNER JOIN Cargos C ON AL.IdCargo = C.IdCargo
@@ -852,17 +852,17 @@ public sealed class DinamicasService
     }
 
     private static async Task<IReadOnlyList<AgendaResponsableDto>> GetAgendaResponsablesInternalAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         CancellationToken cancellationToken)
     {
         var items = new List<AgendaResponsableDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 AL.IdAlumno,
                 AL.Nombre,
                 C.Nombre AS Cargo,
-                ISNULL(AL.Genero, '') AS Genero
+                COALESCE(AL.Genero, '') AS Genero
             FROM Alumnos AL
             INNER JOIN Cargos C ON AL.IdCargo = C.IdCargo
             WHERE AL.Activo = 1
@@ -887,7 +887,7 @@ public sealed class DinamicasService
     }
 
     private static async Task<Dictionary<int, AlumnoActivoDto>> GetActiveStudentsLookupAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         IEnumerable<int> idsAlumnos,
         CancellationToken cancellationToken)
     {
@@ -906,7 +906,7 @@ public sealed class DinamicasService
               AND IdAlumno IN ({string.Join(", ", parameterNames)})
             """;
 
-        using var command = new SqlCommand(sql, connection);
+        using var command = new MySqlCommand(sql, connection);
         for (var index = 0; index < ids.Length; index++)
         {
             command.Parameters.AddWithValue(parameterNames[index], ids[index]);
@@ -985,7 +985,7 @@ public sealed class DinamicasService
         return normalized;
     }
 
-    private static AgendaDinamicaDto MapAgenda(SqlDataReader reader) =>
+    private static AgendaDinamicaDto MapAgenda(MySqlDataReader reader) =>
         new()
         {
             IdAgenda = GetRequiredInt(reader, "IdAgenda"),
@@ -998,23 +998,23 @@ public sealed class DinamicasService
             Titulo = GetString(reader, "Titulo")
         };
 
-    private static string GetString(SqlDataReader reader, string columnName) =>
+    private static string GetString(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? string.Empty : reader[columnName]?.ToString() ?? string.Empty;
 
-    private static int GetRequiredInt(SqlDataReader reader, string columnName) =>
+    private static int GetRequiredInt(MySqlDataReader reader, string columnName) =>
         Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static int? GetNullableInt(SqlDataReader reader, string columnName) =>
+    private static int? GetNullableInt(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? null
             : Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static decimal GetDecimal(SqlDataReader reader, string columnName) =>
+    private static decimal GetDecimal(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? 0m
             : Convert.ToDecimal(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static DateTime? GetNullableDateTime(SqlDataReader reader, string columnName) =>
+    private static DateTime? GetNullableDateTime(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? null
             : Convert.ToDateTime(reader[columnName], CultureInfo.InvariantCulture);

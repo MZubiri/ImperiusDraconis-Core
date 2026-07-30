@@ -4,16 +4,16 @@ using System.Text;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Dracoins;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services;
 
 public sealed class DracoinsService
 {
     private const string BancoCode = "BANCO";
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
 
-    public DracoinsService(SqlConnectionFactory connectionFactory)
+    public DracoinsService(MySqlConnectionFactory connectionFactory)
     {
         _connectionFactory = connectionFactory;
     }
@@ -92,20 +92,20 @@ public sealed class DracoinsService
 
         try
         {
-            using (var debitCommand = new SqlCommand(
+            using (var debitCommand = new MySqlCommand(
                        "UPDATE Alumnos SET Dracoins = Dracoins - @Monto WHERE IdAlumno = @IdAlumno",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 debitCommand.Parameters.AddWithValue("@Monto", request.Monto);
                 debitCommand.Parameters.AddWithValue("@IdAlumno", remitente.IdAlumno);
                 await debitCommand.ExecuteNonQueryAsync(cancellationToken);
             }
 
-            using (var creditCommand = new SqlCommand(
+            using (var creditCommand = new MySqlCommand(
                        "UPDATE Alumnos SET Dracoins = Dracoins + @Monto WHERE Codigo = @Codigo",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 creditCommand.Parameters.AddWithValue("@Monto", request.Monto);
                 creditCommand.Parameters.AddWithValue("@Codigo", destinatario.Codigo);
@@ -114,7 +114,7 @@ public sealed class DracoinsService
 
             var idMovimiento = await RegisterMovementAsync(
                 connection,
-                (SqlTransaction)transaction,
+                (MySqlTransaction)transaction,
                 remitente.Codigo,
                 destinatario.Codigo,
                 request.Monto,
@@ -165,7 +165,7 @@ public sealed class DracoinsService
             return null;
         }
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 M.IdMovimiento,
@@ -221,7 +221,7 @@ public sealed class DracoinsService
             WHERE 1 = 1
             """);
 
-        using var countCommand = new SqlCommand { Connection = connection };
+        using var countCommand = new MySqlCommand { Connection = connection };
 
         if (!string.IsNullOrWhiteSpace(remitente))
         {
@@ -249,7 +249,7 @@ public sealed class DracoinsService
 
         if (!string.IsNullOrWhiteSpace(observacion))
         {
-            queryBase.Append(" AND ISNULL(M.Observacion, '') LIKE @Observacion");
+            queryBase.Append(" AND COALESCE(M.Observacion, '') LIKE @Observacion");
             countCommand.Parameters.AddWithValue("@Observacion", $"%{observacion.Trim()}%");
         }
 
@@ -269,20 +269,20 @@ public sealed class DracoinsService
         var totalRegistros = Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken));
 
         var items = new List<DracoinGeneralMovementDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             $"""
             SELECT
                 M.IdMovimiento,
                 M.CodigoRemitente,
-                ISNULL(AR.Nombre, '') AS NombreRemitente,
+                COALESCE(AR.Nombre, '') AS NombreRemitente,
                 M.CodigoDestinatario,
-                ISNULL(AD.Nombre, '') AS NombreDestinatario,
+                COALESCE(AD.Nombre, '') AS NombreDestinatario,
                 M.Monto,
                 M.FechaTransferencia,
-                ISNULL(M.Observacion, '') AS Observacion
+                COALESCE(M.Observacion, '') AS Observacion
             {queryBase}
             ORDER BY M.FechaTransferencia DESC
-            OFFSET @Offset ROWS FETCH NEXT @Fetch ROWS ONLY
+            LIMIT @Fetch OFFSET @Offset
             """,
             connection);
         CopyParameters(countCommand, command);
@@ -328,7 +328,7 @@ public sealed class DracoinsService
         await connection.OpenAsync(cancellationToken);
 
         var totalRegistros = 0;
-        using (var countCommand = new SqlCommand(
+        using (var countCommand = new MySqlCommand(
                    """
                    SELECT COUNT(*)
                    FROM PagosAdministrativos PA
@@ -340,7 +340,7 @@ public sealed class DracoinsService
         }
 
         var items = new List<DracoinAdministrativePaymentDto>();
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    SELECT
                        PA.IdPago,
@@ -355,7 +355,7 @@ public sealed class DracoinsService
                    FROM PagosAdministrativos PA
                    INNER JOIN Alumnos A ON PA.IdAlumno = A.IdAlumno
                    ORDER BY PA.FechaPago DESC
-                   OFFSET @Offset ROWS FETCH NEXT @Fetch ROWS ONLY
+                   LIMIT @Fetch OFFSET @Offset
                    """,
                    connection))
         {
@@ -428,14 +428,14 @@ public sealed class DracoinsService
         {
             foreach (var item in items)
             {
-                using var command = new SqlCommand(
+                using var command = new MySqlCommand(
                     """
                     UPDATE SueldosCargo
                     SET SueldoFijo = @SueldoFijo
                     WHERE IdSueldo = @IdSueldo
                     """,
                     connection,
-                    (SqlTransaction)transaction);
+                    (MySqlTransaction)transaction);
                 command.Parameters.AddWithValue("@IdSueldo", item.IdSueldo);
                 command.Parameters.AddWithValue("@SueldoFijo", item.SueldoFijo);
 
@@ -497,7 +497,7 @@ public sealed class DracoinsService
             var executor = await GetCurrentExecutorAsync(
                 connection,
                 idAlumnoEjecutor,
-                (SqlTransaction)transaction,
+                (MySqlTransaction)transaction,
                 cancellationToken);
 
             if (executor is null)
@@ -509,7 +509,7 @@ public sealed class DracoinsService
             var candidates = await GetManualPaymentCandidatesInternalAsync(
                 connection,
                 itemIds,
-                (SqlTransaction)transaction,
+                (MySqlTransaction)transaction,
                 cancellationToken);
 
             var candidatesById = candidates.ToDictionary(item => item.IdAlumno);
@@ -537,14 +537,14 @@ public sealed class DracoinsService
                     $"Pago de sueldo (BANCO) al cargo {personalizedCargo}. Ejecutado por {executor.Nombre} ({executor.CargoNombre}).";
 
                 int idPago;
-                using (var paymentCommand = new SqlCommand(
+                using (var paymentCommand = new MySqlCommand(
                            """
                            INSERT INTO PagosAdministrativos (IdAlumno, Cargo, MontoPagado, FechaPago, PagadoPor)
                            VALUES (@IdAlumno, @Cargo, @MontoPagado, @FechaPago, @PagadoPor);
                            SELECT CAST(SCOPE_IDENTITY() AS INT);
                            """,
                            connection,
-                           (SqlTransaction)transaction))
+                           (MySqlTransaction)transaction))
                 {
                     paymentCommand.Parameters.AddWithValue("@IdAlumno", candidate.IdAlumno);
                     paymentCommand.Parameters.AddWithValue("@Cargo", candidate.Cargo);
@@ -557,10 +557,10 @@ public sealed class DracoinsService
                         CultureInfo.InvariantCulture);
                 }
 
-                using (var creditCommand = new SqlCommand(
+                using (var creditCommand = new MySqlCommand(
                            "UPDATE Alumnos SET Dracoins = Dracoins + @Monto WHERE IdAlumno = @IdAlumno",
                            connection,
-                           (SqlTransaction)transaction))
+                           (MySqlTransaction)transaction))
                 {
                     creditCommand.Parameters.AddWithValue("@Monto", wholeAmount);
                     creditCommand.Parameters.AddWithValue("@IdAlumno", candidate.IdAlumno);
@@ -569,7 +569,7 @@ public sealed class DracoinsService
 
                 await RegisterMovementAsync(
                     connection,
-                    (SqlTransaction)transaction,
+                    (MySqlTransaction)transaction,
                     BancoCode,
                     candidate.CodigoAlumno,
                     wholeAmount,
@@ -607,7 +607,7 @@ public sealed class DracoinsService
     }
 
     private async Task<PagedResult<DracoinTransferDto>> GetTransferHistoryInternalAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         string codigo,
         int page,
         int pageSize,
@@ -617,7 +617,7 @@ public sealed class DracoinsService
         var normalizedPageSize = pageSize <= 0 ? 20 : pageSize;
 
         var totalRegistros = 0;
-        using (var countCommand = new SqlCommand(
+        using (var countCommand = new MySqlCommand(
                    """
                    SELECT COUNT(*)
                    FROM MovimientosDracoins
@@ -630,7 +630,7 @@ public sealed class DracoinsService
         }
 
         var items = new List<DracoinTransferDto>();
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    SELECT
                        M.IdMovimiento,
@@ -646,7 +646,7 @@ public sealed class DracoinsService
                    LEFT JOIN Alumnos AD ON AD.Codigo = M.CodigoDestinatario
                    WHERE M.CodigoRemitente = @Codigo OR M.CodigoDestinatario = @Codigo
                    ORDER BY M.FechaTransferencia DESC
-                   OFFSET @Offset ROWS FETCH NEXT @Fetch ROWS ONLY
+                   LIMIT @Fetch OFFSET @Offset
                    """,
                    connection))
         {
@@ -671,12 +671,12 @@ public sealed class DracoinsService
     }
 
     private async Task<IReadOnlyList<DracoinSalaryByCargoDto>> GetSalaryCatalogInternalAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         CancellationToken cancellationToken)
     {
         var items = new List<DracoinSalaryByCargoDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT IdSueldo, Cargo, SueldoFijo
             FROM SueldosCargo
@@ -700,9 +700,9 @@ public sealed class DracoinsService
     }
 
     private async Task<IReadOnlyList<DracoinManualPaymentCandidateDto>> GetManualPaymentCandidatesInternalAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         IReadOnlyCollection<int>? filterIds,
-        SqlTransaction? transaction,
+        MySqlTransaction? transaction,
         CancellationToken cancellationToken)
     {
         var queryBuilder = new StringBuilder(
@@ -722,7 +722,7 @@ public sealed class DracoinsService
               AND A.Activo = 1
             """);
 
-        using var command = new SqlCommand { Connection = connection, Transaction = transaction };
+        using var command = new MySqlCommand { Connection = connection, Transaction = transaction };
 
         if (filterIds is { Count: > 0 })
         {
@@ -762,18 +762,18 @@ public sealed class DracoinsService
     }
 
     private async Task<(int TotalTransferencias, int MontoTotal)> GetTransferStatsAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         string codigo,
         bool sent,
         CancellationToken cancellationToken)
     {
         var column = sent ? "CodigoRemitente" : "CodigoDestinatario";
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             $"""
             SELECT
                 COUNT(*) AS TotalTransferencias,
-                ISNULL(SUM(Monto), 0) AS MontoTotal
+                COALESCE(SUM(Monto), 0) AS MontoTotal
             FROM MovimientosDracoins
             WHERE {column} = @Codigo
             """,
@@ -792,11 +792,11 @@ public sealed class DracoinsService
     }
 
     private async Task<AlumnoContext?> GetCurrentAlumnoAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         int idAlumno,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT IdAlumno, Codigo, Nombre, Dracoins
             FROM Alumnos
@@ -820,18 +820,18 @@ public sealed class DracoinsService
     }
 
     private async Task<ExecutorContext?> GetCurrentExecutorAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         int idAlumno,
-        SqlTransaction transaction,
+        MySqlTransaction transaction,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 A.IdAlumno,
                 A.Codigo,
                 A.Nombre,
-                ISNULL(C.Nombre, '') AS CargoNombre,
+                COALESCE(C.Nombre, '') AS CargoNombre,
                 A.Genero
             FROM Alumnos A
             LEFT JOIN Cargos C ON C.IdCargo = A.IdCargo
@@ -857,16 +857,17 @@ public sealed class DracoinsService
     }
 
     private async Task<AlumnoContext?> GetAlumnoByCodigoAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         string codigo,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
-            SELECT TOP 1 IdAlumno, Codigo, Nombre, Dracoins
+            SELECT IdAlumno, Codigo, Nombre, Dracoins
             FROM Alumnos
             WHERE Codigo = @Codigo
               AND Activo = 1
+            LIMIT 1
             """,
             connection);
         command.Parameters.AddWithValue("@Codigo", codigo);
@@ -885,15 +886,15 @@ public sealed class DracoinsService
     }
 
     private static async Task<int> RegisterMovementAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         string codigoRemitente,
         string codigoDestinatario,
         int monto,
         string? observacion,
         CancellationToken cancellationToken)
     {
-        using var movementCommand = new SqlCommand(
+        using var movementCommand = new MySqlCommand(
             "RegistrarMovimientoDracoins",
             connection,
             transaction);
@@ -912,9 +913,9 @@ public sealed class DracoinsService
             CultureInfo.InvariantCulture);
     }
 
-    private static void CopyParameters(SqlCommand source, SqlCommand destination)
+    private static void CopyParameters(MySqlCommand source, MySqlCommand destination)
     {
-        foreach (SqlParameter parameter in source.Parameters)
+        foreach (MySqlParameter parameter in source.Parameters)
         {
             destination.Parameters.AddWithValue(parameter.ParameterName, parameter.Value);
         }
@@ -1000,7 +1001,7 @@ public sealed class DracoinsService
         };
     }
 
-    private static DracoinTransferDto MapTransfer(SqlDataReader reader, string codigoActual) =>
+    private static DracoinTransferDto MapTransfer(MySqlDataReader reader, string codigoActual) =>
         new()
         {
             IdMovimiento = GetRequiredInt(reader, "IdMovimiento"),
@@ -1017,18 +1018,18 @@ public sealed class DracoinsService
                 StringComparison.OrdinalIgnoreCase)
         };
 
-    private static string GetString(SqlDataReader reader, string columnName) =>
+    private static string GetString(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? string.Empty : reader[columnName]?.ToString() ?? string.Empty;
 
-    private static int GetRequiredInt(SqlDataReader reader, string columnName) =>
+    private static int GetRequiredInt(MySqlDataReader reader, string columnName) =>
         Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static decimal GetDecimal(SqlDataReader reader, string columnName) =>
+    private static decimal GetDecimal(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? 0m
             : Convert.ToDecimal(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static DateTime GetDateTime(SqlDataReader reader, string columnName) =>
+    private static DateTime GetDateTime(MySqlDataReader reader, string columnName) =>
         Convert.ToDateTime(reader[columnName], CultureInfo.InvariantCulture);
 
     private sealed record AlumnoContext(int IdAlumno, string Codigo, string Nombre, decimal Dracoins);
