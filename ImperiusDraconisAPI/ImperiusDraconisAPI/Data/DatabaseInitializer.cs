@@ -46,29 +46,7 @@ public static class DatabaseInitializer
                 return;
             }
 
-            var alumnoEmojisScriptPath = Path.Combine(rootPath, "014_add_alumno_emojis.sql");
-            if (File.Exists(alumnoEmojisScriptPath))
-            {
-                logger.LogInformation("Verificando migracion de emojis de alumnos: 014_add_alumno_emojis.sql");
-                var script = await File.ReadAllTextAsync(alumnoEmojisScriptPath);
-                await ExecuteSqlScriptAsync(connection, script);
-            }
-
-            var alumnoEmojiPermissionScriptPath = Path.Combine(rootPath, "015_create_alumno_emoji_permission.sql");
-            if (File.Exists(alumnoEmojiPermissionScriptPath))
-            {
-                logger.LogInformation("Verificando permiso de emojis de alumnos: 015_create_alumno_emoji_permission.sql");
-                var script = await File.ReadAllTextAsync(alumnoEmojiPermissionScriptPath);
-                await ExecuteSqlScriptAsync(connection, script);
-            }
-
-            var landingScriptPath = Path.Combine(rootPath, "016_create_public_landing.sql");
-            if (File.Exists(landingScriptPath))
-            {
-                logger.LogInformation("Verificando estructura de landing publica: 016_create_public_landing.sql");
-                var script = await File.ReadAllTextAsync(landingScriptPath);
-                await ExecuteSqlScriptAsync(connection, script);
-            }
+            // Nota: El esquema e información ya contienen emojis y estructuras de landing publica.
 
             if (!tableExists)
             {
