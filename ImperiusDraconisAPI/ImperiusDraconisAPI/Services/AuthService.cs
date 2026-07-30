@@ -57,7 +57,7 @@ public sealed class AuthService
                 A.IdCargo,
                 A.Categoria,
                 A.Activo,
-                A.Contraseña,
+                A.`Contraseña`,
                 C.Nombre AS CasaNombre,
                 CG.Nombre AS CargoNombre,
                 A.Genero,
@@ -67,14 +67,14 @@ public sealed class AuthService
             LEFT JOIN Casas C ON A.IdCasa = C.IdCasa
             LEFT JOIN Cargos CG ON A.IdCargo = CG.IdCargo
             WHERE A.Codigo = @Codigo
-              AND A.Contraseña = @Contraseña
+              AND A.`Contraseña` = @Contrasena
               AND (A.Activo = 1 OR A.Activo IS NULL)
             LIMIT 1
             """;
 
         using var command = new MySqlCommand(sql, connection);
         command.Parameters.AddWithValue("@Codigo", codigo);
-        command.Parameters.AddWithValue("@Contraseña", hashedPassword);
+        command.Parameters.AddWithValue("@Contrasena", hashedPassword);
 
         int? idAlumno = null;
         using (var reader = await command.ExecuteReaderAsync(cancellationToken))
@@ -322,7 +322,7 @@ public sealed class AuthService
         {
             using var cargoCommand = new MySqlCommand(
                 """
-                SELECT DISTINCT Controlador + ':' + Accion AS Permiso
+                SELECT DISTINCT CONCAT(Controlador, ':', Accion) AS Permiso
                 FROM Permisos
                 WHERE IdCargo = @IdCargo AND TienePermiso = 1
                 """,
@@ -344,7 +344,7 @@ public sealed class AuthService
 
             var sql =
                 $"""
-                SELECT DISTINCT Controlador + ':' + Accion AS Permiso
+                SELECT DISTINCT CONCAT(Controlador, ':', Accion) AS Permiso
                 FROM PermisosTrabajos
                 WHERE TienePermiso = 1
                   AND IdTrabajo IN ({string.Join(", ", parameterNames)})
