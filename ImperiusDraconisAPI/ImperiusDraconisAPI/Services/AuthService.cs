@@ -48,10 +48,31 @@ public sealed class AuthService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new MySqlCommand("ValidarLogin", connection)
-        {
-            CommandType = CommandType.StoredProcedure
-        };
+        const string sql = """
+            SELECT
+                A.IdAlumno,
+                A.Codigo,
+                A.Nombre,
+                A.IdCasa,
+                A.IdCargo,
+                A.Categoria,
+                A.Activo,
+                A.Contraseña,
+                C.Nombre AS CasaNombre,
+                CG.Nombre AS CargoNombre,
+                A.Genero,
+                A.FotoPerfil,
+                A.Dracoins
+            FROM Alumnos A
+            LEFT JOIN Casas C ON A.IdCasa = C.IdCasa
+            LEFT JOIN Cargos CG ON A.IdCargo = CG.IdCargo
+            WHERE A.Codigo = @Codigo
+              AND A.Contraseña = @Contraseña
+              AND (A.Activo = 1 OR A.Activo IS NULL)
+            LIMIT 1
+            """;
+
+        using var command = new MySqlCommand(sql, connection);
         command.Parameters.AddWithValue("@Codigo", codigo);
         command.Parameters.AddWithValue("@Contraseña", hashedPassword);
 
