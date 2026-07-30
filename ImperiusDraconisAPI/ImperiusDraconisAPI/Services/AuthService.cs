@@ -57,7 +57,7 @@ public sealed class AuthService
                 A.IdCargo,
                 A.Categoria,
                 A.Activo,
-                A.`Contraseña`,
+                A.Contrasena,
                 C.Nombre AS CasaNombre,
                 CG.Nombre AS CargoNombre,
                 A.Genero,
@@ -67,7 +67,7 @@ public sealed class AuthService
             LEFT JOIN Casas C ON A.IdCasa = C.IdCasa
             LEFT JOIN Cargos CG ON A.IdCargo = CG.IdCargo
             WHERE A.Codigo = @Codigo
-              AND A.`Contraseña` = @Contrasena
+              AND A.Contrasena = @Contrasena
               AND (A.Activo = 1 OR A.Activo IS NULL)
             LIMIT 1
             """;
