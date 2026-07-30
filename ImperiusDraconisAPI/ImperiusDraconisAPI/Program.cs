@@ -19,7 +19,7 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 builder.Services.Configure<AuthRecoveryOptions>(builder.Configuration.GetSection(AuthRecoveryOptions.SectionName));
 builder.Services.Configure<GameOptions>(builder.Configuration.GetSection(GameOptions.SectionName));
-builder.Services.AddSingleton<SqlConnectionFactory>();
+builder.Services.AddSingleton<MySqlConnectionFactory>();
 builder.Services.AddSingleton<LegacyAssetStorage>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<AlumnosService>();

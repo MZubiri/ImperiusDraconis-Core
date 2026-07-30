@@ -7,7 +7,7 @@ using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Configuration;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Game.Links;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 using Microsoft.Extensions.Options;
 
 namespace ImperiusDraconisAPI.Services.Game;
@@ -18,13 +18,13 @@ public sealed class GameLinkService
     private const string LinkCodeAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
     private const int LinkCodeLength = 8;
     private static readonly JsonSerializerOptions WebJsonOptions = new(JsonSerializerDefaults.Web);
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
     private readonly DracoinGameService _dracoinGameService;
     private readonly GameIdempotencyService _idempotencyService;
     private readonly GameOptions _options;
 
     public GameLinkService(
-        SqlConnectionFactory connectionFactory,
+        MySqlConnectionFactory connectionFactory,
         GameIdempotencyService idempotencyService,
         DracoinGameService dracoinGameService,
         IOptions<GameOptions> options)
@@ -66,7 +66,7 @@ public sealed class GameLinkService
     {
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+        await using var transaction = (MySqlTransaction)await connection.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
 
@@ -154,7 +154,7 @@ public sealed class GameLinkService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+        await using var transaction = (MySqlTransaction)await connection.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
 
@@ -276,15 +276,15 @@ public sealed class GameLinkService
     }
 
     private static async Task<AlumnoState> GetAlumnoStateAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         int idAlumno,
         CancellationToken cancellationToken)
     {
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             SELECT
-                CONVERT(BIT, ISNULL(A.Activo, 0)) AS Active,
+                CONVERT(BIT, COALESCE(A.Activo, 0)) AS Active,
                 CONVERT(BIT, CASE WHEN EXISTS
                 (
                     SELECT 1
@@ -298,7 +298,7 @@ public sealed class GameLinkService
             """,
             connection,
             transaction);
-        command.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = idAlumno;
+        command.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = idAlumno;
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
@@ -313,13 +313,13 @@ public sealed class GameLinkService
     }
 
     private static async Task RevokePreviousCodesAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         int idAlumno,
         DateTime revokedAt,
         CancellationToken cancellationToken)
     {
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             UPDATE dbo.GameLinkCodes
             SET RevokedAt = @RevokedAt
@@ -329,22 +329,22 @@ public sealed class GameLinkService
             """,
             connection,
             transaction);
-        command.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = idAlumno;
-        command.Parameters.Add("@RevokedAt", SqlDbType.DateTime2).Value = revokedAt;
+        command.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = idAlumno;
+        command.Parameters.Add("@RevokedAt", MySqlDbType.DateTime).Value = revokedAt;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static async Task InsertCodeAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         int idAlumno,
         byte[] codeHash,
         DateTime createdAt,
         DateTime expiresAt,
         CancellationToken cancellationToken)
     {
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             INSERT INTO dbo.GameLinkCodes
                 (IdAlumno, CodeHash, ExpiresAt, CreatedAt)
@@ -353,20 +353,20 @@ public sealed class GameLinkService
             """,
             connection,
             transaction);
-        command.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = idAlumno;
-        command.Parameters.Add("@CodeHash", SqlDbType.Binary, 32).Value = codeHash;
-        command.Parameters.Add("@ExpiresAt", SqlDbType.DateTime2).Value = expiresAt;
-        command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = createdAt;
+        command.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = idAlumno;
+        command.Parameters.Add("@CodeHash", MySqlDbType.Binary, 32).Value = codeHash;
+        command.Parameters.Add("@ExpiresAt", MySqlDbType.DateTime).Value = expiresAt;
+        command.Parameters.Add("@CreatedAt", MySqlDbType.DateTime).Value = createdAt;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static async Task<DateTime> GetDatabaseUtcNowAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         CancellationToken cancellationToken)
     {
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             "SELECT CONVERT(DATETIME2(3), SYSUTCDATETIME());",
             connection,
             transaction);
@@ -377,26 +377,28 @@ public sealed class GameLinkService
     }
 
     private static async Task<LinkCodeState?> GetLinkCodeAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         byte[] codeHash,
         CancellationToken cancellationToken)
     {
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
-            SELECT TOP (1)
+            SELECT
                 Id,
                 IdAlumno,
                 ExpiresAt,
                 UsedAt,
                 RevokedAt
-            FROM dbo.GameLinkCodes WITH (UPDLOCK, HOLDLOCK)
+            FROM GameLinkCodes
             WHERE CodeHash = @CodeHash
-            ORDER BY CreatedAt DESC, Id DESC;
+            ORDER BY CreatedAt DESC, Id DESC
+            LIMIT 1
+            FOR UPDATE;
             """,
             connection,
             transaction);
-        command.Parameters.Add("@CodeHash", SqlDbType.Binary, 32).Value = codeHash;
+        command.Parameters.Add("@CodeHash", MySqlDbType.Binary, 32).Value = codeHash;
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
@@ -445,25 +447,26 @@ public sealed class GameLinkService
     }
 
     private static async Task<PlayerState?> GetPlayerForConsumeAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         int idAlumno,
         CancellationToken cancellationToken)
     {
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             SELECT
                 A.IdAlumno,
                 A.Nombre,
-                ISNULL(C.Nombre, N'') AS HouseName,
-                CONVERT(BIT, ISNULL(A.Activo, 0)) AS Active
-            FROM dbo.Alumnos A WITH (UPDLOCK, HOLDLOCK)
-            LEFT JOIN dbo.Casas C ON C.IdCasa = A.IdCasa
-            WHERE A.IdAlumno = @IdAlumno;
+                COALESCE(C.Nombre, '') AS HouseName,
+                COALESCE(A.Activo, 0) AS Active
+            FROM Alumnos A
+            LEFT JOIN Casas C ON C.IdCasa = A.IdCasa
+            WHERE A.IdAlumno = @IdAlumno
+            FOR UPDATE;
             """,
             connection,
             transaction);
-        command.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = idAlumno;
+        command.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = idAlumno;
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
@@ -479,50 +482,54 @@ public sealed class GameLinkService
     }
 
     private static async Task<bool> HasAlumnoLinkAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         int idAlumno,
         CancellationToken cancellationToken)
     {
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
-            SELECT TOP (1) 1
-            FROM dbo.GameRobloxLinks WITH (UPDLOCK, HOLDLOCK)
-            WHERE IdAlumno = @IdAlumno;
+            SELECT 1
+            FROM GameRobloxLinks
+            WHERE IdAlumno = @IdAlumno
+            LIMIT 1
+            FOR UPDATE;
             """,
             connection,
             transaction);
-        command.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = idAlumno;
+        command.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = idAlumno;
         return await command.ExecuteScalarAsync(cancellationToken) is not null;
     }
 
     private static async Task<bool> HasRobloxLinkAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         long robloxUserId,
         CancellationToken cancellationToken)
     {
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
-            SELECT TOP (1) 1
-            FROM dbo.GameRobloxLinks WITH (UPDLOCK, HOLDLOCK)
-            WHERE RobloxUserId = @RobloxUserId;
+            SELECT 1
+            FROM GameRobloxLinks
+            WHERE RobloxUserId = @RobloxUserId
+            LIMIT 1
+            FOR UPDATE;
             """,
             connection,
             transaction);
-        command.Parameters.Add("@RobloxUserId", SqlDbType.BigInt).Value = robloxUserId;
+        command.Parameters.Add("@RobloxUserId", MySqlDbType.Int64).Value = robloxUserId;
         return await command.ExecuteScalarAsync(cancellationToken) is not null;
     }
 
     private static async Task<long> InsertRobloxLinkAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         int idAlumno,
         long robloxUserId,
         DateTime linkedAt,
         CancellationToken cancellationToken)
     {
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             INSERT INTO dbo.GameRobloxLinks
                 (IdAlumno, RobloxUserId, LinkedAt, Active)
@@ -532,20 +539,20 @@ public sealed class GameLinkService
             """,
             connection,
             transaction);
-        command.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = idAlumno;
-        command.Parameters.Add("@RobloxUserId", SqlDbType.BigInt).Value = robloxUserId;
-        command.Parameters.Add("@LinkedAt", SqlDbType.DateTime2).Value = linkedAt;
+        command.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = idAlumno;
+        command.Parameters.Add("@RobloxUserId", MySqlDbType.Int64).Value = robloxUserId;
+        command.Parameters.Add("@LinkedAt", MySqlDbType.DateTime).Value = linkedAt;
         return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
     }
 
     private async Task InsertDragonCapacityAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         int idAlumno,
         DateTime updatedAt,
         CancellationToken cancellationToken)
     {
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             INSERT INTO dbo.GameDragonCapacity
                 (IdAlumno, PurchasedSlots, MaxCapacity, UpdatedAt)
@@ -554,20 +561,20 @@ public sealed class GameLinkService
             """,
             connection,
             transaction);
-        command.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = idAlumno;
-        command.Parameters.Add("@MaxCapacity", SqlDbType.TinyInt).Value = _options.MaxDragonCapacity;
-        command.Parameters.Add("@UpdatedAt", SqlDbType.DateTime2).Value = updatedAt;
+        command.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = idAlumno;
+        command.Parameters.Add("@MaxCapacity", MySqlDbType.Byte).Value = _options.MaxDragonCapacity;
+        command.Parameters.Add("@UpdatedAt", MySqlDbType.DateTime).Value = updatedAt;
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static async Task MarkCodeUsedAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         long linkCodeId,
         DateTime usedAt,
         CancellationToken cancellationToken)
     {
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             UPDATE dbo.GameLinkCodes
             SET UsedAt = @UsedAt
@@ -578,8 +585,8 @@ public sealed class GameLinkService
             """,
             connection,
             transaction);
-        command.Parameters.Add("@Id", SqlDbType.BigInt).Value = linkCodeId;
-        command.Parameters.Add("@UsedAt", SqlDbType.DateTime2).Value = usedAt;
+        command.Parameters.Add("@Id", MySqlDbType.Int64).Value = linkCodeId;
+        command.Parameters.Add("@UsedAt", MySqlDbType.DateTime).Value = usedAt;
 
         if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
         {

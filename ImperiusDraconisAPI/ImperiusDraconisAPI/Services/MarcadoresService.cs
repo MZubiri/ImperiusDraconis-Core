@@ -2,15 +2,15 @@ using System.Globalization;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Marcadores;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services;
 
 public sealed class MarcadoresService
 {
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
 
-    public MarcadoresService(SqlConnectionFactory connectionFactory)
+    public MarcadoresService(MySqlConnectionFactory connectionFactory)
     {
         _connectionFactory = connectionFactory;
     }
@@ -34,13 +34,13 @@ public sealed class MarcadoresService
         await connection.OpenAsync(cancellationToken);
 
         var totalRegistros = 0;
-        using (var countCommand = new SqlCommand("SELECT COUNT(*) FROM HistorialMarcadores", connection))
+        using (var countCommand = new MySqlCommand("SELECT COUNT(*) FROM HistorialMarcadores", connection))
         {
             totalRegistros = Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken));
         }
 
         var items = new List<HistorialMarcadorDto>();
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    SELECT
                        H.IdHistorial,
@@ -51,7 +51,7 @@ public sealed class MarcadoresService
                    FROM HistorialMarcadores H
                    INNER JOIN Casas C ON C.IdCasa = H.IdCasa
                    ORDER BY H.FechaCierre DESC, H.IdCasa
-                   OFFSET @Offset ROWS FETCH NEXT @Fetch ROWS ONLY
+                   LIMIT @Fetch OFFSET @Offset
                    """,
                    connection))
         {
@@ -130,7 +130,7 @@ public sealed class MarcadoresService
         {
             var idDinamica = await InsertDinamicaAsync(
                 connection,
-                (SqlTransaction)transaction,
+                (MySqlTransaction)transaction,
                 idResponsable,
                 nombreDinamica,
                 subtipo,
@@ -139,8 +139,8 @@ public sealed class MarcadoresService
 
             foreach (var item in items)
             {
-                await InsertResultadoAsync(connection, (SqlTransaction)transaction, idDinamica, item.IdCasa, item.Puntos, cancellationToken);
-                await UpdateMarcadorAsync(connection, (SqlTransaction)transaction, item.IdCasa, item.Puntos, cancellationToken);
+                await InsertResultadoAsync(connection, (MySqlTransaction)transaction, idDinamica, item.IdCasa, item.Puntos, cancellationToken);
+                await UpdateMarcadorAsync(connection, (MySqlTransaction)transaction, item.IdCasa, item.Puntos, cancellationToken);
             }
 
             await transaction.CommitAsync(cancellationToken);
@@ -200,15 +200,15 @@ public sealed class MarcadoresService
         {
             var idDinamica = await InsertDinamicaAsync(
                 connection,
-                (SqlTransaction)transaction,
+                (MySqlTransaction)transaction,
                 idResponsable,
                 "Ajuste de puntos",
                 "Ajuste",
                 observacion,
                 cancellationToken);
 
-            await InsertResultadoAsync(connection, (SqlTransaction)transaction, idDinamica, request.IdCasa, request.Puntos, cancellationToken);
-            await UpdateMarcadorAsync(connection, (SqlTransaction)transaction, request.IdCasa, request.Puntos, cancellationToken);
+            await InsertResultadoAsync(connection, (MySqlTransaction)transaction, idDinamica, request.IdCasa, request.Puntos, cancellationToken);
+            await UpdateMarcadorAsync(connection, (MySqlTransaction)transaction, request.IdCasa, request.Puntos, cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
 
@@ -238,23 +238,23 @@ public sealed class MarcadoresService
             var fechaCierre = DateTime.Now;
             int registrosGenerados;
 
-            using (var insertCommand = new SqlCommand(
+            using (var insertCommand = new MySqlCommand(
                        """
                        INSERT INTO HistorialMarcadores (IdCasa, PuntosAcumulados, FechaCierre)
                        SELECT IdCasa, PuntosAcumulados, @FechaCierre
                        FROM MarcadorActual
                        """,
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 insertCommand.Parameters.AddWithValue("@FechaCierre", fechaCierre);
                 registrosGenerados = await insertCommand.ExecuteNonQueryAsync(cancellationToken);
             }
 
-            using (var resetCommand = new SqlCommand(
+            using (var resetCommand = new MySqlCommand(
                        "UPDATE MarcadorActual SET PuntosAcumulados = 0",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 await resetCommand.ExecuteNonQueryAsync(cancellationToken);
             }
@@ -276,15 +276,15 @@ public sealed class MarcadoresService
     }
 
     private static async Task<int> InsertDinamicaAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         int idResponsable,
         string nombre,
         string subtipo,
         string? observacion,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             INSERT INTO Dinamicas (Fecha, Nombre, Tipo, Subtipo, IdResponsable, Observacion)
             VALUES (@Fecha, @Nombre, 'Puntos', @Subtipo, @IdResponsable, @Observacion);
@@ -305,14 +305,14 @@ public sealed class MarcadoresService
     }
 
     private static async Task InsertResultadoAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         int idDinamica,
         int idCasa,
         int puntos,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             INSERT INTO ResultadosPorCasa (IdDinamica, IdCasa, PuntosOtorgados, DracoinsOtorgados)
             VALUES (@IdDinamica, @IdCasa, @PuntosOtorgados, 0)
@@ -328,13 +328,13 @@ public sealed class MarcadoresService
     }
 
     private static async Task UpdateMarcadorAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         int idCasa,
         int puntos,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             UPDATE MarcadorActual
             SET PuntosAcumulados = PuntosAcumulados + @Puntos
@@ -356,19 +356,19 @@ public sealed class MarcadoresService
     }
 
     private static async Task<IReadOnlyList<MarcadorCasaDto>> GetScoreboardAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         CancellationToken cancellationToken)
     {
         var items = new List<MarcadorCasaDto>();
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 C.IdCasa,
                 C.Nombre AS NombreCasa,
-                ISNULL(C.Color, '') AS Color,
-                ISNULL(M.PuntosAcumulados, 0) AS PuntosAcumulados
+                COALESCE(C.Color, '') AS Color,
+                COALESCE(M.PuntosAcumulados, 0) AS PuntosAcumulados
             FROM Casas C
             LEFT JOIN MarcadorActual M ON M.IdCasa = C.IdCasa
             ORDER BY C.IdCasa
@@ -391,12 +391,12 @@ public sealed class MarcadoresService
         return items;
     }
 
-    private static string GetString(SqlDataReader reader, string columnName) =>
+    private static string GetString(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? string.Empty : reader[columnName]?.ToString() ?? string.Empty;
 
-    private static int GetRequiredInt(SqlDataReader reader, string columnName) =>
+    private static int GetRequiredInt(MySqlDataReader reader, string columnName) =>
         Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static DateTime GetDateTime(SqlDataReader reader, string columnName) =>
+    private static DateTime GetDateTime(MySqlDataReader reader, string columnName) =>
         Convert.ToDateTime(reader[columnName], CultureInfo.InvariantCulture);
 }

@@ -8,7 +8,7 @@ using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Game.Eggs;
 using ImperiusDraconisAPI.Models.Game.Dragons;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services.Game;
 
@@ -16,12 +16,12 @@ public sealed class GameEggService
 {
     private static readonly string[] Temperaments = ["NOBLE", "AGRESIVO", "JUGUETON", "CURIOSO", "PEREZOSO"];
 
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
     private readonly GameIdempotencyService _idempotencyService;
     private readonly DracoinGameService _dracoinGameService;
 
     public GameEggService(
-        SqlConnectionFactory connectionFactory,
+        MySqlConnectionFactory connectionFactory,
         GameIdempotencyService idempotencyService,
         DracoinGameService dracoinGameService)
     {
@@ -42,18 +42,18 @@ public sealed class GameEggService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+        await using var transaction = (MySqlTransaction)await connection.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
 
         try
         {
             // Validar definicion de huevo
-            await using var defCommand = new SqlCommand(
+            await using var defCommand = new MySqlCommand(
                 "SELECT Active FROM dbo.GameEggDefinitions WHERE Code = @Code;",
                 connection,
                 transaction);
-            defCommand.Parameters.Add("@Code", SqlDbType.NVarChar, 50).Value = definitionCode;
+            defCommand.Parameters.Add("@Code", MySqlDbType.VarChar, 50).Value = definitionCode;
 
             await using var defReader = await defCommand.ExecuteReaderAsync(cancellationToken);
             if (!await defReader.ReadAsync(cancellationToken))
@@ -77,7 +77,7 @@ public sealed class GameEggService
 
             await ValidateAvailableCapacityAsync(connection, transaction, request.IdAlumno, cancellationToken);
 
-            await using var command = new SqlCommand(
+            await using var command = new MySqlCommand(
                 """
                 INSERT INTO dbo.GameEggs (IdAlumno, EggDefinitionCode, Rarity)
                 OUTPUT
@@ -93,9 +93,9 @@ public sealed class GameEggService
                 """,
                 connection,
                 transaction);
-            command.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = request.IdAlumno;
-            command.Parameters.Add("@EggDefinitionCode", SqlDbType.NVarChar, 50).Value = definitionCode;
-            command.Parameters.Add("@Rarity", SqlDbType.NVarChar, 20).Value = rarity;
+            command.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = request.IdAlumno;
+            command.Parameters.Add("@EggDefinitionCode", MySqlDbType.VarChar, 50).Value = definitionCode;
+            command.Parameters.Add("@Rarity", MySqlDbType.VarChar, 20).Value = rarity;
 
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             await reader.ReadAsync(cancellationToken);
@@ -123,7 +123,7 @@ public sealed class GameEggService
         await using var command = CreateSelectCommand(
             connection,
             "WHERE Id = @Id;");
-        command.Parameters.Add("@Id", SqlDbType.BigInt).Value = id;
+        command.Parameters.Add("@Id", MySqlDbType.Int64).Value = id;
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         return await reader.ReadAsync(cancellationToken)
@@ -145,7 +145,7 @@ public sealed class GameEggService
         await using var command = CreateSelectCommand(
             connection,
             "WHERE IdAlumno = @IdAlumno ORDER BY AcquiredAt, Id;");
-        command.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = idAlumno;
+        command.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = idAlumno;
 
         var utcNow = DateTime.UtcNow;
         var eggs = new List<GameEgg>();
@@ -196,7 +196,7 @@ public sealed class GameEggService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             UPDATE dbo.GameEggs
             SET
@@ -216,12 +216,12 @@ public sealed class GameEggService
             WHERE Id = @Id;
             """,
             connection);
-        command.Parameters.Add("@Id", SqlDbType.BigInt).Value = id;
-        command.Parameters.Add("@IncubationStartedAt", SqlDbType.DateTime2).Value =
+        command.Parameters.Add("@Id", MySqlDbType.Int64).Value = id;
+        command.Parameters.Add("@IncubationStartedAt", MySqlDbType.DateTime).Value =
             (object?)request.IncubationStartedAt ?? DBNull.Value;
-        command.Parameters.Add("@IncubationEndsAt", SqlDbType.DateTime2).Value =
+        command.Parameters.Add("@IncubationEndsAt", MySqlDbType.DateTime).Value =
             (object?)request.IncubationEndsAt ?? DBNull.Value;
-        command.Parameters.Add("@Status", SqlDbType.NVarChar, 20).Value = status;
+        command.Parameters.Add("@Status", MySqlDbType.VarChar, 20).Value = status;
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
@@ -244,10 +244,10 @@ public sealed class GameEggService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             "DELETE FROM dbo.GameEggs WHERE Id = @Id AND Status = N'OWNED';",
             connection);
-        command.Parameters.Add("@Id", SqlDbType.BigInt).Value = id;
+        command.Parameters.Add("@Id", MySqlDbType.Int64).Value = id;
 
         if (await command.ExecuteNonQueryAsync(cancellationToken) == 0)
         {
@@ -257,9 +257,9 @@ public sealed class GameEggService
         }
     }
 
-    private static SqlCommand CreateSelectCommand(SqlConnection connection, string whereClause)
+    private static MySqlCommand CreateSelectCommand(MySqlConnection connection, string whereClause)
     {
-        return new SqlCommand(
+        return new MySqlCommand(
             $"""
             SELECT
                 Id,
@@ -276,7 +276,7 @@ public sealed class GameEggService
             connection);
     }
 
-    private static GameEgg ReadEgg(SqlDataReader reader, DateTime utcNow)
+    private static GameEgg ReadEgg(MySqlDataReader reader, DateTime utcNow)
     {
         DateTime? incubationEndsAt = reader.IsDBNull(5) ? null : AsUtc(reader.GetDateTime(5));
         var persistedStatus = reader.GetString(6);
@@ -297,15 +297,15 @@ public sealed class GameEggService
     private static DateTime AsUtc(DateTime value) => DateTime.SpecifyKind(value, DateTimeKind.Utc);
 
     private static async Task ValidateAvailableCapacityAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         int idAlumno,
         CancellationToken cancellationToken)
     {
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             SELECT
-                CONVERT(BIT, ISNULL(A.Activo, 0)) AS Active,
+                CONVERT(BIT, COALESCE(A.Activo, 0)) AS Active,
                 DC.PurchasedSlots,
                 DC.MaxCapacity,
                 (
@@ -321,7 +321,7 @@ public sealed class GameEggService
             """,
             connection,
             transaction);
-        command.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = idAlumno;
+        command.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = idAlumno;
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken) || !reader.GetBoolean(0))
@@ -363,7 +363,7 @@ public sealed class GameEggService
     {
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             SELECT
                 Code,
@@ -411,14 +411,14 @@ public sealed class GameEggService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+        await using var transaction = (MySqlTransaction)await connection.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
 
         try
         {
             // 1. Obtener huevo y comprobar estado
-            await using var eggCommand = new SqlCommand(
+            await using var eggCommand = new MySqlCommand(
                 """
                 SELECT IdAlumno, EggDefinitionCode, Status, AcquiredAt
                 FROM dbo.GameEggs WITH (UPDLOCK, HOLDLOCK)
@@ -426,7 +426,7 @@ public sealed class GameEggService
                 """,
                 connection,
                 transaction);
-            eggCommand.Parameters.Add("@Id", SqlDbType.BigInt).Value = eggId;
+            eggCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = eggId;
 
             int idAlumno;
             string? eggDefinitionCode;
@@ -461,11 +461,11 @@ public sealed class GameEggService
             int incubationMinutes = 30; // valor por defecto para legacy
             if (eggDefinitionCode is not null)
             {
-                await using var defCommand = new SqlCommand(
+                await using var defCommand = new MySqlCommand(
                     "SELECT IncubationMinutes FROM dbo.GameEggDefinitions WHERE Code = @Code;",
                     connection,
                     transaction);
-                defCommand.Parameters.Add("@Code", SqlDbType.NVarChar, 50).Value = eggDefinitionCode;
+                defCommand.Parameters.Add("@Code", MySqlDbType.VarChar, 50).Value = eggDefinitionCode;
 
                 var minutesValue = await defCommand.ExecuteScalarAsync(cancellationToken);
                 if (minutesValue is not null && minutesValue != DBNull.Value)
@@ -478,7 +478,7 @@ public sealed class GameEggService
             var endsAt = startedAt.AddMinutes(incubationMinutes);
 
             // 3. Actualizar huevo
-            await using var updateCommand = new SqlCommand(
+            await using var updateCommand = new MySqlCommand(
                 """
                 UPDATE dbo.GameEggs
                 SET Status = N'INCUBATING',
@@ -498,9 +498,9 @@ public sealed class GameEggService
                 """,
                 connection,
                 transaction);
-            updateCommand.Parameters.Add("@Id", SqlDbType.BigInt).Value = eggId;
-            updateCommand.Parameters.Add("@StartedAt", SqlDbType.DateTime2).Value = startedAt;
-            updateCommand.Parameters.Add("@EndsAt", SqlDbType.DateTime2).Value = endsAt;
+            updateCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = eggId;
+            updateCommand.Parameters.Add("@StartedAt", MySqlDbType.DateTime).Value = startedAt;
+            updateCommand.Parameters.Add("@EndsAt", MySqlDbType.DateTime).Value = endsAt;
 
             await using var readerUpdate = await updateCommand.ExecuteReaderAsync(cancellationToken);
             if (!await readerUpdate.ReadAsync(cancellationToken))
@@ -551,7 +551,7 @@ public sealed class GameEggService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+        await using var transaction = (MySqlTransaction)await connection.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
 
@@ -577,16 +577,16 @@ public sealed class GameEggService
             }
 
             // 1. Obtener datos del jugador vinculado
-            await using var playerCommand = new SqlCommand(
+            await using var playerCommand = new MySqlCommand(
                 """
-                SELECT L.IdAlumno, CONVERT(BIT, ISNULL(A.Activo, 0)) AS Active
+                SELECT L.IdAlumno, CONVERT(BIT, COALESCE(A.Activo, 0)) AS Active
                 FROM dbo.GameRobloxLinks L
                 INNER JOIN dbo.Alumnos A ON A.IdAlumno = L.IdAlumno
                 WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;
                 """,
                 connection,
                 transaction);
-            playerCommand.Parameters.Add("@RobloxUserId", SqlDbType.BigInt).Value = request.RobloxUserId;
+            playerCommand.Parameters.Add("@RobloxUserId", MySqlDbType.Int64).Value = request.RobloxUserId;
 
             int idAlumno;
             await using (var playerReader = await playerCommand.ExecuteReaderAsync(cancellationToken))
@@ -611,7 +611,7 @@ public sealed class GameEggService
             }
 
             // 2. Obtener definicion del huevo
-            await using var defCommand = new SqlCommand(
+            await using var defCommand = new MySqlCommand(
                 """
                 SELECT DisplayName, PriceDracoins, DefaultRarity, Active, Purchasable
                 FROM dbo.GameEggDefinitions
@@ -619,7 +619,7 @@ public sealed class GameEggService
                 """,
                 connection,
                 transaction);
-            defCommand.Parameters.Add("@Code", SqlDbType.NVarChar, 50).Value = normalizedCode;
+            defCommand.Parameters.Add("@Code", MySqlDbType.VarChar, 50).Value = normalizedCode;
 
             string rarity;
             int price;
@@ -657,7 +657,7 @@ public sealed class GameEggService
             await ValidateAvailableCapacityAsync(connection, transaction, idAlumno, cancellationToken);
 
             // 4. Crear el huevo (en estado OWNED por defecto)
-            await using var insertEggCommand = new SqlCommand(
+            await using var insertEggCommand = new MySqlCommand(
                 """
                 INSERT INTO dbo.GameEggs (IdAlumno, EggDefinitionCode, Rarity, Status)
                 OUTPUT INSERTED.Id
@@ -665,9 +665,9 @@ public sealed class GameEggService
                 """,
                 connection,
                 transaction);
-            insertEggCommand.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = idAlumno;
-            insertEggCommand.Parameters.Add("@EggDefinitionCode", SqlDbType.NVarChar, 50).Value = normalizedCode;
-            insertEggCommand.Parameters.Add("@Rarity", SqlDbType.NVarChar, 20).Value = rarity;
+            insertEggCommand.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = idAlumno;
+            insertEggCommand.Parameters.Add("@EggDefinitionCode", MySqlDbType.VarChar, 50).Value = normalizedCode;
+            insertEggCommand.Parameters.Add("@Rarity", MySqlDbType.VarChar, 20).Value = rarity;
 
             var eggId = Convert.ToInt64(await insertEggCommand.ExecuteScalarAsync(cancellationToken));
 
@@ -741,18 +741,18 @@ public sealed class GameEggService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+        await using var transaction = (MySqlTransaction)await connection.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
 
         try
         {
             // 0. Validar vinculación del usuario que eclosiona
-            await using var linkCommand = new SqlCommand(
-                "SELECT L.IdAlumno, CONVERT(BIT, ISNULL(A.Activo, 0)) FROM dbo.GameRobloxLinks L INNER JOIN dbo.Alumnos A ON A.IdAlumno = L.IdAlumno WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;",
+            await using var linkCommand = new MySqlCommand(
+                "SELECT L.IdAlumno, CONVERT(BIT, COALESCE(A.Activo, 0)) FROM dbo.GameRobloxLinks L INNER JOIN dbo.Alumnos A ON A.IdAlumno = L.IdAlumno WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;",
                 connection,
                 transaction);
-            linkCommand.Parameters.Add("@RobloxUserId", SqlDbType.BigInt).Value = request.RobloxUserId;
+            linkCommand.Parameters.Add("@RobloxUserId", MySqlDbType.Int64).Value = request.RobloxUserId;
 
             int callerIdAlumno;
             await using (var reader = await linkCommand.ExecuteReaderAsync(cancellationToken))
@@ -777,7 +777,7 @@ public sealed class GameEggService
             }
 
             // 1. Obtener huevo con UPDLOCK, HOLDLOCK
-            await using var eggCommand = new SqlCommand(
+            await using var eggCommand = new MySqlCommand(
                 """
                 SELECT E.IdAlumno, E.Rarity, E.Status, E.IncubationEndsAt
                 FROM dbo.GameEggs E WITH (UPDLOCK, HOLDLOCK)
@@ -785,7 +785,7 @@ public sealed class GameEggService
                 """,
                 connection,
                 transaction);
-            eggCommand.Parameters.Add("@Id", SqlDbType.BigInt).Value = eggId;
+            eggCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = eggId;
 
             int idAlumno;
             string rarity;
@@ -829,7 +829,7 @@ public sealed class GameEggService
             var temperament = Temperaments[Random.Shared.Next(Temperaments.Length)];
 
             // 3. Crear dragon
-            await using var dragonCommand = new SqlCommand(
+            await using var dragonCommand = new MySqlCommand(
                 """
                 INSERT INTO dbo.GameDragons (IdAlumno, Name, Rarity, Temperament, Level, Stage, HatchedAt)
                 OUTPUT INSERTED.Id, INSERTED.HatchedAt
@@ -837,10 +837,10 @@ public sealed class GameEggService
                 """,
                 connection,
                 transaction);
-            dragonCommand.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = idAlumno;
-            dragonCommand.Parameters.Add("@Name", SqlDbType.NVarChar, 100).Value = trimmedName;
-            dragonCommand.Parameters.Add("@Rarity", SqlDbType.NVarChar, 20).Value = rarity;
-            dragonCommand.Parameters.Add("@Temperament", SqlDbType.NVarChar, 50).Value = temperament;
+            dragonCommand.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = idAlumno;
+            dragonCommand.Parameters.Add("@Name", MySqlDbType.VarChar, 100).Value = trimmedName;
+            dragonCommand.Parameters.Add("@Rarity", MySqlDbType.VarChar, 20).Value = rarity;
+            dragonCommand.Parameters.Add("@Temperament", MySqlDbType.VarChar, 50).Value = temperament;
 
             long dragonId;
             DateTime hatchedAt;
@@ -852,7 +852,7 @@ public sealed class GameEggService
             }
 
             // 4. Actualizar huevo
-            await using var updateEggCommand = new SqlCommand(
+            await using var updateEggCommand = new MySqlCommand(
                 """
                 UPDATE dbo.GameEggs
                 SET Status = N'HATCHED',
@@ -862,8 +862,8 @@ public sealed class GameEggService
                 """,
                 connection,
                 transaction);
-            updateEggCommand.Parameters.Add("@Id", SqlDbType.BigInt).Value = eggId;
-            updateEggCommand.Parameters.Add("@HatchedDragonId", SqlDbType.BigInt).Value = dragonId;
+            updateEggCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = eggId;
+            updateEggCommand.Parameters.Add("@HatchedDragonId", MySqlDbType.Int64).Value = dragonId;
             await updateEggCommand.ExecuteNonQueryAsync(cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
@@ -933,7 +933,7 @@ public sealed class GameEggService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+        await using var transaction = (MySqlTransaction)await connection.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
 
@@ -959,16 +959,16 @@ public sealed class GameEggService
             }
 
             // 1. Validar remitente y obtener su IdAlumno
-            await using var senderCommand = new SqlCommand(
+            await using var senderCommand = new MySqlCommand(
                 """
-                SELECT L.IdAlumno, CONVERT(BIT, ISNULL(A.Activo, 0))
+                SELECT L.IdAlumno, CONVERT(BIT, COALESCE(A.Activo, 0))
                 FROM dbo.GameRobloxLinks L
                 INNER JOIN dbo.Alumnos A ON A.IdAlumno = L.IdAlumno
                 WHERE L.RobloxUserId = @SenderRobloxUserId AND L.Active = 1;
                 """,
                 connection,
                 transaction);
-            senderCommand.Parameters.Add("@SenderRobloxUserId", SqlDbType.BigInt).Value = request.SenderRobloxUserId;
+            senderCommand.Parameters.Add("@SenderRobloxUserId", MySqlDbType.Int64).Value = request.SenderRobloxUserId;
 
             int senderIdAlumno;
             await using (var reader = await senderCommand.ExecuteReaderAsync(cancellationToken))
@@ -993,16 +993,16 @@ public sealed class GameEggService
             }
 
             // 2. Validar receptor y obtener su IdAlumno
-            await using var receiverCommand = new SqlCommand(
+            await using var receiverCommand = new MySqlCommand(
                 """
-                SELECT L.IdAlumno, CONVERT(BIT, ISNULL(A.Activo, 0))
+                SELECT L.IdAlumno, CONVERT(BIT, COALESCE(A.Activo, 0))
                 FROM dbo.GameRobloxLinks L
                 INNER JOIN dbo.Alumnos A ON A.IdAlumno = L.IdAlumno
                 WHERE L.RobloxUserId = @ReceiverRobloxUserId AND L.Active = 1;
                 """,
                 connection,
                 transaction);
-            receiverCommand.Parameters.Add("@ReceiverRobloxUserId", SqlDbType.BigInt).Value = request.ReceiverRobloxUserId;
+            receiverCommand.Parameters.Add("@ReceiverRobloxUserId", MySqlDbType.Int64).Value = request.ReceiverRobloxUserId;
 
             await using (var reader = await receiverCommand.ExecuteReaderAsync(cancellationToken))
             {
@@ -1024,11 +1024,11 @@ public sealed class GameEggService
             }
 
             // 3. Validar huevo y propiedad
-            await using var eggCommand = new SqlCommand(
+            await using var eggCommand = new MySqlCommand(
                 "SELECT IdAlumno, Status FROM dbo.GameEggs WITH (UPDLOCK, HOLDLOCK) WHERE Id = @Id;",
                 connection,
                 transaction);
-            eggCommand.Parameters.Add("@Id", SqlDbType.BigInt).Value = eggId;
+            eggCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = eggId;
 
             int eggOwnerId;
             string eggStatus;
@@ -1063,15 +1063,15 @@ public sealed class GameEggService
             }
 
             // 4. Actualizar estado del huevo a IN_TRANSFER
-            await using var updateEggCommand = new SqlCommand(
+            await using var updateEggCommand = new MySqlCommand(
                 "UPDATE dbo.GameEggs SET Status = N'IN_TRANSFER', UpdatedAt = SYSUTCDATETIME() WHERE Id = @Id;",
                 connection,
                 transaction);
-            updateEggCommand.Parameters.Add("@Id", SqlDbType.BigInt).Value = eggId;
+            updateEggCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = eggId;
             await updateEggCommand.ExecuteNonQueryAsync(cancellationToken);
 
             // 5. Registrar transferencia
-            await using var insertTransferCommand = new SqlCommand(
+            await using var insertTransferCommand = new MySqlCommand(
                 """
                 INSERT INTO dbo.GameEggTransfers (EggId, SenderIdAlumno, ReceiverRobloxUserId, Status)
                 OUTPUT INSERTED.Id
@@ -1079,9 +1079,9 @@ public sealed class GameEggService
                 """,
                 connection,
                 transaction);
-            insertTransferCommand.Parameters.Add("@EggId", SqlDbType.BigInt).Value = eggId;
-            insertTransferCommand.Parameters.Add("@SenderIdAlumno", SqlDbType.Int).Value = senderIdAlumno;
-            insertTransferCommand.Parameters.Add("@ReceiverRobloxUserId", SqlDbType.BigInt).Value = request.ReceiverRobloxUserId;
+            insertTransferCommand.Parameters.Add("@EggId", MySqlDbType.Int64).Value = eggId;
+            insertTransferCommand.Parameters.Add("@SenderIdAlumno", MySqlDbType.Int32).Value = senderIdAlumno;
+            insertTransferCommand.Parameters.Add("@ReceiverRobloxUserId", MySqlDbType.Int64).Value = request.ReceiverRobloxUserId;
 
             var transferId = Convert.ToInt64(await insertTransferCommand.ExecuteScalarAsync(cancellationToken));
 
@@ -1143,7 +1143,7 @@ public sealed class GameEggService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+        await using var transaction = (MySqlTransaction)await connection.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
 
@@ -1169,11 +1169,11 @@ public sealed class GameEggService
             }
 
             // 1. Obtener transferencia bajo lock
-            await using var transferCommand = new SqlCommand(
+            await using var transferCommand = new MySqlCommand(
                 "SELECT EggId, SenderIdAlumno, ReceiverRobloxUserId, Status FROM dbo.GameEggTransfers WITH (UPDLOCK, HOLDLOCK) WHERE Id = @Id;",
                 connection,
                 transaction);
-            transferCommand.Parameters.Add("@Id", SqlDbType.BigInt).Value = transferId;
+            transferCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = transferId;
 
             long eggId;
             int senderIdAlumno;
@@ -1214,16 +1214,16 @@ public sealed class GameEggService
             }
 
             // 2. Obtener IdAlumno del receptor y validar su estado y capacidad
-            await using var receiverCommand = new SqlCommand(
+            await using var receiverCommand = new MySqlCommand(
                 """
-                SELECT L.IdAlumno, CONVERT(BIT, ISNULL(A.Activo, 0))
+                SELECT L.IdAlumno, CONVERT(BIT, COALESCE(A.Activo, 0))
                 FROM dbo.GameRobloxLinks L
                 INNER JOIN dbo.Alumnos A ON A.IdAlumno = L.IdAlumno
                 WHERE L.RobloxUserId = @ReceiverRobloxUserId AND L.Active = 1;
                 """,
                 connection,
                 transaction);
-            receiverCommand.Parameters.Add("@ReceiverRobloxUserId", SqlDbType.BigInt).Value = receiverRobloxUserId;
+            receiverCommand.Parameters.Add("@ReceiverRobloxUserId", MySqlDbType.Int64).Value = receiverRobloxUserId;
 
             int receiverIdAlumno;
             await using (var reader = await receiverCommand.ExecuteReaderAsync(cancellationToken))
@@ -1251,30 +1251,30 @@ public sealed class GameEggService
             await ValidateAvailableCapacityAsync(connection, transaction, receiverIdAlumno, cancellationToken);
 
             // 3. Obtener RobloxUserId del remitente
-            await using var senderRobloxCommand = new SqlCommand(
+            await using var senderRobloxCommand = new MySqlCommand(
                 "SELECT RobloxUserId FROM dbo.GameRobloxLinks WHERE IdAlumno = @SenderIdAlumno AND Active = 1;",
                 connection,
                 transaction);
-            senderRobloxCommand.Parameters.Add("@SenderIdAlumno", SqlDbType.Int).Value = senderIdAlumno;
+            senderRobloxCommand.Parameters.Add("@SenderIdAlumno", MySqlDbType.Int32).Value = senderIdAlumno;
             var senderRobloxUserIdVal = await senderRobloxCommand.ExecuteScalarAsync(cancellationToken);
             long senderRobloxUserId = senderRobloxUserIdVal != null ? Convert.ToInt64(senderRobloxUserIdVal) : 0;
 
             // 4. Actualizar dueño del huevo y estado a OWNED
-            await using var updateEggCommand = new SqlCommand(
+            await using var updateEggCommand = new MySqlCommand(
                 "UPDATE dbo.GameEggs SET IdAlumno = @ReceiverIdAlumno, Status = N'OWNED', UpdatedAt = SYSUTCDATETIME() WHERE Id = @Id;",
                 connection,
                 transaction);
-            updateEggCommand.Parameters.Add("@ReceiverIdAlumno", SqlDbType.Int).Value = receiverIdAlumno;
-            updateEggCommand.Parameters.Add("@Id", SqlDbType.BigInt).Value = eggId;
+            updateEggCommand.Parameters.Add("@ReceiverIdAlumno", MySqlDbType.Int32).Value = receiverIdAlumno;
+            updateEggCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = eggId;
             await updateEggCommand.ExecuteNonQueryAsync(cancellationToken);
 
             // 5. Actualizar transferencia a ACCEPTED y registrar ReceiverIdAlumno
-            await using var updateTransferCommand = new SqlCommand(
+            await using var updateTransferCommand = new MySqlCommand(
                 "UPDATE dbo.GameEggTransfers SET Status = N'ACCEPTED', ReceiverIdAlumno = @ReceiverIdAlumno, UpdatedAt = SYSUTCDATETIME() WHERE Id = @Id;",
                 connection,
                 transaction);
-            updateTransferCommand.Parameters.Add("@Id", SqlDbType.BigInt).Value = transferId;
-            updateTransferCommand.Parameters.Add("@ReceiverIdAlumno", SqlDbType.Int).Value = receiverIdAlumno;
+            updateTransferCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = transferId;
+            updateTransferCommand.Parameters.Add("@ReceiverIdAlumno", MySqlDbType.Int32).Value = receiverIdAlumno;
             await updateTransferCommand.ExecuteNonQueryAsync(cancellationToken);
 
             var response = new GiftGameEggResponse
@@ -1335,7 +1335,7 @@ public sealed class GameEggService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+        await using var transaction = (MySqlTransaction)await connection.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
 
@@ -1361,11 +1361,11 @@ public sealed class GameEggService
             }
 
             // 1. Obtener transferencia bajo lock
-            await using var transferCommand = new SqlCommand(
+            await using var transferCommand = new MySqlCommand(
                 "SELECT EggId, SenderIdAlumno, ReceiverRobloxUserId, Status FROM dbo.GameEggTransfers WITH (UPDLOCK, HOLDLOCK) WHERE Id = @Id;",
                 connection,
                 transaction);
-            transferCommand.Parameters.Add("@Id", SqlDbType.BigInt).Value = transferId;
+            transferCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = transferId;
 
             long eggId;
             int senderIdAlumno;
@@ -1406,28 +1406,28 @@ public sealed class GameEggService
             }
 
             // 2. Obtener RobloxUserId del remitente
-            await using var senderRobloxCommand = new SqlCommand(
+            await using var senderRobloxCommand = new MySqlCommand(
                 "SELECT RobloxUserId FROM dbo.GameRobloxLinks WHERE IdAlumno = @SenderIdAlumno AND Active = 1;",
                 connection,
                 transaction);
-            senderRobloxCommand.Parameters.Add("@SenderIdAlumno", SqlDbType.Int).Value = senderIdAlumno;
+            senderRobloxCommand.Parameters.Add("@SenderIdAlumno", MySqlDbType.Int32).Value = senderIdAlumno;
             var senderRobloxUserIdVal = await senderRobloxCommand.ExecuteScalarAsync(cancellationToken);
             long senderRobloxUserId = senderRobloxUserIdVal != null ? Convert.ToInt64(senderRobloxUserIdVal) : 0;
 
             // 3. Devolver huevo a estado OWNED
-            await using var updateEggCommand = new SqlCommand(
+            await using var updateEggCommand = new MySqlCommand(
                 "UPDATE dbo.GameEggs SET Status = N'OWNED', UpdatedAt = SYSUTCDATETIME() WHERE Id = @Id;",
                 connection,
                 transaction);
-            updateEggCommand.Parameters.Add("@Id", SqlDbType.BigInt).Value = eggId;
+            updateEggCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = eggId;
             await updateEggCommand.ExecuteNonQueryAsync(cancellationToken);
 
             // 4. Actualizar transferencia a REJECTED
-            await using var updateTransferCommand = new SqlCommand(
+            await using var updateTransferCommand = new MySqlCommand(
                 "UPDATE dbo.GameEggTransfers SET Status = N'REJECTED', UpdatedAt = SYSUTCDATETIME() WHERE Id = @Id;",
                 connection,
                 transaction);
-            updateTransferCommand.Parameters.Add("@Id", SqlDbType.BigInt).Value = transferId;
+            updateTransferCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = transferId;
             await updateTransferCommand.ExecuteNonQueryAsync(cancellationToken);
 
             var response = new GiftGameEggResponse
