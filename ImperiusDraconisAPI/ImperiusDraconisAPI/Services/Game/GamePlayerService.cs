@@ -74,10 +74,10 @@ public sealed class GamePlayerService
                 CONVERT(BIT, COALESCE(A.Activo, 0)) AS Active,
                 DC.PurchasedSlots,
                 DC.MaxCapacity
-            FROM dbo.GameRobloxLinks L
-            INNER JOIN dbo.Alumnos A ON A.IdAlumno = L.IdAlumno
-            LEFT JOIN dbo.Casas C ON C.IdCasa = A.IdCasa
-            LEFT JOIN dbo.GameDragonCapacity DC ON DC.IdAlumno = A.IdAlumno
+            FROM GameRobloxLinks L
+            INNER JOIN Alumnos A ON A.IdAlumno = L.IdAlumno
+            LEFT JOIN Casas C ON C.IdCasa = A.IdCasa
+            LEFT JOIN GameDragonCapacity DC ON DC.IdAlumno = A.IdAlumno
             WHERE L.RobloxUserId = @RobloxUserId
               AND L.Active = 1;
             """,
@@ -194,9 +194,9 @@ public sealed class GamePlayerService
                     CONVERT(BIT, COALESCE(A.Activo, 0)) AS Active,
                     DC.PurchasedSlots,
                     DC.MaxCapacity
-                FROM dbo.GameRobloxLinks L WITH (UPDLOCK, HOLDLOCK)
-                INNER JOIN dbo.Alumnos A WITH (UPDLOCK, HOLDLOCK) ON A.IdAlumno = L.IdAlumno
-                LEFT JOIN dbo.GameDragonCapacity DC WITH (UPDLOCK, HOLDLOCK) ON DC.IdAlumno = A.IdAlumno
+                FROM GameRobloxLinks L WITH (UPDLOCK, HOLDLOCK)
+                INNER JOIN Alumnos A WITH (UPDLOCK, HOLDLOCK) ON A.IdAlumno = L.IdAlumno
+                LEFT JOIN GameDragonCapacity DC WITH (UPDLOCK, HOLDLOCK) ON DC.IdAlumno = A.IdAlumno
                 WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;
                 """,
                 connection,
@@ -265,7 +265,7 @@ public sealed class GamePlayerService
             // 5. Incrementar PurchasedSlots
             await using var updateCommand = new MySqlCommand(
                 """
-                UPDATE dbo.GameDragonCapacity
+                UPDATE GameDragonCapacity
                 SET PurchasedSlots = PurchasedSlots + 1,
                     UpdatedAt = SYSUTCDATETIME()
                 WHERE IdAlumno = @IdAlumno;

@@ -89,8 +89,8 @@ public sealed class GameDragonService
             await using var linkCommand = new MySqlCommand(
                 """
                 SELECT L.IdAlumno, CONVERT(BIT, COALESCE(A.Activo, 0))
-                FROM dbo.GameRobloxLinks L
-                INNER JOIN dbo.Alumnos A ON A.IdAlumno = L.IdAlumno
+                FROM GameRobloxLinks L
+                INNER JOIN Alumnos A ON A.IdAlumno = L.IdAlumno
                 WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;
                 """,
                 connection,
@@ -123,7 +123,7 @@ public sealed class GameDragonService
             await using var dragonCommand = new MySqlCommand(
                 """
                 SELECT IdAlumno, Status, Selected
-                FROM dbo.GameDragons WITH (UPDLOCK, HOLDLOCK)
+                FROM GameDragons WITH (UPDLOCK, HOLDLOCK)
                 WHERE Id = @Id;
                 """,
                 connection,
@@ -173,7 +173,7 @@ public sealed class GameDragonService
                 // Desmarcar todos los demas dragones de este alumno
                 await using var deselectCommand = new MySqlCommand(
                     """
-                    UPDATE dbo.GameDragons
+                    UPDATE GameDragons
                     SET Selected = 0
                     WHERE IdAlumno = @IdAlumno AND Selected = 1;
                     """,
@@ -185,7 +185,7 @@ public sealed class GameDragonService
                 // Seleccionar el dragon objetivo
                 await using var selectCommand = new MySqlCommand(
                     """
-                    UPDATE dbo.GameDragons
+                    UPDATE GameDragons
                     SET Selected = 1
                     WHERE Id = @Id;
                     """,
@@ -246,8 +246,8 @@ public sealed class GameDragonService
                 D.Status,
                 D.Selected,
                 D.LastNeedsUpdateAt
-            FROM dbo.GameDragons D
-            LEFT JOIN dbo.GameEggs E ON E.HatchedDragonId = D.Id
+            FROM GameDragons D
+            LEFT JOIN GameEggs E ON E.HatchedDragonId = D.Id
             WHERE D.IdAlumno = @IdAlumno
             ORDER BY D.HatchedAt, D.Id;
             """,

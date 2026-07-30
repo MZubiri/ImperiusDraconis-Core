@@ -16,7 +16,7 @@ public sealed class DracoinGameService
     {
         await using var balanceCommand = new MySqlCommand(
             """
-            UPDATE dbo.Alumnos
+            UPDATE Alumnos
             SET Dracoins = COALESCE(Dracoins, 0) + @Amount
             OUTPUT INSERTED.Dracoins
             WHERE IdAlumno = @IdAlumno
@@ -37,7 +37,7 @@ public sealed class DracoinGameService
 
         await using var ledgerCommand = new MySqlCommand(
             """
-            INSERT INTO dbo.GameDracoinLedger
+            INSERT INTO GameDracoinLedger
                 (IdAlumno, Amount, BalanceAfter, Reason, ReferenceType, ReferenceId)
             VALUES
                 (@IdAlumno, @Amount, @BalanceAfter, N'WELCOME_LINK', N'ROBLOX_LINK', @ReferenceId);
@@ -76,7 +76,7 @@ public sealed class DracoinGameService
 
         await using var balanceCommand = new MySqlCommand(
             """
-            UPDATE dbo.Alumnos
+            UPDATE Alumnos
             SET Dracoins = COALESCE(Dracoins, 0) + @Amount
             OUTPUT INSERTED.Dracoins
             WHERE IdAlumno = @IdAlumno
@@ -103,7 +103,7 @@ public sealed class DracoinGameService
 
         await using var ledgerCommand = new MySqlCommand(
             """
-            INSERT INTO dbo.GameDracoinLedger
+            INSERT INTO GameDracoinLedger
                 (IdAlumno, Amount, BalanceAfter, Reason, ReferenceType, ReferenceId)
             VALUES
                 (@IdAlumno, @Amount, @BalanceAfter, @Reason, @ReferenceType, @ReferenceId);

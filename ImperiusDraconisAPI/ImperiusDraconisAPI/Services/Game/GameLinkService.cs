@@ -288,12 +288,12 @@ public sealed class GameLinkService
                 CONVERT(BIT, CASE WHEN EXISTS
                 (
                     SELECT 1
-                    FROM dbo.GameRobloxLinks L WITH (UPDLOCK, HOLDLOCK)
+                    FROM GameRobloxLinks L WITH (UPDLOCK, HOLDLOCK)
                     WHERE L.IdAlumno = A.IdAlumno
                       AND L.Active = 1
                 )
                 THEN 1 ELSE 0 END) AS HasActiveRobloxLink
-            FROM dbo.Alumnos A WITH (UPDLOCK, HOLDLOCK)
+            FROM Alumnos A WITH (UPDLOCK, HOLDLOCK)
             WHERE A.IdAlumno = @IdAlumno;
             """,
             connection,
@@ -321,7 +321,7 @@ public sealed class GameLinkService
     {
         await using var command = new MySqlCommand(
             """
-            UPDATE dbo.GameLinkCodes
+            UPDATE GameLinkCodes
             SET RevokedAt = @RevokedAt
             WHERE IdAlumno = @IdAlumno
               AND UsedAt IS NULL
@@ -346,7 +346,7 @@ public sealed class GameLinkService
     {
         await using var command = new MySqlCommand(
             """
-            INSERT INTO dbo.GameLinkCodes
+            INSERT INTO GameLinkCodes
                 (IdAlumno, CodeHash, ExpiresAt, CreatedAt)
             VALUES
                 (@IdAlumno, @CodeHash, @ExpiresAt, @CreatedAt);
@@ -531,7 +531,7 @@ public sealed class GameLinkService
     {
         await using var command = new MySqlCommand(
             """
-            INSERT INTO dbo.GameRobloxLinks
+            INSERT INTO GameRobloxLinks
                 (IdAlumno, RobloxUserId, LinkedAt, Active)
             OUTPUT INSERTED.Id
             VALUES
@@ -554,7 +554,7 @@ public sealed class GameLinkService
     {
         await using var command = new MySqlCommand(
             """
-            INSERT INTO dbo.GameDragonCapacity
+            INSERT INTO GameDragonCapacity
                 (IdAlumno, PurchasedSlots, MaxCapacity, UpdatedAt)
             VALUES
                 (@IdAlumno, 0, @MaxCapacity, @UpdatedAt);
@@ -576,7 +576,7 @@ public sealed class GameLinkService
     {
         await using var command = new MySqlCommand(
             """
-            UPDATE dbo.GameLinkCodes
+            UPDATE GameLinkCodes
             SET UsedAt = @UsedAt
             WHERE Id = @Id
               AND UsedAt IS NULL

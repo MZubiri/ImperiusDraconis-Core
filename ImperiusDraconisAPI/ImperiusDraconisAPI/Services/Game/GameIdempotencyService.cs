@@ -18,7 +18,7 @@ public sealed class GameIdempotencyService
         await using var selectCommand = new MySqlCommand(
             """
             SELECT Id, RequestHash, Status, ResponseJson
-            FROM dbo.GameIdempotency WITH (UPDLOCK, HOLDLOCK)
+            FROM GameIdempotency WITH (UPDLOCK, HOLDLOCK)
             WHERE Operation = @Operation
               AND IdempotencyKey = @IdempotencyKey;
             """,
@@ -54,7 +54,7 @@ public sealed class GameIdempotencyService
 
         await using var insertCommand = new MySqlCommand(
             """
-            INSERT INTO dbo.GameIdempotency
+            INSERT INTO GameIdempotency
                 (Operation, IdempotencyKey, RequestHash, Status)
             OUTPUT INSERTED.Id
             VALUES
@@ -79,7 +79,7 @@ public sealed class GameIdempotencyService
     {
         await using var command = new MySqlCommand(
             """
-            UPDATE dbo.GameIdempotency
+            UPDATE GameIdempotency
             SET Status = N'Completed',
                 ResponseStatusCode = 200,
                 ResponseJson = @ResponseJson,
