@@ -407,15 +407,14 @@ public sealed class DinamicasService
             {
                 using (var reversePointsCommand = new MySqlCommand(
                            """
-                           UPDATE M
-                           SET M.PuntosAcumulados = M.PuntosAcumulados - T.Puntos
-                           FROM MarcadorActual M
+                           UPDATE MarcadorActual M
                            INNER JOIN (
                                SELECT IdCasa, SUM(PuntosOtorgados) AS Puntos
                                FROM ResultadosPorCasa
                                WHERE IdDinamica = @IdDinamica
                                GROUP BY IdCasa
                            ) T ON T.IdCasa = M.IdCasa
+                           SET M.PuntosAcumulados = M.PuntosAcumulados - T.Puntos
                            """,
                            connection,
                            (MySqlTransaction)transaction))
@@ -435,15 +434,14 @@ public sealed class DinamicasService
             {
                 using (var reverseDracoinsCommand = new MySqlCommand(
                            """
-                           UPDATE A
-                           SET A.Dracoins = A.Dracoins - T.Total
-                           FROM Alumnos A
+                           UPDATE Alumnos A
                            INNER JOIN (
                                SELECT IdAlumno, SUM(DracoinsOtorgados) AS Total
                                FROM DracoinsDinamica
                                WHERE IdDinamica = @IdDinamica
                                GROUP BY IdAlumno
                            ) T ON T.IdAlumno = A.IdAlumno
+                           SET A.Dracoins = A.Dracoins - T.Total
                            """,
                            connection,
                            (MySqlTransaction)transaction))
@@ -463,15 +461,14 @@ public sealed class DinamicasService
             {
                 using (var reversePointsCommand = new MySqlCommand(
                            """
-                           UPDATE M
-                           SET M.PuntosAcumulados = M.PuntosAcumulados - T.Puntos
-                           FROM MarcadorActual M
+                           UPDATE MarcadorActual M
                            INNER JOIN (
                                SELECT IdCasa, SUM(PuntosOtorgados) AS Puntos
                                FROM ResultadosPorCasa
                                WHERE IdDinamica = @IdDinamica
                                GROUP BY IdCasa
                            ) T ON T.IdCasa = M.IdCasa
+                           SET M.PuntosAcumulados = M.PuntosAcumulados - T.Puntos
                            """,
                            connection,
                            (MySqlTransaction)transaction))
@@ -491,15 +488,14 @@ public sealed class DinamicasService
 
                 using (var reverseDracoinsCommand = new MySqlCommand(
                            """
-                           UPDATE A
-                           SET A.Dracoins = A.Dracoins - T.Total
-                           FROM Alumnos A
+                           UPDATE Alumnos A
                            INNER JOIN (
                                SELECT IdAlumno, SUM(DracoinsOtorgados) AS Total
                                FROM DracoinsDinamica
                                WHERE IdDinamica = @IdDinamica
                                GROUP BY IdAlumno
                            ) T ON T.IdAlumno = A.IdAlumno
+                           SET A.Dracoins = A.Dracoins - T.Total
                            """,
                            connection,
                            (MySqlTransaction)transaction))

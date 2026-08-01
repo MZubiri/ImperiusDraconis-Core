@@ -147,7 +147,7 @@ public sealed partial class LandingService
                        IdCasaGanadora = @IdCasaGanadora,
                        TituloCopa = @TituloCopa,
                        DescripcionCopa = @DescripcionCopa,
-                       FechaActualizacion = SYSUTCDATETIME()
+                       FechaActualizacion = UTC_TIMESTAMP()
                    WHERE IdConfiguracion = 1
                    """,
                    connection))
