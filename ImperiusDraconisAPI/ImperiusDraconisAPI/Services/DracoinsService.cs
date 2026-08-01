@@ -895,10 +895,14 @@ public sealed class DracoinsService
         CancellationToken cancellationToken)
     {
         using var movementCommand = new MySqlCommand(
-            "RegistrarMovimientoDracoins",
+            """
+            INSERT INTO MovimientosDracoins (CodigoRemitente, CodigoDestinatario, Monto, Observacion, FechaTransferencia)
+            VALUES (@CodigoRemitente, @CodigoDestinatario, @Monto, @Observacion, NOW());
+            SELECT LAST_INSERT_ID();
+            """,
             connection,
             transaction);
-        movementCommand.CommandType = CommandType.StoredProcedure;
+        movementCommand.CommandType = CommandType.Text;
         movementCommand.Parameters.AddWithValue("@CodigoRemitente", codigoRemitente);
         movementCommand.Parameters.AddWithValue("@CodigoDestinatario", codigoDestinatario);
         movementCommand.Parameters.AddWithValue("@Monto", monto);

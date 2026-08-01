@@ -347,11 +347,14 @@ public sealed class DinamicasService
                 }
 
                 using (var movementCommand = new MySqlCommand(
-                           "RegistrarMovimientoDracoins",
+                           """
+                           INSERT INTO MovimientosDracoins (CodigoRemitente, CodigoDestinatario, Monto, Observacion, FechaTransferencia)
+                           VALUES (@CodigoRemitente, @CodigoDestinatario, @Monto, @Observacion, NOW());
+                           """,
                            connection,
                            (MySqlTransaction)transaction))
                 {
-                    movementCommand.CommandType = System.Data.CommandType.StoredProcedure;
+                    movementCommand.CommandType = System.Data.CommandType.Text;
                     movementCommand.Parameters.AddWithValue("@CodigoRemitente", "DINAMICA");
                     movementCommand.Parameters.AddWithValue("@CodigoDestinatario", alumno.Codigo);
                     movementCommand.Parameters.AddWithValue("@Monto", asignacion.DracoinsOtorgados);
@@ -359,7 +362,7 @@ public sealed class DinamicasService
                         "@Observacion",
                         BuildMovementObservation(nombre, observacion));
 
-                    await movementCommand.ExecuteScalarAsync(cancellationToken);
+                    await movementCommand.ExecuteNonQueryAsync(cancellationToken);
                 }
             }
 
