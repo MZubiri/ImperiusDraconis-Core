@@ -336,15 +336,9 @@ public sealed class MarcadoresService
     {
         using var command = new MySqlCommand(
             """
-            UPDATE MarcadorActual
-            SET PuntosAcumulados = PuntosAcumulados + @Puntos
-            WHERE IdCasa = @IdCasa;
-
-            IF @@ROWCOUNT = 0
-            BEGIN
-                INSERT INTO MarcadorActual (IdCasa, PuntosAcumulados)
-                VALUES (@IdCasa, @Puntos);
-            END
+             INSERT INTO MarcadorActual (IdCasa, PuntosAcumulados)
+             VALUES (@IdCasa, @Puntos)
+             ON DUPLICATE KEY UPDATE PuntosAcumulados = PuntosAcumulados + @Puntos;
             """,
             connection,
             transaction);
