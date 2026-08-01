@@ -164,7 +164,7 @@ public sealed class MascotasService
                 @SubsidiadaPor,
                 @Observaciones
             );
-            SELECT CAST(SCOPE_IDENTITY() AS int);
+            SELECT LAST_INSERT_ID();
             """,
             connection);
 

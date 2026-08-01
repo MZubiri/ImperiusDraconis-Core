@@ -541,7 +541,7 @@ public sealed class DracoinsService
                            """
                            INSERT INTO PagosAdministrativos (IdAlumno, Cargo, MontoPagado, FechaPago, PagadoPor)
                            VALUES (@IdAlumno, @Cargo, @MontoPagado, @FechaPago, @PagadoPor);
-                           SELECT CAST(SCOPE_IDENTITY() AS INT);
+                           SELECT LAST_INSERT_ID();
                            """,
                            connection,
                            (MySqlTransaction)transaction))

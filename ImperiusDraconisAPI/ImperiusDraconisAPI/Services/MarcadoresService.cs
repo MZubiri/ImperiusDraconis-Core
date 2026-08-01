@@ -288,7 +288,7 @@ public sealed class MarcadoresService
             """
             INSERT INTO Dinamicas (Fecha, Nombre, Tipo, Subtipo, IdResponsable, Observacion)
             VALUES (@Fecha, @Nombre, 'Puntos', @Subtipo, @IdResponsable, @Observacion);
-            SELECT CAST(SCOPE_IDENTITY() AS int);
+            SELECT LAST_INSERT_ID();
             """,
             connection,
             transaction);

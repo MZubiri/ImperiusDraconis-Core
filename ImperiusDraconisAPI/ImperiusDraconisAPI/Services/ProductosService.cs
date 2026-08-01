@@ -58,7 +58,7 @@ public sealed class ProductosService
                    """
                    INSERT INTO Productos (Nombre, Descripcion, Precio, Imagen, Activo)
                    VALUES (@Nombre, @Descripcion, @Precio, @Imagen, @Activo);
-                   SELECT CAST(SCOPE_IDENTITY() AS int);
+                   SELECT LAST_INSERT_ID();
                    """,
                    connection))
         {

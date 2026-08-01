@@ -194,7 +194,7 @@ public sealed class TiendaService
                        INSERT INTO Pedidos
                        (IdComprador, IdDestinatario, FechaPedido, IdEstado, Total, Comentario)
                        VALUES (@IdComprador, @IdDestinatario, @FechaPedido, @IdEstado, @Total, @Comentario);
-                       SELECT CAST(SCOPE_IDENTITY() AS int);
+                       SELECT LAST_INSERT_ID();
                        """,
                        connection,
                        (MySqlTransaction)transaction))

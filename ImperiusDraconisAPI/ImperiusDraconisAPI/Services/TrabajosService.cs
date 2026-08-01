@@ -46,7 +46,7 @@ public sealed class TrabajosService
             """
             INSERT INTO Trabajos (Nombre, Descripcion)
             VALUES (@Nombre, @Descripcion);
-            SELECT CAST(SCOPE_IDENTITY() AS int);
+            SELECT LAST_INSERT_ID();
             """,
             connection);
         command.Parameters.AddWithValue("@Nombre", nombre);

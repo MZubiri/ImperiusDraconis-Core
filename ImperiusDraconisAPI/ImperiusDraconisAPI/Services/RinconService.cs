@@ -133,7 +133,7 @@ public sealed class RinconService
                        """
                        INSERT INTO PedidosRincon (IdAlumno, FechaPedido, Total, Estado)
                        VALUES (@IdAlumno, @FechaPedido, @Total, @Estado);
-                       SELECT CAST(SCOPE_IDENTITY() AS int);
+                       SELECT LAST_INSERT_ID();
                        """,
                        connection,
                        (MySqlTransaction)transaction))
@@ -392,7 +392,7 @@ public sealed class RinconService
                    INSERT INTO ProductosRincon
                    (Nombre, Descripcion, Precio, Stock, ImagenUrl, Categoria, FechaRegistro)
                    VALUES (@Nombre, @Descripcion, @Precio, @Stock, @ImagenUrl, @Categoria, @FechaRegistro);
-                   SELECT CAST(SCOPE_IDENTITY() AS int);
+                   SELECT LAST_INSERT_ID();
                    """,
                    connection))
         {

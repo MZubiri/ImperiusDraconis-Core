@@ -296,7 +296,7 @@ public sealed class DinamicasService
                        """
                        INSERT INTO Dinamicas (Nombre, Tipo, Subtipo, Fecha, IdResponsable, Observacion)
                        VALUES (@Nombre, 'Dracoins', NULL, @Fecha, @IdResponsable, @Observacion);
-                       SELECT CAST(SCOPE_IDENTITY() AS int);
+                       SELECT LAST_INSERT_ID();
                        """,
                        connection,
                        (MySqlTransaction)transaction))

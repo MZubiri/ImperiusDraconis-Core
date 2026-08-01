@@ -281,7 +281,7 @@ public sealed class AlumnosService
                 @CorreoElectronico
             );
 
-            SELECT CAST(SCOPE_IDENTITY() AS int);
+            SELECT LAST_INSERT_ID();
             """,
             connection);
 
