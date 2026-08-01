@@ -2,7 +2,7 @@ using System.Globalization;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Rincon;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services;
 
@@ -13,10 +13,10 @@ public sealed class RinconService
     private const int EstadoEntregado = 2;
     private const int EstadoCancelado = 4;
 
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
     private readonly LegacyAssetStorage _assetStorage;
 
-    public RinconService(SqlConnectionFactory connectionFactory, LegacyAssetStorage assetStorage)
+    public RinconService(MySqlConnectionFactory connectionFactory, LegacyAssetStorage assetStorage)
     {
         _connectionFactory = connectionFactory;
         _assetStorage = assetStorage;
@@ -32,7 +32,7 @@ public sealed class RinconService
         await connection.OpenAsync(cancellationToken);
 
         var filters = new List<string>();
-        using var command = new SqlCommand { Connection = connection };
+        using var command = new MySqlCommand { Connection = connection };
 
         if (!string.IsNullOrWhiteSpace(query.Categoria))
         {
@@ -129,14 +129,14 @@ public sealed class RinconService
         try
         {
             int idPedido;
-            using (var insertPedidoCommand = new SqlCommand(
+            using (var insertPedidoCommand = new MySqlCommand(
                        """
                        INSERT INTO PedidosRincon (IdAlumno, FechaPedido, Total, Estado)
                        VALUES (@IdAlumno, @FechaPedido, @Total, @Estado);
                        SELECT CAST(SCOPE_IDENTITY() AS int);
                        """,
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 insertPedidoCommand.Parameters.AddWithValue("@IdAlumno", idAlumno);
                 insertPedidoCommand.Parameters.AddWithValue("@FechaPedido", DateTime.Now);
@@ -151,14 +151,14 @@ public sealed class RinconService
             {
                 var producto = productos[item.IdProducto];
 
-                using (var insertDetalleCommand = new SqlCommand(
+                using (var insertDetalleCommand = new MySqlCommand(
                            """
                            INSERT INTO DetallesPedidoRincon
                            (IdPedido, IdProducto, Cantidad, PrecioUnitario)
                            VALUES (@IdPedido, @IdProducto, @Cantidad, @PrecioUnitario)
                            """,
                            connection,
-                           (SqlTransaction)transaction))
+                           (MySqlTransaction)transaction))
                 {
                     insertDetalleCommand.Parameters.AddWithValue("@IdPedido", idPedido);
                     insertDetalleCommand.Parameters.AddWithValue("@IdProducto", item.IdProducto);
@@ -167,7 +167,7 @@ public sealed class RinconService
                     await insertDetalleCommand.ExecuteNonQueryAsync(cancellationToken);
                 }
 
-                using (var stockCommand = new SqlCommand(
+                using (var stockCommand = new MySqlCommand(
                            """
                            UPDATE ProductosRincon
                            SET Stock = Stock - @Cantidad
@@ -175,7 +175,7 @@ public sealed class RinconService
                              AND Stock >= @Cantidad
                            """,
                            connection,
-                           (SqlTransaction)transaction))
+                           (MySqlTransaction)transaction))
                 {
                     stockCommand.Parameters.AddWithValue("@Cantidad", item.Cantidad);
                     stockCommand.Parameters.AddWithValue("@IdProducto", item.IdProducto);
@@ -186,20 +186,20 @@ public sealed class RinconService
                 }
             }
 
-            using (var discountCommand = new SqlCommand(
+            using (var discountCommand = new MySqlCommand(
                        "UPDATE Alumnos SET Dracoins = Dracoins - @Monto WHERE IdAlumno = @IdAlumno",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 discountCommand.Parameters.AddWithValue("@Monto", total);
                 discountCommand.Parameters.AddWithValue("@IdAlumno", idAlumno);
                 await discountCommand.ExecuteNonQueryAsync(cancellationToken);
             }
 
-            using (var commissionCommand = new SqlCommand(
+            using (var commissionCommand = new MySqlCommand(
                        "UPDATE Alumnos SET Dracoins = Dracoins + @Monto WHERE IdAlumno = @IdAdmin",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 commissionCommand.Parameters.AddWithValue("@Monto", Math.Round(total / 2m, 2, MidpointRounding.AwayFromZero));
                 commissionCommand.Parameters.AddWithValue("@IdAdmin", AdminAlumnoId);
@@ -224,7 +224,7 @@ public sealed class RinconService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT P.IdPedido, P.IdAlumno, A.Nombre AS NombreAlumno, P.FechaPedido, P.Total, P.Estado
             FROM PedidosRincon P
@@ -275,7 +275,7 @@ public sealed class RinconService
         {
             var pedido = await GetPedidoByIdInternalAsync(
                 connection,
-                (SqlTransaction)transaction,
+                (MySqlTransaction)transaction,
                 idPedido,
                 cancellationToken);
 
@@ -295,7 +295,7 @@ public sealed class RinconService
                 throw new BusinessRuleException("Solo se pueden cancelar pedidos pendientes.");
             }
 
-            using (var updateStatusCommand = new SqlCommand(
+            using (var updateStatusCommand = new MySqlCommand(
                        """
                        UPDATE PedidosRincon
                        SET Estado = @EstadoCancelado
@@ -303,7 +303,7 @@ public sealed class RinconService
                          AND Estado = @EstadoPendiente
                        """,
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 updateStatusCommand.Parameters.AddWithValue("@EstadoCancelado", EstadoCancelado);
                 updateStatusCommand.Parameters.AddWithValue("@IdPedido", idPedido);
@@ -315,7 +315,7 @@ public sealed class RinconService
                 }
             }
 
-            using (var restoreStockCommand = new SqlCommand(
+            using (var restoreStockCommand = new MySqlCommand(
                        """
                        UPDATE PR
                        SET PR.Stock = PR.Stock + D.Cantidad
@@ -324,26 +324,26 @@ public sealed class RinconService
                        WHERE D.IdPedido = @IdPedido
                        """,
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 restoreStockCommand.Parameters.AddWithValue("@IdPedido", idPedido);
                 await restoreStockCommand.ExecuteNonQueryAsync(cancellationToken);
             }
 
-            using (var refundCommand = new SqlCommand(
+            using (var refundCommand = new MySqlCommand(
                        "UPDATE Alumnos SET Dracoins = Dracoins + @Monto WHERE IdAlumno = @IdAlumno",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 refundCommand.Parameters.AddWithValue("@Monto", pedido.Total);
                 refundCommand.Parameters.AddWithValue("@IdAlumno", pedido.IdAlumno);
                 await refundCommand.ExecuteNonQueryAsync(cancellationToken);
             }
 
-            using (var reverseCommissionCommand = new SqlCommand(
+            using (var reverseCommissionCommand = new MySqlCommand(
                        "UPDATE Alumnos SET Dracoins = Dracoins - @Monto WHERE IdAlumno = @IdAdmin",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 reverseCommissionCommand.Parameters.AddWithValue(
                     "@Monto",
@@ -387,7 +387,7 @@ public sealed class RinconService
         await connection.OpenAsync(cancellationToken);
 
         int idProducto;
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    INSERT INTO ProductosRincon
                    (Nombre, Descripcion, Precio, Stock, ImagenUrl, Categoria, FechaRegistro)
@@ -428,7 +428,7 @@ public sealed class RinconService
 
         var normalized = await NormalizeProductoAsync(request, existing, cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             UPDATE ProductosRincon
             SET Nombre = @Nombre,
@@ -458,13 +458,13 @@ public sealed class RinconService
 
         try
         {
-            using var command = new SqlCommand(
+            using var command = new MySqlCommand(
                 "DELETE FROM ProductosRincon WHERE IdProducto = @IdProducto",
                 connection);
             command.Parameters.AddWithValue("@IdProducto", idProducto);
             return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
         }
-        catch (SqlException)
+        catch (MySqlException)
         {
             throw new BusinessRuleException("No se puede eliminar el producto porque tiene pedidos asociados.");
         }
@@ -475,7 +475,7 @@ public sealed class RinconService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT P.IdPedido, P.IdAlumno, A.Nombre AS NombreAlumno, P.FechaPedido, P.Total, P.Estado
             FROM PedidosRincon P
@@ -494,7 +494,7 @@ public sealed class RinconService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    UPDATE PedidosRincon
                    SET Estado = @EstadoEntregado
@@ -523,7 +523,7 @@ public sealed class RinconService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             $"""
             SELECT P.IdPedido, P.IdAlumno, A.Nombre AS NombreAlumno, P.FechaPedido, P.Total, P.Estado
             FROM PedidosRincon P
@@ -587,7 +587,7 @@ public sealed class RinconService
     }
 
     private static async Task<IReadOnlyCollection<RinconPedidoDto>> ReadPedidoSummariesAsync(
-        SqlCommand command,
+        MySqlCommand command,
         CancellationToken cancellationToken)
     {
         var items = new List<RinconPedidoDto>();
@@ -610,12 +610,12 @@ public sealed class RinconService
     }
 
     private static async Task<RinconPedidoDto?> GetPedidoByIdInternalAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idPedido,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT P.IdPedido, P.IdAlumno, A.Nombre AS NombreAlumno, P.FechaPedido, P.Total, P.Estado
             FROM PedidosRincon P
@@ -658,12 +658,12 @@ public sealed class RinconService
     }
 
     private static async Task<IReadOnlyCollection<RinconPedidoDetalleDto>> GetDetallesByPedidoAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idPedido,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT D.IdProducto, P.Nombre, D.Cantidad, D.PrecioUnitario
             FROM DetallesPedidoRincon D
@@ -695,12 +695,12 @@ public sealed class RinconService
     }
 
     private static async Task<RinconProductoDto?> GetProductoByIdInternalAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idProducto,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT IdProducto, Nombre, Descripcion, Precio, Stock, ImagenUrl, Categoria, FechaRegistro
             FROM ProductosRincon
@@ -715,8 +715,8 @@ public sealed class RinconService
     }
 
     private static async Task<Dictionary<int, RinconProductoDto>> GetProductosByIdsAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         IEnumerable<int> idsProducto,
         CancellationToken cancellationToken)
     {
@@ -731,7 +731,7 @@ public sealed class RinconService
         }
 
         var parameterNames = ids.Select((_, index) => $"@IdProducto{index}").ToArray();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             $"""
             SELECT IdProducto, Nombre, Descripcion, Precio, Stock, ImagenUrl, Categoria, FechaRegistro
             FROM ProductosRincon
@@ -757,17 +757,18 @@ public sealed class RinconService
     }
 
     private static async Task<AlumnoContext?> GetAlumnoAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idAlumno,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
-            SELECT TOP 1 IdAlumno, Dracoins
+            SELECT IdAlumno, Dracoins
             FROM Alumnos
             WHERE IdAlumno = @IdAlumno
               AND Activo = 1
+            LIMIT 1
             """,
             connection,
             transaction);
@@ -787,15 +788,15 @@ public sealed class RinconService
     }
 
     private static async Task<int> CountAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         string sql,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(sql, connection);
+        using var command = new MySqlCommand(sql, connection);
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
     }
 
-    private static RinconProductoDto MapProducto(SqlDataReader reader) =>
+    private static RinconProductoDto MapProducto(MySqlDataReader reader) =>
         new()
         {
             IdProducto = GetRequiredInt(reader, "IdProducto"),
@@ -828,18 +829,18 @@ public sealed class RinconService
         _ => "Pendiente"
     };
 
-    private static string GetString(SqlDataReader reader, string columnName) =>
+    private static string GetString(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? string.Empty : reader[columnName]?.ToString() ?? string.Empty;
 
-    private static int GetRequiredInt(SqlDataReader reader, string columnName) =>
+    private static int GetRequiredInt(MySqlDataReader reader, string columnName) =>
         Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static decimal GetDecimal(SqlDataReader reader, string columnName) =>
+    private static decimal GetDecimal(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? 0m
             : Convert.ToDecimal(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static DateTime GetDateTime(SqlDataReader reader, string columnName) =>
+    private static DateTime GetDateTime(MySqlDataReader reader, string columnName) =>
         Convert.ToDateTime(reader[columnName], CultureInfo.InvariantCulture);
 
     private sealed class AlumnoContext

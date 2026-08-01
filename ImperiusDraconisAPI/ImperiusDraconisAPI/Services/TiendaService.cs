@@ -2,7 +2,7 @@ using System.Globalization;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Tienda;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services;
 
@@ -13,9 +13,9 @@ public sealed class TiendaService
     private const int EstadoEntregado = 3;
     private const int EstadoCancelado = 4;
 
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
 
-    public TiendaService(SqlConnectionFactory connectionFactory)
+    public TiendaService(MySqlConnectionFactory connectionFactory)
     {
         _connectionFactory = connectionFactory;
     }
@@ -28,7 +28,7 @@ public sealed class TiendaService
         await connection.OpenAsync(cancellationToken);
 
         var filters = new List<string> { "Activo = 1" };
-        using var command = new SqlCommand { Connection = connection };
+        using var command = new MySqlCommand { Connection = connection };
 
         if (!string.IsNullOrWhiteSpace(query.Nombre))
         {
@@ -74,7 +74,7 @@ public sealed class TiendaService
         await connection.OpenAsync(cancellationToken);
 
         var destinatarios = new List<CatalogItemDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT IdAlumno, Codigo, Nombre
             FROM Alumnos
@@ -178,10 +178,10 @@ public sealed class TiendaService
 
         try
         {
-            using (var discountCommand = new SqlCommand(
+            using (var discountCommand = new MySqlCommand(
                        "UPDATE Alumnos SET Dracoins = Dracoins - @Monto WHERE IdAlumno = @IdAlumno",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 discountCommand.Parameters.AddWithValue("@Monto", producto.Precio);
                 discountCommand.Parameters.AddWithValue("@IdAlumno", idComprador);
@@ -189,7 +189,7 @@ public sealed class TiendaService
             }
 
             var idPedido = 0;
-            using (var insertPedidoCommand = new SqlCommand(
+            using (var insertPedidoCommand = new MySqlCommand(
                        """
                        INSERT INTO Pedidos
                        (IdComprador, IdDestinatario, FechaPedido, IdEstado, Total, Comentario)
@@ -197,7 +197,7 @@ public sealed class TiendaService
                        SELECT CAST(SCOPE_IDENTITY() AS int);
                        """,
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 insertPedidoCommand.Parameters.AddWithValue("@IdComprador", idComprador);
                 insertPedidoCommand.Parameters.AddWithValue(
@@ -217,14 +217,14 @@ public sealed class TiendaService
                     CultureInfo.InvariantCulture);
             }
 
-            using (var insertDetalleCommand = new SqlCommand(
+            using (var insertDetalleCommand = new MySqlCommand(
                        """
                        INSERT INTO DetallePedidos
                        (IdPedido, IdProducto, Cantidad, PrecioUnitario, Subtotal)
                        VALUES (@IdPedido, @IdProducto, 1, @PrecioUnitario, @Subtotal)
                        """,
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 insertDetalleCommand.Parameters.AddWithValue("@IdPedido", idPedido);
                 insertDetalleCommand.Parameters.AddWithValue("@IdProducto", producto.IdProducto);
@@ -235,7 +235,7 @@ public sealed class TiendaService
 
             await InsertHistorialEstadoAsync(
                 connection,
-                (SqlTransaction)transaction,
+                (MySqlTransaction)transaction,
                 idPedido,
                 EstadoPendiente,
                 idComprador,
@@ -356,7 +356,7 @@ public sealed class TiendaService
             command.Parameters.AddWithValue("@FechaHasta", (object?)fechaHasta ?? DBNull.Value);
         }
 
-        command.CommandText += " ORDER BY P.IdPedido DESC OFFSET @Offset ROWS FETCH NEXT @Fetch ROWS ONLY";
+        command.CommandText += " ORDER BY P.IdPedido DESC LIMIT @Fetch OFFSET @Offset";
         command.Parameters.AddWithValue("@Offset", (pagina - 1) * registrosPorPagina);
         command.Parameters.AddWithValue("@Fetch", registrosPorPagina);
 
@@ -379,7 +379,7 @@ public sealed class TiendaService
         await connection.OpenAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
-        var pedido = await GetPedidoEstadoContextAsync(connection, (SqlTransaction)transaction, idPedido, cancellationToken);
+        var pedido = await GetPedidoEstadoContextAsync(connection, (MySqlTransaction)transaction, idPedido, cancellationToken);
         if (pedido is null)
         {
             return false;
@@ -397,7 +397,7 @@ public sealed class TiendaService
 
         try
         {
-            using (var updateCommand = new SqlCommand(
+            using (var updateCommand = new MySqlCommand(
                        """
                        UPDATE Pedidos
                        SET IdEstado = @EstadoCancelado
@@ -406,7 +406,7 @@ public sealed class TiendaService
                          AND IdEstado = @EstadoPendiente
                        """,
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 updateCommand.Parameters.AddWithValue("@EstadoCancelado", EstadoCancelado);
                 updateCommand.Parameters.AddWithValue("@IdPedido", idPedido);
@@ -418,10 +418,10 @@ public sealed class TiendaService
                 }
             }
 
-            using (var refundCommand = new SqlCommand(
+            using (var refundCommand = new MySqlCommand(
                        "UPDATE Alumnos SET Dracoins = Dracoins + @Monto WHERE IdAlumno = @IdAlumno",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 refundCommand.Parameters.AddWithValue("@Monto", pedido.Total);
                 refundCommand.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -430,7 +430,7 @@ public sealed class TiendaService
 
             await InsertHistorialEstadoAsync(
                 connection,
-                (SqlTransaction)transaction,
+                (MySqlTransaction)transaction,
                 idPedido,
                 EstadoCancelado,
                 idAlumno,
@@ -470,7 +470,7 @@ public sealed class TiendaService
         await connection.OpenAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
-        var pedido = await GetPedidoEstadoContextAsync(connection, (SqlTransaction)transaction, idPedido, cancellationToken);
+        var pedido = await GetPedidoEstadoContextAsync(connection, (MySqlTransaction)transaction, idPedido, cancellationToken);
         if (pedido is null)
         {
             return null;
@@ -483,7 +483,7 @@ public sealed class TiendaService
 
         try
         {
-            using (var command = new SqlCommand(
+            using (var command = new MySqlCommand(
                        """
                        UPDATE Pedidos
                        SET IdEstado = @EstadoPagado,
@@ -492,7 +492,7 @@ public sealed class TiendaService
                          AND IdEstado = @EstadoPendiente
                        """,
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 command.Parameters.AddWithValue("@EstadoPagado", EstadoPagado);
                 command.Parameters.AddWithValue("@IdVendedor", idVendedor);
@@ -507,7 +507,7 @@ public sealed class TiendaService
 
             await InsertHistorialEstadoAsync(
                 connection,
-                (SqlTransaction)transaction,
+                (MySqlTransaction)transaction,
                 idPedido,
                 EstadoPagado,
                 idVendedor,
@@ -561,7 +561,7 @@ public sealed class TiendaService
         await connection.OpenAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
-        var pedido = await GetPedidoEstadoContextAsync(connection, (SqlTransaction)transaction, idPedido, cancellationToken);
+        var pedido = await GetPedidoEstadoContextAsync(connection, (MySqlTransaction)transaction, idPedido, cancellationToken);
         if (pedido is null)
         {
             return null;
@@ -579,7 +579,7 @@ public sealed class TiendaService
 
         try
         {
-            using (var updateCommand = new SqlCommand(
+            using (var updateCommand = new MySqlCommand(
                        """
                        UPDATE Pedidos
                        SET IdEstado = @NuevoEstado
@@ -588,7 +588,7 @@ public sealed class TiendaService
                          AND IdEstado = @EstadoPagado
                        """,
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 updateCommand.Parameters.AddWithValue("@NuevoEstado", request.NuevoEstado);
                 updateCommand.Parameters.AddWithValue("@IdPedido", idPedido);
@@ -604,20 +604,20 @@ public sealed class TiendaService
             if (request.NuevoEstado == EstadoEntregado)
             {
                 var comision = Math.Round(pedido.Total * 0.15m, 2, MidpointRounding.AwayFromZero);
-                using var commissionCommand = new SqlCommand(
+                using var commissionCommand = new MySqlCommand(
                     "UPDATE Alumnos SET Dracoins = Dracoins + @Monto WHERE IdAlumno = @IdVendedor",
                     connection,
-                    (SqlTransaction)transaction);
+                    (MySqlTransaction)transaction);
                 commissionCommand.Parameters.AddWithValue("@Monto", comision);
                 commissionCommand.Parameters.AddWithValue("@IdVendedor", idVendedor);
                 await commissionCommand.ExecuteNonQueryAsync(cancellationToken);
             }
             else
             {
-                using var refundCommand = new SqlCommand(
+                using var refundCommand = new MySqlCommand(
                     "UPDATE Alumnos SET Dracoins = Dracoins + @Monto WHERE IdAlumno = @IdComprador",
                     connection,
-                    (SqlTransaction)transaction);
+                    (MySqlTransaction)transaction);
                 refundCommand.Parameters.AddWithValue("@Monto", pedido.Total);
                 refundCommand.Parameters.AddWithValue("@IdComprador", pedido.IdComprador);
                 await refundCommand.ExecuteNonQueryAsync(cancellationToken);
@@ -625,7 +625,7 @@ public sealed class TiendaService
 
             await InsertHistorialEstadoAsync(
                 connection,
-                (SqlTransaction)transaction,
+                (MySqlTransaction)transaction,
                 idPedido,
                 request.NuevoEstado,
                 idVendedor,
@@ -648,7 +648,7 @@ public sealed class TiendaService
         await connection.OpenAsync(cancellationToken);
 
         var vendedores = new List<CatalogItemDto>();
-        using (var vendedoresCommand = new SqlCommand(
+        using (var vendedoresCommand = new MySqlCommand(
                    """
                    SELECT DISTINCT A.IdAlumno, A.Codigo, A.Nombre
                    FROM Alumnos A
@@ -748,7 +748,7 @@ public sealed class TiendaService
             command.Parameters.AddWithValue("@EstadoFiltro", query.Estado.Value);
         }
 
-        command.CommandText += " ORDER BY P.FechaPedido DESC, P.IdPedido DESC OFFSET @Offset ROWS FETCH NEXT @Fetch ROWS ONLY";
+        command.CommandText += " ORDER BY P.FechaPedido DESC, P.IdPedido DESC LIMIT @Fetch OFFSET @Offset";
         command.Parameters.AddWithValue("@Offset", (pagina - 1) * registrosPorPagina);
         command.Parameters.AddWithValue("@Fetch", registrosPorPagina);
 
@@ -777,7 +777,7 @@ public sealed class TiendaService
         await connection.OpenAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
-        var pedido = await GetPedidoEstadoContextAsync(connection, (SqlTransaction)transaction, idPedido, cancellationToken);
+        var pedido = await GetPedidoEstadoContextAsync(connection, (MySqlTransaction)transaction, idPedido, cancellationToken);
         if (pedido is null)
         {
             return null;
@@ -785,10 +785,10 @@ public sealed class TiendaService
 
         try
         {
-            using (var command = new SqlCommand(
+            using (var command = new MySqlCommand(
                        "UPDATE Pedidos SET IdEstado = @NuevoEstado WHERE IdPedido = @IdPedido",
                        connection,
-                       (SqlTransaction)transaction))
+                       (MySqlTransaction)transaction))
             {
                 command.Parameters.AddWithValue("@NuevoEstado", request.NuevoEstado);
                 command.Parameters.AddWithValue("@IdPedido", idPedido);
@@ -797,7 +797,7 @@ public sealed class TiendaService
 
             await InsertHistorialEstadoAsync(
                 connection,
-                (SqlTransaction)transaction,
+                (MySqlTransaction)transaction,
                 idPedido,
                 request.NuevoEstado,
                 idAlumno,
@@ -821,12 +821,12 @@ public sealed class TiendaService
         pedido.IdVendedor == idAlumno;
 
     private static async Task<int> CountPedidosAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         string whereClause,
-        Action<SqlCommand> parameterBuilder,
+        Action<MySqlCommand> parameterBuilder,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             $"""
             SELECT COUNT(*)
             FROM Pedidos P
@@ -844,7 +844,7 @@ public sealed class TiendaService
     }
 
     private static async Task<IReadOnlyCollection<TiendaPedidoDto>> ReadPedidosAsync(
-        SqlCommand command,
+        MySqlCommand command,
         CancellationToken cancellationToken)
     {
         var items = new List<TiendaPedidoDto>();
@@ -879,12 +879,12 @@ public sealed class TiendaService
         return items;
     }
 
-    private static SqlCommand CreatePedidoProjectionCommand(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+    private static MySqlCommand CreatePedidoProjectionCommand(
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         string whereAndOrderClause)
     {
-        return new SqlCommand(
+        return new MySqlCommand(
             $"""
             SELECT
                 P.IdPedido,
@@ -917,17 +917,17 @@ public sealed class TiendaService
     }
 
     private static async Task<int> CountAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         string sql,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(sql, connection);
+        using var command = new MySqlCommand(sql, connection);
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
     }
 
     private static async Task<TiendaPedidoDto?> GetPedidoByIdInternalAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idPedido,
         CancellationToken cancellationToken)
     {
@@ -942,12 +942,12 @@ public sealed class TiendaService
     }
 
     private static async Task<TiendaComprobanteDto?> GetComprobanteInternalAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idPedido,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 P.IdPedido,
@@ -994,12 +994,12 @@ public sealed class TiendaService
     }
 
     private static async Task<PedidoEstadoContext?> GetPedidoEstadoContextAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idPedido,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 IdPedido,
@@ -1033,12 +1033,12 @@ public sealed class TiendaService
     }
 
     private static async Task<TiendaProductoDto?> GetProductoActivoAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idProducto,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT IdProducto, Nombre, Descripcion, Precio, Imagen, Activo
             FROM Productos
@@ -1054,17 +1054,18 @@ public sealed class TiendaService
     }
 
     private static async Task<AlumnoContext?> GetAlumnoAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idAlumno,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
-            SELECT TOP 1 IdAlumno, Codigo, Nombre, Dracoins
+            SELECT IdAlumno, Codigo, Nombre, Dracoins
             FROM Alumnos
             WHERE IdAlumno = @IdAlumno
               AND Activo = 1
+            LIMIT 1
             """,
             connection,
             transaction);
@@ -1086,15 +1087,15 @@ public sealed class TiendaService
     }
 
     private static async Task InsertHistorialEstadoAsync(
-        SqlConnection connection,
-        SqlTransaction transaction,
+        MySqlConnection connection,
+        MySqlTransaction transaction,
         int idPedido,
         int idEstado,
         int usuarioCambio,
         string? observacion,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             INSERT INTO HistorialEstadosPedido
             (IdPedido, IdEstado, FechaCambio, UsuarioCambio, Observacion)
@@ -1112,7 +1113,7 @@ public sealed class TiendaService
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private static TiendaProductoDto MapProducto(SqlDataReader reader) =>
+    private static TiendaProductoDto MapProducto(MySqlDataReader reader) =>
         new()
         {
             IdProducto = GetRequiredInt(reader, "IdProducto"),
@@ -1123,26 +1124,26 @@ public sealed class TiendaService
             Activo = GetBoolean(reader, "Activo")
         };
 
-    private static string GetString(SqlDataReader reader, string columnName) =>
+    private static string GetString(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? string.Empty : reader[columnName]?.ToString() ?? string.Empty;
 
-    private static int GetRequiredInt(SqlDataReader reader, string columnName) =>
+    private static int GetRequiredInt(MySqlDataReader reader, string columnName) =>
         Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static int? GetNullableInt(SqlDataReader reader, string columnName) =>
+    private static int? GetNullableInt(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? null
             : Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static decimal GetDecimal(SqlDataReader reader, string columnName) =>
+    private static decimal GetDecimal(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? 0m
             : Convert.ToDecimal(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static bool GetBoolean(SqlDataReader reader, string columnName) =>
+    private static bool GetBoolean(MySqlDataReader reader, string columnName) =>
         reader[columnName] != DBNull.Value && Convert.ToBoolean(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static DateTime GetDateTime(SqlDataReader reader, string columnName) =>
+    private static DateTime GetDateTime(MySqlDataReader reader, string columnName) =>
         Convert.ToDateTime(reader[columnName], CultureInfo.InvariantCulture);
 
     private sealed class AlumnoContext

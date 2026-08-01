@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using ImperiusDraconisAPI.Models.Auditoria;
@@ -44,12 +44,12 @@ namespace ImperiusDraconisAPI.Services.Auditoria
             string dispositivo = ParsearDispositivo(userAgent);
             var (pais, ciudad, isp) = _geoLocationService.ObtenerMetadatosIp(ip);
 
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = new MySqlConnection(_connectionString);
             await conn.OpenAsync();
 
             // 1. Guardar Acceso
-            using (var cmdAcceso = new SqlCommand(@"
-                INSERT INTO dbo.HistorialAccesos 
+            using (var cmdAcceso = new MySqlCommand(@"
+                INSERT INTO HistorialAccesos 
                 (IdAlumno, DireccionIP, UserAgent, FingerprintHash, TipoDispositivo, PaisCodigo, Ciudad, ProveedorInternet, Exito, FechaAcceso) 
                 VALUES 
                 (@IdAlumno, @IP, @UA, @FP, @Dispositivo, @Pais, @Ciudad, @ISP, @Exito, GETDATE())", conn))
@@ -70,7 +70,7 @@ namespace ImperiusDraconisAPI.Services.Auditoria
             {
                 // 2. Controlar Aparición de Nuevo Dispositivo (Fingerprint)
                 bool esNuevoDispositivo = false;
-                using (var cmdCheck = new SqlCommand("SELECT COUNT(*) FROM dbo.DispositivosAlumno WHERE IdAlumno = @Id AND FingerprintHash = @FP", conn))
+                using (var cmdCheck = new MySqlCommand("SELECT COUNT(*) FROM DispositivosAlumno WHERE IdAlumno = @Id AND FingerprintHash = @FP", conn))
                 {
                     cmdCheck.Parameters.AddWithValue("@Id", idAlumno);
                     cmdCheck.Parameters.AddWithValue("@FP", fingerprint);
@@ -80,8 +80,8 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                 if (esNuevoDispositivo)
                 {
                     // Loggear evento
-                    using (var cmdLogEv = new SqlCommand(@"
-                        INSERT INTO dbo.AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, ValorNuevo, FechaEvento)
+                    using (var cmdLogEv = new MySqlCommand(@"
+                        INSERT INTO AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, ValorNuevo, FechaEvento)
                         VALUES ('DISPOSITIVO_NUEVO', 'LOGIN', 'INFO', @Id, @FP, GETDATE())", conn))
                     {
                         cmdLogEv.Parameters.AddWithValue("@Id", idAlumno);
@@ -91,15 +91,10 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                 }
 
                 // 3. Upsert Dispositivo
-                using (var cmdMergeDisp = new SqlCommand(@"
-                    MERGE dbo.DispositivosAlumno AS Target
-                    USING (SELECT @IdAlumno AS Id, @FP AS Hash, @UA AS Agent) AS Source
-                    ON (Target.IdAlumno = Source.Id AND Target.FingerprintHash = Source.Hash)
-                    WHEN MATCHED THEN
-                        UPDATE SET UltimoUserAgent = Source.Agent, FechaUltimoAcceso = GETDATE()
-                    WHEN NOT MATCHED THEN
-                        INSERT (IdAlumno, FingerprintHash, UltimoUserAgent, FechaPrimerAcceso, FechaUltimoAcceso)
-                        VALUES (Source.Id, Source.Hash, Source.Agent, GETDATE(), GETDATE());", conn))
+                using (var cmdMergeDisp = new MySqlCommand(@"
+                    INSERT INTO DispositivosAlumno (IdAlumno, FingerprintHash, UltimoUserAgent, FechaPrimerAcceso, FechaUltimoAcceso)
+                    VALUES (@IdAlumno, @FP, @UA, NOW(), NOW())
+                    ON DUPLICATE KEY UPDATE UltimoUserAgent = @UA, FechaUltimoAcceso = NOW();", conn))
                 {
                     cmdMergeDisp.Parameters.AddWithValue("@IdAlumno", idAlumno);
                     cmdMergeDisp.Parameters.AddWithValue("@FP", fingerprint);
@@ -115,11 +110,11 @@ namespace ImperiusDraconisAPI.Services.Auditoria
 
         public async Task RegistrarExcepcionAsync(ExcepcionAuditoria excepcion)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = new MySqlConnection(_connectionString);
             await conn.OpenAsync();
 
-            using (var cmd = new SqlCommand(@"
-                INSERT INTO dbo.ExcepcionesAuditoria 
+            using (var cmd = new MySqlCommand(@"
+                INSERT INTO ExcepcionesAuditoria 
                 (TipoExcepcion, ValorA, ValorB, Motivo, FechaCreado, IdAdministrador, Activa) 
                 VALUES 
                 (@Tipo, @ValA, @ValB, @Motivo, GETDATE(), @IdAdmin, 1)", conn))
@@ -133,8 +128,8 @@ namespace ImperiusDraconisAPI.Services.Auditoria
             }
 
             // Registrar Evento
-            using (var cmdEvent = new SqlCommand(@"
-                INSERT INTO dbo.AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, ValorNuevo, DetallesJson, FechaEvento)
+            using (var cmdEvent = new MySqlCommand(@"
+                INSERT INTO AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, ValorNuevo, DetallesJson, FechaEvento)
                 VALUES ('EXCEPCION_CREADA', 'ADMINISTRADOR', 'LOW', @Id, @Tipo, @Detalles, GETDATE())", conn))
             {
                 cmdEvent.Parameters.AddWithValue("@Id", int.Parse(excepcion.ValorA));
@@ -150,10 +145,10 @@ namespace ImperiusDraconisAPI.Services.Auditoria
         {
             var raiz = new RelacionAccesoNodoDto();
 
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = new MySqlConnection(_connectionString);
             await conn.OpenAsync();
 
-            using (var cmdName = new SqlCommand("SELECT Nombre FROM dbo.Alumnos WHERE IdAlumno = @Id", conn))
+            using (var cmdName = new MySqlCommand("SELECT Nombre FROM Alumnos WHERE IdAlumno = @Id", conn))
             {
                 cmdName.Parameters.AddWithValue("@Id", idAlumno);
                 string nombre = Convert.ToString(await cmdName.ExecuteScalarAsync()) ?? $"Alumno #{idAlumno}";
@@ -164,9 +159,9 @@ namespace ImperiusDraconisAPI.Services.Auditoria
 
             // 1. Obtener Dispositivos
             var dispositivos = new List<(string Hash, string Alias)>();
-            using (var cmdDev = new SqlCommand(@"
+            using (var cmdDev = new MySqlCommand(@"
                 SELECT FingerprintHash, NombreDispositivoManual 
-                FROM dbo.DispositivosAlumno 
+                FROM DispositivosAlumno 
                 WHERE IdAlumno = @Id", conn))
             {
                 cmdDev.Parameters.AddWithValue("@Id", idAlumno);
@@ -190,10 +185,10 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                 };
 
                 // Buscar otras cuentas que usaron este fingerprint
-                using (var cmdShared = new SqlCommand(@"
+                using (var cmdShared = new MySqlCommand(@"
                     SELECT DISTINCT A.IdAlumno, A.Nombre 
-                    FROM dbo.HistorialAccesos H
-                    INNER JOIN dbo.Alumnos A ON A.IdAlumno = H.IdAlumno
+                    FROM HistorialAccesos H
+                    INNER JOIN Alumnos A ON A.IdAlumno = H.IdAlumno
                     WHERE H.FingerprintHash = @FP AND H.IdAlumno <> @IdAlumno AND H.Exito = 1", conn))
                 {
                     cmdShared.Parameters.AddWithValue("@FP", dev.Hash);
@@ -215,9 +210,9 @@ namespace ImperiusDraconisAPI.Services.Auditoria
 
             // 2. Obtener Direcciones IP
             var ips = new List<string>();
-            using (var cmdIp = new SqlCommand(@"
+            using (var cmdIp = new MySqlCommand(@"
                 SELECT DISTINCT DireccionIP 
-                FROM dbo.HistorialAccesos 
+                FROM HistorialAccesos 
                 WHERE IdAlumno = @Id AND Exito = 1", conn))
             {
                 cmdIp.Parameters.AddWithValue("@Id", idAlumno);
@@ -239,10 +234,10 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                 };
 
                 // Buscar otras cuentas que usaron esta IP
-                using (var cmdSharedIp = new SqlCommand(@"
+                using (var cmdSharedIp = new MySqlCommand(@"
                     SELECT DISTINCT A.IdAlumno, A.Nombre 
-                    FROM dbo.HistorialAccesos H
-                    INNER JOIN dbo.Alumnos A ON A.IdAlumno = H.IdAlumno
+                    FROM HistorialAccesos H
+                    INNER JOIN Alumnos A ON A.IdAlumno = H.IdAlumno
                     WHERE H.DireccionIP = @IP AND H.IdAlumno <> @IdAlumno AND H.Exito = 1", conn))
                 {
                     cmdSharedIp.Parameters.AddWithValue("@IP", ip);
@@ -267,10 +262,10 @@ namespace ImperiusDraconisAPI.Services.Auditoria
 
         public async Task<ResumenAuditoriaAcceso?> ObtenerResumenAsync(int idAlumno)
         {
-            using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
+            using var conn = new MySqlConnection(_connectionString);
+            using var cmd = new MySqlCommand(@"
                 SELECT IdAlumno, RelevanciaAuditoria, MotivosDetalle, EvidenciasJson, UltimaEvaluacion 
-                FROM dbo.ResumenAuditoriaAccesos 
+                FROM ResumenAuditoriaAccesos 
                 WHERE IdAlumno = @Id", conn);
             cmd.Parameters.AddWithValue("@Id", idAlumno);
 
@@ -292,17 +287,17 @@ namespace ImperiusDraconisAPI.Services.Auditoria
 
         public async Task EvaluarAuditoriaAlumnoAsync(int idAlumno)
         {
-            using var conn = new SqlConnection(_connectionString);
+            using var conn = new MySqlConnection(_connectionString);
             await conn.OpenAsync();
             await EvaluarAuditoriaInternaAsync(idAlumno, conn);
         }
 
-        private async Task EvaluarAuditoriaInternaAsync(int idAlumno, SqlConnection conn)
+        private async Task EvaluarAuditoriaInternaAsync(int idAlumno, MySqlConnection conn)
         {
             decimal multiplicador = 1.00m;
 
             // 1. Obtener Multiplicador de Cuenta Especial
-            using (var cmdEsp = new SqlCommand("SELECT MultiplicadorAuditoria FROM dbo.CuentasEspeciales WHERE IdAlumno = @Id", conn))
+            using (var cmdEsp = new MySqlCommand("SELECT MultiplicadorAuditoria FROM CuentasEspeciales WHERE IdAlumno = @Id", conn))
             {
                 cmdEsp.Parameters.AddWithValue("@Id", idAlumno);
                 object? res = await cmdEsp.ExecuteScalarAsync();
@@ -317,11 +312,11 @@ namespace ImperiusDraconisAPI.Services.Auditoria
             var evidencias = new Dictionary<string, object>();
 
             // 2. Validar Excepciones Permanentes
-            using (var cmdExc = new SqlCommand(@"
-                SELECT COUNT(*) FROM dbo.ExcepcionesAuditoria 
+            using (var cmdExc = new MySqlCommand(@"
+                SELECT COUNT(*) FROM ExcepcionesAuditoria 
                 WHERE Activa = 1 AND (
                     (TipoExcepcion = 'RELACION_AUTORIZADA' AND ((ValorA = @IdStr AND ValorB = @IdStr) OR (ValorA = @IdStr AND ValorB = @IdStr))) OR
-                    (TipoExcepcion = 'DISPOSITIVO_AUTORIZADO' AND ValorA IN (SELECT FingerprintHash FROM dbo.DispositivosAlumno WHERE IdAlumno = @IdAlumno))
+                    (TipoExcepcion = 'DISPOSITIVO_AUTORIZADO' AND ValorA IN (SELECT FingerprintHash FROM DispositivosAlumno WHERE IdAlumno = @IdAlumno))
                 )", conn))
             {
                 cmdExc.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -336,10 +331,10 @@ namespace ImperiusDraconisAPI.Services.Auditoria
             }
 
             // Regla A: Fingerprint compartido
-            using (var cmdFp = new SqlCommand(@"
-                SELECT COUNT(DISTINCT IdAlumno) FROM dbo.HistorialAccesos 
+            using (var cmdFp = new MySqlCommand(@"
+                SELECT COUNT(DISTINCT IdAlumno) FROM HistorialAccesos 
                 WHERE FingerprintHash IN (
-                    SELECT DISTINCT FingerprintHash FROM dbo.HistorialAccesos WHERE IdAlumno = @IdAlumno AND Exito = 1
+                    SELECT DISTINCT FingerprintHash FROM HistorialAccesos WHERE IdAlumno = @IdAlumno AND Exito = 1
                 ) AND IdAlumno <> @IdAlumno AND Exito = 1", conn))
             {
                 cmdFp.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -353,10 +348,10 @@ namespace ImperiusDraconisAPI.Services.Auditoria
             }
 
             // Regla B: IP compartida
-            using (var cmdIp = new SqlCommand(@"
-                SELECT COUNT(DISTINCT IdAlumno) FROM dbo.HistorialAccesos 
+            using (var cmdIp = new MySqlCommand(@"
+                SELECT COUNT(DISTINCT IdAlumno) FROM HistorialAccesos 
                 WHERE DireccionIP IN (
-                    SELECT DISTINCT DireccionIP FROM dbo.HistorialAccesos WHERE IdAlumno = @IdAlumno AND Exito = 1
+                    SELECT DISTINCT DireccionIP FROM HistorialAccesos WHERE IdAlumno = @IdAlumno AND Exito = 1
                 ) AND IdAlumno <> @IdAlumno AND Exito = 1", conn))
             {
                 cmdIp.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -383,7 +378,7 @@ namespace ImperiusDraconisAPI.Services.Auditoria
 
             // 4. Rastrear cambios significativos en Relevancia
             int scoreAnterior = 0;
-            using (var cmdPrev = new SqlCommand("SELECT RelevanciaAuditoria FROM dbo.ResumenAuditoriaAccesos WHERE IdAlumno = @Id", conn))
+            using (var cmdPrev = new MySqlCommand("SELECT RelevanciaAuditoria FROM ResumenAuditoriaAccesos WHERE IdAlumno = @Id", conn))
             {
                 cmdPrev.Parameters.AddWithValue("@Id", idAlumno);
                 object? val = await cmdPrev.ExecuteScalarAsync();
@@ -397,8 +392,8 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                 if (scoreFinal >= 90) severidad = "CRITICAL";
 
                 // Registrar evento de cambio de relevancia
-                using (var cmdLogEv = new SqlCommand(@"
-                    INSERT INTO dbo.AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, ValorAnterior, ValorNuevo, FechaEvento)
+                using (var cmdLogEv = new MySqlCommand(@"
+                    INSERT INTO AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, ValorAnterior, ValorNuevo, FechaEvento)
                     VALUES ('CAMBIO_RELEVANCIA', 'SISTEMA', @Sev, @Id, @Prev, @New, GETDATE())", conn))
                 {
                     cmdLogEv.Parameters.AddWithValue("@Id", idAlumno);
@@ -412,17 +407,12 @@ namespace ImperiusDraconisAPI.Services.Auditoria
             await GuardarResumenAuditoriaAsync(idAlumno, scoreFinal, motivosTxt, jsonEvidencias, conn);
         }
 
-        private async Task GuardarResumenAuditoriaAsync(int idAlumno, int score, string motivos, string evidencias, SqlConnection conn)
+        private async Task GuardarResumenAuditoriaAsync(int idAlumno, int score, string motivos, string evidencias, MySqlConnection conn)
         {
-            using var cmd = new SqlCommand(@"
-                MERGE dbo.ResumenAuditoriaAccesos AS Target
-                USING (SELECT @IdAlumno AS Id, @Score AS Score, @Motivos AS Motivos, @Evidencias AS Evidencias) AS Source
-                ON (Target.IdAlumno = Source.Id)
-                WHEN MATCHED THEN
-                    UPDATE SET RelevanciaAuditoria = Source.Score, MotivosDetalle = Source.Motivos, EvidenciasJson = Source.Evidencias, UltimaEvaluacion = GETDATE()
-                WHEN NOT MATCHED THEN
-                    INSERT (IdAlumno, RelevanciaAuditoria, MotivosDetalle, EvidenciasJson, UltimaEvaluacion)
-                    VALUES (Source.Id, Source.Score, Source.Motivos, Source.Evidencias, GETDATE());", conn);
+            using var cmd = new MySqlCommand(@"
+                INSERT INTO ResumenAuditoriaAccesos (IdAlumno, RelevanciaAuditoria, MotivosDetalle, EvidenciasJson, UltimaEvaluacion)
+                VALUES (@IdAlumno, @Score, @Motivos, @Evidencias, NOW())
+                ON DUPLICATE KEY UPDATE RelevanciaAuditoria = @Score, MotivosDetalle = @Motivos, EvidenciasJson = @Evidencias, UltimaEvaluacion = NOW();", conn);
 
             cmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
             cmd.Parameters.AddWithValue("@Score", score);
@@ -432,10 +422,10 @@ namespace ImperiusDraconisAPI.Services.Auditoria
             await cmd.ExecuteNonQueryAsync();
         }
 
-        private async Task ProcesarVinculosDeCuentasAsync(int idAlumno, string fingerprint, string ip, SqlConnection conn)
+        private async Task ProcesarVinculosDeCuentasAsync(int idAlumno, string fingerprint, string ip, MySqlConnection conn)
         {
-            using var cmd = new SqlCommand(@"
-                SELECT DISTINCT IdAlumno FROM dbo.HistorialAccesos 
+            using var cmd = new MySqlCommand(@"
+                SELECT DISTINCT IdAlumno FROM HistorialAccesos 
                 WHERE FingerprintHash = @FP AND IdAlumno <> @IdAlumno AND Exito = 1", conn);
             cmd.Parameters.AddWithValue("@FP", fingerprint);
             cmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -449,7 +439,7 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                 int mayor = Math.Max(idAlumno, relId);
 
                 bool esNuevoVinculo = false;
-                using (var cmdCheck = new SqlCommand("SELECT COUNT(*) FROM dbo.CuentasVinculadas WHERE IdAlumnoA = @Menor AND IdAlumnoB = @Mayor AND TipoEvidencia = 'FINGERPRINT_COMPARTIDA'", conn))
+                using (var cmdCheck = new MySqlCommand("SELECT COUNT(*) FROM CuentasVinculadas WHERE IdAlumnoA = @Menor AND IdAlumnoB = @Mayor AND TipoEvidencia = 'FINGERPRINT_COMPARTIDA'", conn))
                 {
                     cmdCheck.Parameters.AddWithValue("@Menor", menor);
                     cmdCheck.Parameters.AddWithValue("@Mayor", mayor);
@@ -458,8 +448,8 @@ namespace ImperiusDraconisAPI.Services.Auditoria
 
                 if (esNuevoVinculo)
                 {
-                    using (var cmdLogEv = new SqlCommand(@"
-                        INSERT INTO dbo.AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, IdAlumnoRelacionado, ValorNuevo, FechaEvento)
+                    using (var cmdLogEv = new MySqlCommand(@"
+                        INSERT INTO AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, IdAlumnoRelacionado, ValorNuevo, FechaEvento)
                         VALUES ('VINCULO_NUEVO', 'SISTEMA', 'HIGH', @IdA, @IdB, 'FINGERPRINT_COMPARTIDA', GETDATE())", conn))
                     {
                         cmdLogEv.Parameters.AddWithValue("@IdA", menor);
@@ -468,15 +458,10 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                     }
                 }
 
-                using var cmdMerge = new SqlCommand(@"
-                    MERGE dbo.CuentasVinculadas AS Target
-                    USING (SELECT @Menor AS IdA, @Mayor AS IdB, 'FINGERPRINT_COMPARTIDA' AS Tipo) AS Source
-                    ON (Target.IdAlumnoA = Source.IdA AND Target.IdAlumnoB = Source.IdB AND Target.TipoEvidencia = Source.Tipo)
-                    WHEN MATCHED THEN
-                        UPDATE SET FuerzaVinculo = Target.FuerzaVinculo + 1, ActualizadoEn = GETDATE()
-                    WHEN NOT MATCHED THEN
-                        INSERT (IdAlumnoA, IdAlumnoB, TipoEvidencia, FuerzaVinculo, CreadoEn, ActualizadoEn)
-                        VALUES (Source.IdA, Source.IdB, Source.Tipo, 1, GETDATE(), GETDATE());", conn);
+                using var cmdMerge = new MySqlCommand(@"
+                    INSERT INTO CuentasVinculadas (IdAlumnoA, IdAlumnoB, TipoEvidencia, FuerzaVinculo, CreadoEn, ActualizadoEn)
+                    VALUES (@Menor, @Mayor, 'FINGERPRINT_COMPARTIDA', 1, NOW(), NOW())
+                    ON DUPLICATE KEY UPDATE FuerzaVinculo = FuerzaVinculo + 1, ActualizadoEn = NOW();", conn);
 
                 cmdMerge.Parameters.AddWithValue("@Menor", menor);
                 cmdMerge.Parameters.AddWithValue("@Mayor", mayor);
@@ -495,9 +480,9 @@ namespace ImperiusDraconisAPI.Services.Auditoria
 
         public async Task RegistrarDecisionAsync(DecisionAdministrativa decision)
         {
-            using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
-                INSERT INTO dbo.DecisionesAdministrativas 
+            using var conn = new MySqlConnection(_connectionString);
+            using var cmd = new MySqlCommand(@"
+                INSERT INTO DecisionesAdministrativas 
                 (IdAlumno, IdAlumnoRelacionado, Decision, Motivo, NotasInternas, IdAdministrador, FechaDecision) 
                 VALUES 
                 (@IdAlumno, @IdAlumnoRelacionado, @Decision, @Motivo, @Notas, @IdAdmin, GETDATE())", conn);
@@ -512,8 +497,8 @@ namespace ImperiusDraconisAPI.Services.Auditoria
             await conn.OpenAsync();
             await cmd.ExecuteNonQueryAsync();
 
-            using (var cmdEvent = new SqlCommand(@"
-                INSERT INTO dbo.AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, IdAlumnoRelacionado, ValorNuevo, DetallesJson, FechaEvento)
+            using (var cmdEvent = new MySqlCommand(@"
+                INSERT INTO AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, IdAlumnoRelacionado, ValorNuevo, DetallesJson, FechaEvento)
                 VALUES ('DECISION_REGISTRADA', 'ADMINISTRADOR', 'MEDIUM', @Id, @RelId, @Decision, @Detalles, GETDATE())", conn))
             {
                 cmdEvent.Parameters.AddWithValue("@Id", decision.IdAlumno);
@@ -530,10 +515,10 @@ namespace ImperiusDraconisAPI.Services.Auditoria
         {
             var historial = new List<DecisionAdministrativa>();
 
-            using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
+            using var conn = new MySqlConnection(_connectionString);
+            using var cmd = new MySqlCommand(@"
                 SELECT Id, IdAlumno, IdAlumnoRelacionado, Decision, Motivo, NotasInternas, IdAdministrador, FechaDecision 
-                FROM dbo.DecisionesAdministrativas 
+                FROM DecisionesAdministrativas 
                 WHERE IdAlumno = @IdAlumno 
                 ORDER BY FechaDecision DESC", conn);
             cmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -559,16 +544,11 @@ namespace ImperiusDraconisAPI.Services.Auditoria
 
         public async Task RegistrarCuentaEspecialAsync(CuentaEspecial cuentaEspecial)
         {
-            using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
-                MERGE dbo.CuentasEspeciales AS Target
-                USING (SELECT @IdAlumno AS Id, @Tipo AS Tipo, @Desc AS [Desc], @Mult AS Mult) AS Source
-                ON (Target.IdAlumno = Source.Id)
-                WHEN MATCHED THEN
-                    UPDATE SET TipoCuenta = Source.Tipo, Descripcion = Source.[Desc], MultiplicadorAuditoria = Source.Mult
-                WHEN NOT MATCHED THEN
-                    INSERT (IdAlumno, TipoCuenta, Descripcion, MultiplicadorAuditoria, FechaRegistro)
-                    VALUES (Source.Id, Source.Tipo, Source.[Desc], Source.Mult, GETDATE());", conn);
+            using var conn = new MySqlConnection(_connectionString);
+            using var cmd = new MySqlCommand(@"
+                INSERT INTO CuentasEspeciales (IdAlumno, TipoCuenta, Descripcion, MultiplicadorAuditoria, FechaRegistro)
+                VALUES (@IdAlumno, @Tipo, @Desc, @Mult, NOW())
+                ON DUPLICATE KEY UPDATE TipoCuenta = @Tipo, Descripcion = @Desc, MultiplicadorAuditoria = @Mult;", conn);
 
             cmd.Parameters.AddWithValue("@IdAlumno", cuentaEspecial.IdAlumno);
             cmd.Parameters.AddWithValue("@Tipo", cuentaEspecial.TipoCuenta);
@@ -578,8 +558,8 @@ namespace ImperiusDraconisAPI.Services.Auditoria
             await conn.OpenAsync();
             await cmd.ExecuteNonQueryAsync();
 
-            using (var cmdEvent = new SqlCommand(@"
-                INSERT INTO dbo.AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, ValorNuevo, DetallesJson, FechaEvento)
+            using (var cmdEvent = new MySqlCommand(@"
+                INSERT INTO AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, ValorNuevo, DetallesJson, FechaEvento)
                 VALUES ('CUENTA_ESPECIAL_REGISTRADA', 'ADMINISTRADOR', 'LOW', @Id, @Tipo, @Detalles, GETDATE())", conn))
             {
                 cmdEvent.Parameters.AddWithValue("@Id", cuentaEspecial.IdAlumno);
@@ -595,10 +575,10 @@ namespace ImperiusDraconisAPI.Services.Auditoria
         {
             var excepciones = new List<ExcepcionAuditoria>();
 
-            using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
+            using var conn = new MySqlConnection(_connectionString);
+            using var cmd = new MySqlCommand(@"
                 SELECT Id, TipoExcepcion, ValorA, ValorB, Motivo, FechaCreado, IdAdministrador, Activa 
-                FROM dbo.ExcepcionesAuditoria 
+                FROM ExcepcionesAuditoria 
                 WHERE Activa = 1
                 ORDER BY FechaCreado DESC", conn);
 
@@ -625,11 +605,11 @@ namespace ImperiusDraconisAPI.Services.Auditoria
         {
             var resumenes = new List<ResumenAuditoriaListadoDto>();
 
-            using var conn = new SqlConnection(_connectionString);
-            using var cmd = new SqlCommand(@"
+            using var conn = new MySqlConnection(_connectionString);
+            using var cmd = new MySqlCommand(@"
                 SELECT R.IdAlumno, A.Nombre, R.RelevanciaAuditoria, R.MotivosDetalle, R.EvidenciasJson, R.UltimaEvaluacion 
-                FROM dbo.ResumenAuditoriaAccesos R
-                INNER JOIN dbo.Alumnos A ON A.IdAlumno = R.IdAlumno
+                FROM ResumenAuditoriaAccesos R
+                INNER JOIN Alumnos A ON A.IdAlumno = R.IdAlumno
                 ORDER BY R.RelevanciaAuditoria DESC, R.UltimaEvaluacion DESC", conn);
 
             await conn.OpenAsync();

@@ -4,17 +4,17 @@ using System.IO;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Biblioteca;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 using MiniExcelLibs;
 
 namespace ImperiusDraconisAPI.Services;
 
 public sealed class BibliotecaService
 {
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
     private readonly IWebHostEnvironment _environment;
 
-    public BibliotecaService(SqlConnectionFactory connectionFactory, IWebHostEnvironment environment)
+    public BibliotecaService(MySqlConnectionFactory connectionFactory, IWebHostEnvironment environment)
     {
         _connectionFactory = connectionFactory;
         _environment = environment;
@@ -31,7 +31,7 @@ public sealed class BibliotecaService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "SELECT Id, Nombre, Descripcion FROM BibliotecaCategorias WHERE Activo = 1 ORDER BY Nombre",
             connection);
 
@@ -102,7 +102,7 @@ public sealed class BibliotecaService
 
         sql += " ORDER BY L.Titulo";
 
-        using var command = new SqlCommand(sql, connection);
+        using var command = new MySqlCommand(sql, connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
 
         if (categoriaId.HasValue)
@@ -142,7 +142,7 @@ public sealed class BibliotecaService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "SELECT RutaArchivo FROM BibliotecaLibros WHERE Id = @Id AND Activo = 1",
             connection);
         command.Parameters.AddWithValue("@Id", id);
@@ -162,7 +162,7 @@ public sealed class BibliotecaService
         {
             // 1. Obtener detalles del libro
             decimal precio = 0;
-            using (var getLibroCommand = new SqlCommand(
+            using (var getLibroCommand = new MySqlCommand(
                 "SELECT PrecioDracoins FROM BibliotecaLibros WHERE Id = @IdLibro AND Activo = 1",
                 connection,
                 transaction))
@@ -177,7 +177,7 @@ public sealed class BibliotecaService
             }
 
             // 2. Verificar si ya lo compro
-            using (var checkCompravCommand = new SqlCommand(
+            using (var checkCompravCommand = new MySqlCommand(
                 "SELECT COUNT(*) FROM AlumnosLibrosComprados WHERE IdAlumno = @IdAlumno AND IdLibro = @IdLibro",
                 connection,
                 transaction))
@@ -193,7 +193,7 @@ public sealed class BibliotecaService
 
             // 3. Verificar saldo de Dracoins del alumno
             decimal saldo = 0;
-            using (var checkSaldoCommand = new SqlCommand(
+            using (var checkSaldoCommand = new MySqlCommand(
                 "SELECT Dracoins FROM Alumnos WHERE IdAlumno = @IdAlumno",
                 connection,
                 transaction))
@@ -213,7 +213,7 @@ public sealed class BibliotecaService
             }
 
             // 4. Descontar Dracoins
-            using (var updateSaldoCommand = new SqlCommand(
+            using (var updateSaldoCommand = new MySqlCommand(
                 "UPDATE Alumnos SET Dracoins = Dracoins - @Monto WHERE IdAlumno = @IdAlumno",
                 connection,
                 transaction))
@@ -224,7 +224,7 @@ public sealed class BibliotecaService
             }
 
             // 5. Registrar transaccion de Dracoins (para el historial)
-            using (var insertMovCommand = new SqlCommand(
+            using (var insertMovCommand = new MySqlCommand(
                 """
                 INSERT INTO MovimientosDracoins (
                     CodigoRemitente, 
@@ -250,7 +250,7 @@ public sealed class BibliotecaService
             }
 
             // 6. Registrar libro comprado
-            using (var insertCompraCommand = new SqlCommand(
+            using (var insertCompraCommand = new MySqlCommand(
                 "INSERT INTO AlumnosLibrosComprados (IdAlumno, IdLibro, MontoPagado) VALUES (@IdAlumno, @IdLibro, @Monto)",
                 connection,
                 transaction))
@@ -277,7 +277,7 @@ public sealed class BibliotecaService
         await connection.OpenAsync(cancellationToken);
 
         // Buscar si tiene suscripción activa que ya venció
-        using var selectCmd = new SqlCommand(
+        using var selectCmd = new MySqlCommand(
             "SELECT Id, FechaVencimiento FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND Activa = 1 AND FechaVencimiento <= GETDATE()",
             connection);
         selectCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -301,7 +301,7 @@ public sealed class BibliotecaService
             decimal saldo = 0;
 
             // 1. Obtener saldo
-            using (var checkSaldoCmd = new SqlCommand(
+            using (var checkSaldoCmd = new MySqlCommand(
                 "SELECT Dracoins FROM Alumnos WHERE IdAlumno = @IdAlumno",
                 connection,
                 transaction))
@@ -317,7 +317,7 @@ public sealed class BibliotecaService
             if (saldo >= costo)
             {
                 // 2. Descontar Dracoins
-                using (var updateSaldoCmd = new SqlCommand(
+                using (var updateSaldoCmd = new MySqlCommand(
                     "UPDATE Alumnos SET Dracoins = Dracoins - @Monto WHERE IdAlumno = @IdAlumno",
                     connection,
                     transaction))
@@ -328,7 +328,7 @@ public sealed class BibliotecaService
                 }
 
                 // 3. Registrar transacción
-                using (var insertMovCmd = new SqlCommand(
+                using (var insertMovCmd = new MySqlCommand(
                     """
                     INSERT INTO MovimientosDracoins (
                         CodigoRemitente, 
@@ -354,7 +354,7 @@ public sealed class BibliotecaService
 
                 // 4. Actualizar suscripción
                 var nuevoVencimiento = DateTime.Now.AddDays(7);
-                using (var updateSuscCmd = new SqlCommand(
+                using (var updateSuscCmd = new MySqlCommand(
                     "UPDATE AlumnosSuscripciones SET FechaInicio = GETDATE(), FechaVencimiento = @FechaVencimiento WHERE Id = @Id",
                     connection,
                     transaction))
@@ -369,7 +369,7 @@ public sealed class BibliotecaService
             else
             {
                 // Desactivar por falta de saldo
-                using (var deactivateCmd = new SqlCommand(
+                using (var deactivateCmd = new MySqlCommand(
                     "UPDATE AlumnosSuscripciones SET Activa = 0 WHERE Id = @Id",
                     connection,
                     transaction))
@@ -393,7 +393,7 @@ public sealed class BibliotecaService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "UPDATE AlumnosSuscripciones SET Activa = 0 WHERE IdAlumno = @IdAlumno AND Activa = 1 AND FechaVencimiento > GETDATE()",
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -409,7 +409,7 @@ public sealed class BibliotecaService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "SELECT COUNT(*) FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND FechaVencimiento > GETDATE()",
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -421,12 +421,11 @@ public sealed class BibliotecaService
     public async Task<SuscripcionStatusDto> ObtenerDetalleSuscripcionAsync(int idAlumno, CancellationToken cancellationToken)
     {
         await ProcesarAutoRenovacionesAsync(idAlumno, cancellationToken);
-
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
-            "SELECT TOP 1 FechaInicio, FechaVencimiento, Activa FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND FechaVencimiento > GETDATE() ORDER BY FechaVencimiento DESC",
+        using var command = new MySqlCommand(
+            "SELECT FechaInicio, FechaVencimiento, Activa FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND FechaVencimiento > GETDATE() ORDER BY FechaVencimiento DESC LIMIT 1",
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
 
@@ -452,7 +451,7 @@ public sealed class BibliotecaService
         if (status != null && fechaInicio.HasValue)
         {
             // Contar descargas de libros únicos realizadas durante este periodo de suscripción
-            using var countCmd = new SqlCommand(
+            using var countCmd = new MySqlCommand(
                 "SELECT COUNT(DISTINCT IdLibro) FROM AlumnosLibrosDescargados WHERE IdAlumno = @IdAlumno AND FechaDescarga >= @FechaInicio",
                 connection);
             countCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -485,7 +484,7 @@ public sealed class BibliotecaService
         {
             // 1. Verificar saldo de Dracoins
             decimal saldo = 0;
-            using (var checkSaldoCommand = new SqlCommand(
+            using (var checkSaldoCommand = new MySqlCommand(
                 "SELECT Dracoins FROM Alumnos WHERE IdAlumno = @IdAlumno",
                 connection,
                 transaction))
@@ -505,7 +504,7 @@ public sealed class BibliotecaService
             }
 
             // 2. Descontar Dracoins
-            using (var updateSaldoCommand = new SqlCommand(
+            using (var updateSaldoCommand = new MySqlCommand(
                 "UPDATE Alumnos SET Dracoins = Dracoins - @Monto WHERE IdAlumno = @IdAlumno",
                 connection,
                 transaction))
@@ -516,7 +515,7 @@ public sealed class BibliotecaService
             }
 
             // 3. Registrar transaccion de Dracoins
-            using (var insertMovCommand = new SqlCommand(
+            using (var insertMovCommand = new MySqlCommand(
                 """
                 INSERT INTO MovimientosDracoins (
                     CodigoRemitente, 
@@ -545,8 +544,8 @@ public sealed class BibliotecaService
             DateTime nuevaFechaVencimiento;
             
             // Consultar si ya tiene alguna suscripcion (incluso vencida)
-            using (var checkSuscripcionCommand = new SqlCommand(
-                "SELECT TOP 1 FechaVencimiento FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno ORDER BY FechaVencimiento DESC",
+            using (var checkSuscripcionCommand = new MySqlCommand(
+                "SELECT FechaVencimiento FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno ORDER BY FechaVencimiento DESC LIMIT 1",
                 connection,
                 transaction))
             {
@@ -560,7 +559,7 @@ public sealed class BibliotecaService
                     var baseDate = vencimientoActual > DateTime.Now ? vencimientoActual : DateTime.Now;
                     nuevaFechaVencimiento = baseDate.AddDays(7);
 
-                    using var updateSuscCommand = new SqlCommand(
+                    using var updateSuscCommand = new MySqlCommand(
                         "UPDATE AlumnosSuscripciones SET FechaVencimiento = @FechaVencimiento, Activa = 1 WHERE IdAlumno = @IdAlumno",
                         connection,
                         transaction);
@@ -571,7 +570,7 @@ public sealed class BibliotecaService
                 else
                 {
                     nuevaFechaVencimiento = DateTime.Now.AddDays(7);
-                    using var insertSuscCommand = new SqlCommand(
+                    using var insertSuscCommand = new MySqlCommand(
                         "INSERT INTO AlumnosSuscripciones (IdAlumno, FechaInicio, FechaVencimiento, Activa) VALUES (@IdAlumno, GETDATE(), @FechaVencimiento, 1)",
                         connection,
                         transaction);
@@ -596,7 +595,7 @@ public sealed class BibliotecaService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             INSERT INTO BibliotecaLibros (Titulo, Autor, Sinopsis, IdCategoria, RutaArchivo, Formato, PrecioDracoins, Activo, FechaRegistro)
             VALUES (@Titulo, @Autor, @Sinopsis, @IdCategoria, @RutaArchivo, @Formato, @PrecioDracoins, @Activo, GETDATE())
@@ -620,7 +619,7 @@ public sealed class BibliotecaService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             UPDATE BibliotecaLibros 
             SET Titulo = @Titulo, 
@@ -654,7 +653,7 @@ public sealed class BibliotecaService
         await connection.OpenAsync(cancellationToken);
 
         // Eliminacion logica (marcar como inactivo) para no romper registros historicos de compras/progreso de lectura
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "UPDATE BibliotecaLibros SET Activo = 0 WHERE Id = @Id",
             connection);
         command.Parameters.AddWithValue("@Id", id);
@@ -668,7 +667,7 @@ public sealed class BibliotecaService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT 
                 L.Id, 
@@ -717,7 +716,7 @@ public sealed class BibliotecaService
 
         // 1. Obtener todas las categorias existentes para mapeo rapido, o crearlas si no existen
         var categoriasMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        using (var catCmd = new SqlCommand("SELECT Id, Nombre FROM BibliotecaCategorias", connection))
+        using (var catCmd = new MySqlCommand("SELECT Id, Nombre FROM BibliotecaCategorias", connection))
         using (var catReader = await catCmd.ExecuteReaderAsync(cancellationToken))
         {
             while (await catReader.ReadAsync(cancellationToken))
@@ -751,7 +750,7 @@ public sealed class BibliotecaService
                 else
                 {
                     // Crear categoria nueva en caliente
-                    using var insertCatCmd = new SqlCommand(
+                    using var insertCatCmd = new MySqlCommand(
                         "INSERT INTO BibliotecaCategorias (Nombre, Descripcion, Activo) OUTPUT INSERTED.Id VALUES (@Nombre, @Descripcion, 1)",
                         connection);
                     insertCatCmd.Parameters.AddWithValue("@Nombre", catNombre);
@@ -769,7 +768,7 @@ public sealed class BibliotecaService
             bool existe = false;
             if (row.Id.HasValue && row.Id.Value > 0)
             {
-                using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM BibliotecaLibros WHERE Id = @Id", connection);
+                using var checkCmd = new MySqlCommand("SELECT COUNT(*) FROM BibliotecaLibros WHERE Id = @Id", connection);
                 checkCmd.Parameters.AddWithValue("@Id", row.Id.Value);
                 var count = Convert.ToInt32(await checkCmd.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
                 existe = count > 0;
@@ -778,7 +777,7 @@ public sealed class BibliotecaService
             if (existe)
             {
                 // Actualizar
-                using var updateCmd = new SqlCommand(
+                using var updateCmd = new MySqlCommand(
                     """
                     UPDATE BibliotecaLibros 
                     SET Titulo = @Titulo, 
@@ -807,7 +806,7 @@ public sealed class BibliotecaService
             else
             {
                 // Insertar
-                using var insertCmd = new SqlCommand(
+                using var insertCmd = new MySqlCommand(
                     """
                     INSERT INTO BibliotecaLibros (Titulo, Autor, Sinopsis, IdCategoria, RutaArchivo, Formato, PrecioDracoins, Activo, FechaRegistro)
                     VALUES (@Titulo, @Autor, @Sinopsis, @IdCategoria, @RutaArchivo, @Formato, @PrecioDracoins, @Activo, GETDATE())
@@ -837,7 +836,7 @@ public sealed class BibliotecaService
         await connection.OpenAsync(cancellationToken);
 
         // 1. Si el libro tiene costo 0, es gratis para todos
-        using var checkCostoCmd = new SqlCommand(
+        using var checkCostoCmd = new MySqlCommand(
             "SELECT PrecioDracoins FROM BibliotecaLibros WHERE Id = @IdLibro AND Activo = 1",
             connection);
         checkCostoCmd.Parameters.AddWithValue("@IdLibro", idLibro);
@@ -851,7 +850,7 @@ public sealed class BibliotecaService
         if (tieneSuscripcion) return true;
 
         // 3. Verificar si lo ha comprado individualmente
-        using var checkCompraCmd = new SqlCommand(
+        using var checkCompraCmd = new MySqlCommand(
             "SELECT COUNT(*) FROM AlumnosLibrosComprados WHERE IdAlumno = @IdAlumno AND IdLibro = @IdLibro",
             connection);
         checkCompraCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -865,7 +864,7 @@ public sealed class BibliotecaService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             IF EXISTS (SELECT 1 FROM BibliotecaHistorialLectura WHERE IdAlumno = @IdAlumno AND IdLibro = @IdLibro)
             BEGIN
@@ -892,7 +891,7 @@ public sealed class BibliotecaService
         await connection.OpenAsync(cancellationToken);
 
         // 1. Obtener la ruta y costo del libro
-        using var checkLibroCmd = new SqlCommand(
+        using var checkLibroCmd = new MySqlCommand(
             "SELECT RutaArchivo, PrecioDracoins FROM BibliotecaLibros WHERE Id = @IdLibro AND Activo = 1",
             connection);
         checkLibroCmd.Parameters.AddWithValue("@IdLibro", idLibro);
@@ -933,9 +932,9 @@ public sealed class BibliotecaService
         return (true, "Descarga permitida.", rutaRelativa);
     }
 
-    private async Task RegistrarDescargaInternaAsync(int idAlumno, int idLibro, SqlConnection connection, CancellationToken cancellationToken)
+    private async Task RegistrarDescargaInternaAsync(int idAlumno, int idLibro, MySqlConnection connection, CancellationToken cancellationToken)
     {
-        using var insertCmd = new SqlCommand(
+        using var insertCmd = new MySqlCommand(
             "INSERT INTO AlumnosLibrosDescargados (IdAlumno, IdLibro, FechaDescarga) VALUES (@IdAlumno, @IdLibro, GETDATE())",
             connection);
         insertCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -949,7 +948,7 @@ public sealed class BibliotecaService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT 
                 C.Id, 
@@ -986,7 +985,7 @@ public sealed class BibliotecaService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT 
                 D.Id, 
@@ -1022,8 +1021,8 @@ public sealed class BibliotecaService
 
         // Ingresos de compras de libros individuales en los últimos 7 días
         decimal ingresosCompras = 0;
-        using (var cmdCompras = new SqlCommand(
-            "SELECT ISNULL(SUM(MontoPagado), 0) FROM AlumnosLibrosComprados WHERE FechaCompra >= DATEADD(day, -7, GETDATE())",
+        using (var cmdCompras = new MySqlCommand(
+            "SELECT COALESCE(SUM(MontoPagado), 0) FROM AlumnosLibrosComprados WHERE FechaCompra >= DATE_SUB(NOW(), INTERVAL 7 DAY)",
             connection))
         {
             ingresosCompras = Convert.ToDecimal(await cmdCompras.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
@@ -1031,12 +1030,12 @@ public sealed class BibliotecaService
 
         // Ingresos de suscripciones en los últimos 7 días
         decimal ingresosSuscripciones = 0;
-        using (var cmdSusc = new SqlCommand(
+        using (var cmdSusc = new MySqlCommand(
             """
-            SELECT ISNULL(SUM(ABS(Monto)), 0) 
+            SELECT COALESCE(SUM(ABS(Monto)), 0) 
             FROM MovimientosDracoins 
             WHERE CodigoDestinatario = 'COBRO' 
-              AND FechaTransferencia >= DATEADD(day, -7, GETDATE())
+              AND FechaTransferencia >= DATE_SUB(NOW(), INTERVAL 7 DAY)
               AND (Observacion LIKE '%suscripcion%' OR Observacion LIKE '%suscripción%')
             """, connection))
         {
@@ -1045,15 +1044,15 @@ public sealed class BibliotecaService
 
         if (ingresosSuscripciones == 0)
         {
-            using var cmdSuscTable = new SqlCommand(
-                "SELECT COUNT(*) * 250 FROM AlumnosSuscripciones WHERE FechaInicio >= DATEADD(day, -7, GETDATE())",
+            using var cmdSuscTable = new MySqlCommand(
+                "SELECT COUNT(*) * 250 FROM AlumnosSuscripciones WHERE FechaInicio >= DATE_SUB(NOW(), INTERVAL 7 DAY)",
                 connection);
             ingresosSuscripciones = Convert.ToDecimal(await cmdSuscTable.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
         }
 
         // Cantidad de suscripciones activas
         int suscripcionesActivas = 0;
-        using (var cmdActivas = new SqlCommand(
+        using (var cmdActivas = new MySqlCommand(
             "SELECT COUNT(*) FROM AlumnosSuscripciones WHERE FechaVencimiento > GETDATE()",
             connection))
         {
@@ -1062,7 +1061,7 @@ public sealed class BibliotecaService
 
         // Total de libros en catálogo
         int totalLibros = 0;
-        using (var cmdLibros = new SqlCommand(
+        using (var cmdLibros = new MySqlCommand(
             "SELECT COUNT(*) FROM BibliotecaLibros WHERE Activo = 1",
             connection))
         {
@@ -1085,7 +1084,7 @@ public sealed class BibliotecaService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT 
                 S.IdAlumno, 
@@ -1121,7 +1120,7 @@ public sealed class BibliotecaService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "UPDATE AlumnosSuscripciones SET Activa = 0, FechaVencimiento = GETDATE() WHERE IdAlumno = @IdAlumno AND FechaVencimiento > GETDATE()",
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);

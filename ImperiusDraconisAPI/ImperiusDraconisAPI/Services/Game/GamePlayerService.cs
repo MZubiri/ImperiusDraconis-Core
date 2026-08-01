@@ -8,14 +8,14 @@ using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Configuration;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Game.Players;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 using Microsoft.Extensions.Options;
 
 namespace ImperiusDraconisAPI.Services.Game;
 
 public sealed class GamePlayerService
 {
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
     private readonly GameEggService _gameEggService;
     private readonly GameDragonService _gameDragonService;
     private readonly GameIdempotencyService _idempotencyService;
@@ -23,7 +23,7 @@ public sealed class GamePlayerService
     private readonly GameOptions _options;
 
     public GamePlayerService(
-        SqlConnectionFactory connectionFactory,
+        MySqlConnectionFactory connectionFactory,
         GameEggService gameEggService,
         GameDragonService gameDragonService,
         GameIdempotencyService idempotencyService,
@@ -63,26 +63,26 @@ public sealed class GamePlayerService
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             SELECT
                 L.IdAlumno,
                 L.RobloxUserId,
                 A.Nombre AS DisplayName,
-                ISNULL(C.Nombre, N'') AS HouseName,
-                ISNULL(A.Dracoins, 0) AS Dracoins,
-                CONVERT(BIT, ISNULL(A.Activo, 0)) AS Active,
+                COALESCE(C.Nombre, N'') AS HouseName,
+                COALESCE(A.Dracoins, 0) AS Dracoins,
+                CONVERT(BIT, COALESCE(A.Activo, 0)) AS Active,
                 DC.PurchasedSlots,
                 DC.MaxCapacity
-            FROM dbo.GameRobloxLinks L
-            INNER JOIN dbo.Alumnos A ON A.IdAlumno = L.IdAlumno
-            LEFT JOIN dbo.Casas C ON C.IdCasa = A.IdCasa
-            LEFT JOIN dbo.GameDragonCapacity DC ON DC.IdAlumno = A.IdAlumno
+            FROM GameRobloxLinks L
+            INNER JOIN Alumnos A ON A.IdAlumno = L.IdAlumno
+            LEFT JOIN Casas C ON C.IdCasa = A.IdCasa
+            LEFT JOIN GameDragonCapacity DC ON DC.IdAlumno = A.IdAlumno
             WHERE L.RobloxUserId = @RobloxUserId
               AND L.Active = 1;
             """,
             connection);
-        command.Parameters.Add("@RobloxUserId", SqlDbType.BigInt).Value = robloxUserId;
+        command.Parameters.Add("@RobloxUserId", MySqlDbType.Int64).Value = robloxUserId;
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
@@ -161,7 +161,7 @@ public sealed class GamePlayerService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+        await using var transaction = (MySqlTransaction)await connection.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
 
@@ -187,21 +187,21 @@ public sealed class GamePlayerService
             }
 
             // 1. Obtener datos de capacidad y vinculacion
-            await using var capCommand = new SqlCommand(
+            await using var capCommand = new MySqlCommand(
                 """
                 SELECT
                     L.IdAlumno,
-                    CONVERT(BIT, ISNULL(A.Activo, 0)) AS Active,
+                    CONVERT(BIT, COALESCE(A.Activo, 0)) AS Active,
                     DC.PurchasedSlots,
                     DC.MaxCapacity
-                FROM dbo.GameRobloxLinks L WITH (UPDLOCK, HOLDLOCK)
-                INNER JOIN dbo.Alumnos A WITH (UPDLOCK, HOLDLOCK) ON A.IdAlumno = L.IdAlumno
-                LEFT JOIN dbo.GameDragonCapacity DC WITH (UPDLOCK, HOLDLOCK) ON DC.IdAlumno = A.IdAlumno
+                FROM GameRobloxLinks L WITH (UPDLOCK, HOLDLOCK)
+                INNER JOIN Alumnos A WITH (UPDLOCK, HOLDLOCK) ON A.IdAlumno = L.IdAlumno
+                LEFT JOIN GameDragonCapacity DC WITH (UPDLOCK, HOLDLOCK) ON DC.IdAlumno = A.IdAlumno
                 WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;
                 """,
                 connection,
                 transaction);
-            capCommand.Parameters.Add("@RobloxUserId", SqlDbType.BigInt).Value = robloxUserId;
+            capCommand.Parameters.Add("@RobloxUserId", MySqlDbType.Int64).Value = robloxUserId;
 
             int idAlumno;
             byte purchasedSlots;
@@ -263,16 +263,16 @@ public sealed class GamePlayerService
                 cancellationToken);
 
             // 5. Incrementar PurchasedSlots
-            await using var updateCommand = new SqlCommand(
+            await using var updateCommand = new MySqlCommand(
                 """
-                UPDATE dbo.GameDragonCapacity
+                UPDATE GameDragonCapacity
                 SET PurchasedSlots = PurchasedSlots + 1,
                     UpdatedAt = SYSUTCDATETIME()
                 WHERE IdAlumno = @IdAlumno;
                 """,
                 connection,
                 transaction);
-            updateCommand.Parameters.Add("@IdAlumno", SqlDbType.Int).Value = idAlumno;
+            updateCommand.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = idAlumno;
             await updateCommand.ExecuteNonQueryAsync(cancellationToken);
 
             var response = new PurchaseDragonCapacityResponse

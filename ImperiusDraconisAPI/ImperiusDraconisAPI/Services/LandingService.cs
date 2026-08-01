@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Landing;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services;
 
@@ -19,10 +19,10 @@ public sealed partial class LandingService
         ["ESCAPE"] = 3
     };
 
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
     private readonly LegacyAssetStorage _assetStorage;
 
-    public LandingService(SqlConnectionFactory connectionFactory, LegacyAssetStorage assetStorage)
+    public LandingService(MySqlConnectionFactory connectionFactory, LegacyAssetStorage assetStorage)
     {
         _connectionFactory = connectionFactory;
         _assetStorage = assetStorage;
@@ -51,9 +51,9 @@ public sealed partial class LandingService
         await connection.OpenAsync(cancellationToken);
 
         var houses = new List<LandingHouseOptionDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
-            SELECT IdCasa, Nombre, ISNULL(Color, '') AS Color
+            SELECT IdCasa, Nombre, COALESCE(Color, '') AS Color
             FROM Casas
             WHERE LOWER(LTRIM(RTRIM(Nombre))) <> 'id'
             ORDER BY Nombre
@@ -73,13 +73,13 @@ public sealed partial class LandingService
 
         var orderedHouses = OrderMainHouses(houses);
         var students = new List<LandingStudentOptionDto>();
-        using (var studentCommand = new SqlCommand(
+        using (var studentCommand = new MySqlCommand(
                    """
                    SELECT
                        A.IdAlumno,
                        A.Codigo,
                        A.Nombre,
-                       ISNULL(NULLIF(LTRIM(RTRIM(A.FotoPerfil)), ''), '~/Content/FotosPerfil/default.jpg') AS FotoPerfil,
+                       COALESCE(NULLIF(LTRIM(RTRIM(A.FotoPerfil)), ''), '~/Content/FotosPerfil/default.jpg') AS FotoPerfil,
                        A.IdCasa,
                        C.Nombre AS CasaNombre
                    FROM Alumnos A
@@ -129,7 +129,7 @@ public sealed partial class LandingService
 
         if (request.IdCasaGanadora.HasValue)
         {
-            using var houseCommand = new SqlCommand(
+            using var houseCommand = new MySqlCommand(
                 "SELECT COUNT(*) FROM Casas WHERE IdCasa = @IdCasa",
                 connection);
             houseCommand.Parameters.AddWithValue("@IdCasa", request.IdCasaGanadora.Value);
@@ -139,7 +139,7 @@ public sealed partial class LandingService
             }
         }
 
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    UPDATE LandingConfiguracion
                    SET TituloPortada = @TituloPortada,
@@ -215,12 +215,13 @@ public sealed partial class LandingService
             ValidateActiveContent(normalizedType, title, imageUrl, link);
         }
 
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
-                   MERGE LandingContenido AS Target
-                   USING (SELECT @Tipo AS Tipo, @Posicion AS Posicion) AS Source
-                   ON Target.Tipo = Source.Tipo AND Target.Posicion = Source.Posicion
-                   WHEN MATCHED THEN UPDATE SET
+                   INSERT INTO LandingContenido 
+                       (Tipo, Posicion, IdAlumno, Titulo, Descripcion, Meta, ImagenUrl, EnlaceUrl, Activo, FechaActualizacion)
+                   VALUES 
+                       (@Tipo, @Posicion, @IdAlumno, @Titulo, @Descripcion, @Meta, @ImagenUrl, @EnlaceUrl, @Activo, UTC_TIMESTAMP())
+                   ON DUPLICATE KEY UPDATE 
                        Titulo = @Titulo,
                        IdAlumno = @IdAlumno,
                        Descripcion = @Descripcion,
@@ -228,11 +229,7 @@ public sealed partial class LandingService
                        ImagenUrl = @ImagenUrl,
                        EnlaceUrl = @EnlaceUrl,
                        Activo = @Activo,
-                       FechaActualizacion = SYSUTCDATETIME()
-                   WHEN NOT MATCHED THEN INSERT
-                       (Tipo, Posicion, IdAlumno, Titulo, Descripcion, Meta, ImagenUrl, EnlaceUrl, Activo)
-                       VALUES
-                       (@Tipo, @Posicion, @IdAlumno, @Titulo, @Descripcion, @Meta, @ImagenUrl, @EnlaceUrl, @Activo);
+                       FechaActualizacion = UTC_TIMESTAMP();
                    """,
                    connection))
         {
@@ -261,7 +258,7 @@ public sealed partial class LandingService
 
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "DELETE FROM LandingContenido WHERE Tipo = 'GACETA' AND Posicion = @Posicion",
             connection);
         command.Parameters.AddWithValue("@Posicion", position);
@@ -274,16 +271,16 @@ public sealed partial class LandingService
         await connection.OpenAsync(cancellationToken);
 
         LandingConfigurationDto configuration;
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    SELECT
                        L.TituloPortada,
-                       ISNULL(L.SubtituloPortada, '') AS SubtituloPortada,
+                       COALESCE(L.SubtituloPortada, '') AS SubtituloPortada,
                        L.IdCasaGanadora,
-                       ISNULL(C.Nombre, '') AS CasaGanadora,
-                       ISNULL(C.Color, '') AS CasaColor,
-                       ISNULL(L.TituloCopa, '') AS TituloCopa,
-                       ISNULL(L.DescripcionCopa, '') AS DescripcionCopa,
+                       COALESCE(C.Nombre, '') AS CasaGanadora,
+                       COALESCE(C.Color, '') AS CasaColor,
+                       COALESCE(L.TituloCopa, '') AS TituloCopa,
+                       COALESCE(L.DescripcionCopa, '') AS DescripcionCopa,
                        L.FechaActualizacion
                    FROM LandingConfiguracion L
                    LEFT JOIN Casas C ON C.IdCasa = L.IdCasaGanadora
@@ -311,7 +308,7 @@ public sealed partial class LandingService
         }
 
         var items = new List<LandingContentItemDto>();
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    $"""
                    SELECT
                        LC.IdContenido,
@@ -319,12 +316,12 @@ public sealed partial class LandingService
                        LC.Posicion,
                        LC.IdAlumno,
                        A.IdCasa,
-                       ISNULL(C.Nombre, '') AS CasaNombre,
-                       CASE WHEN LC.Tipo = 'PLATA' THEN ISNULL(A.Nombre, '') ELSE ISNULL(LC.Titulo, '') END AS Titulo,
-                       ISNULL(LC.Descripcion, '') AS Descripcion,
-                       CASE WHEN LC.Tipo = 'PLATA' THEN ISNULL(C.Nombre, '') ELSE ISNULL(LC.Meta, '') END AS Meta,
-                       CASE WHEN LC.Tipo = 'PLATA' THEN ISNULL(NULLIF(LTRIM(RTRIM(A.FotoPerfil)), ''), '~/Content/FotosPerfil/default.jpg') ELSE ISNULL(LC.ImagenUrl, '') END AS ImagenUrl,
-                       ISNULL(LC.EnlaceUrl, '') AS EnlaceUrl,
+                       COALESCE(C.Nombre, '') AS CasaNombre,
+                       CASE WHEN LC.Tipo = 'PLATA' THEN COALESCE(A.Nombre, '') ELSE COALESCE(LC.Titulo, '') END AS Titulo,
+                       COALESCE(LC.Descripcion, '') AS Descripcion,
+                       CASE WHEN LC.Tipo = 'PLATA' THEN COALESCE(C.Nombre, '') ELSE COALESCE(LC.Meta, '') END AS Meta,
+                       CASE WHEN LC.Tipo = 'PLATA' THEN COALESCE(NULLIF(LTRIM(RTRIM(A.FotoPerfil)), ''), '~/Content/FotosPerfil/default.jpg') ELSE COALESCE(LC.ImagenUrl, '') END AS ImagenUrl,
+                       COALESCE(LC.EnlaceUrl, '') AS EnlaceUrl,
                        LC.Activo
                    FROM LandingContenido LC
                    LEFT JOIN Alumnos A ON A.IdAlumno = LC.IdAlumno
@@ -419,12 +416,12 @@ public sealed partial class LandingService
     }
 
     private static async Task<LandingContentItemDto?> GetItemAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         string type,
         int position,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 LC.IdContenido,
@@ -432,12 +429,12 @@ public sealed partial class LandingService
                 LC.Posicion,
                 LC.IdAlumno,
                 A.IdCasa,
-                ISNULL(C.Nombre, '') AS CasaNombre,
-                CASE WHEN LC.Tipo = 'PLATA' THEN ISNULL(A.Nombre, '') ELSE ISNULL(LC.Titulo, '') END AS Titulo,
-                ISNULL(LC.Descripcion, '') AS Descripcion,
-                CASE WHEN LC.Tipo = 'PLATA' THEN ISNULL(C.Nombre, '') ELSE ISNULL(LC.Meta, '') END AS Meta,
-                CASE WHEN LC.Tipo = 'PLATA' THEN ISNULL(NULLIF(LTRIM(RTRIM(A.FotoPerfil)), ''), '~/Content/FotosPerfil/default.jpg') ELSE ISNULL(LC.ImagenUrl, '') END AS ImagenUrl,
-                ISNULL(LC.EnlaceUrl, '') AS EnlaceUrl,
+                COALESCE(C.Nombre, '') AS CasaNombre,
+                CASE WHEN LC.Tipo = 'PLATA' THEN COALESCE(A.Nombre, '') ELSE COALESCE(LC.Titulo, '') END AS Titulo,
+                COALESCE(LC.Descripcion, '') AS Descripcion,
+                CASE WHEN LC.Tipo = 'PLATA' THEN COALESCE(C.Nombre, '') ELSE COALESCE(LC.Meta, '') END AS Meta,
+                CASE WHEN LC.Tipo = 'PLATA' THEN COALESCE(NULLIF(LTRIM(RTRIM(A.FotoPerfil)), ''), '~/Content/FotosPerfil/default.jpg') ELSE COALESCE(LC.ImagenUrl, '') END AS ImagenUrl,
+                COALESCE(LC.EnlaceUrl, '') AS EnlaceUrl,
                 LC.Activo
             FROM LandingContenido LC
             LEFT JOIN Alumnos A ON A.IdAlumno = LC.IdAlumno
@@ -451,7 +448,7 @@ public sealed partial class LandingService
         return await reader.ReadAsync(cancellationToken) ? MapItem(reader) : null;
     }
 
-    private static LandingContentItemDto MapItem(SqlDataReader reader) =>
+    private static LandingContentItemDto MapItem(MySqlDataReader reader) =>
         new()
         {
             IdContenido = GetRequiredInt(reader, "IdContenido"),
@@ -477,13 +474,13 @@ public sealed partial class LandingService
     }
 
     private static async Task<IReadOnlyList<LandingHouseOptionDto>> GetMainHousesAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         CancellationToken cancellationToken)
     {
         var houses = new List<LandingHouseOptionDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
-            SELECT IdCasa, Nombre, ISNULL(Color, '') AS Color
+            SELECT IdCasa, Nombre, COALESCE(Color, '') AS Color
             FROM Casas
             WHERE LOWER(LTRIM(RTRIM(Nombre))) <> 'id'
             """,
@@ -521,7 +518,7 @@ public sealed partial class LandingService
     }
 
     private static async Task<LandingStudentLookup?> GetActiveStudentAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         int? idAlumno,
         CancellationToken cancellationToken)
     {
@@ -530,12 +527,12 @@ public sealed partial class LandingService
             return null;
         }
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 A.IdAlumno,
                 A.Nombre,
-                ISNULL(NULLIF(LTRIM(RTRIM(A.FotoPerfil)), ''), '~/Content/FotosPerfil/default.jpg') AS FotoPerfil,
+                COALESCE(NULLIF(LTRIM(RTRIM(A.FotoPerfil)), ''), '~/Content/FotosPerfil/default.jpg') AS FotoPerfil,
                 A.IdCasa,
                 C.Nombre AS CasaNombre
             FROM Alumnos A
@@ -671,19 +668,19 @@ public sealed partial class LandingService
     private static object DbValue(string? value) =>
         string.IsNullOrWhiteSpace(value) ? DBNull.Value : value.Trim();
 
-    private static string GetString(SqlDataReader reader, string columnName) =>
+    private static string GetString(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? string.Empty : reader[columnName]?.ToString() ?? string.Empty;
 
-    private static int GetRequiredInt(SqlDataReader reader, string columnName) =>
+    private static int GetRequiredInt(MySqlDataReader reader, string columnName) =>
         Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static int? GetNullableInt(SqlDataReader reader, string columnName) =>
+    private static int? GetNullableInt(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? null : Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static bool GetBoolean(SqlDataReader reader, string columnName) =>
+    private static bool GetBoolean(MySqlDataReader reader, string columnName) =>
         reader[columnName] != DBNull.Value && Convert.ToBoolean(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static DateTime? GetNullableDateTime(SqlDataReader reader, string columnName) =>
+    private static DateTime? GetNullableDateTime(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? null
             : Convert.ToDateTime(reader[columnName], CultureInfo.InvariantCulture);

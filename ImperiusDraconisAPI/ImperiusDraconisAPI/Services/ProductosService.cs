@@ -2,16 +2,16 @@ using System.Globalization;
 using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Productos;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services;
 
 public sealed class ProductosService
 {
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
     private readonly LegacyAssetStorage _assetStorage;
 
-    public ProductosService(SqlConnectionFactory connectionFactory, LegacyAssetStorage assetStorage)
+    public ProductosService(MySqlConnectionFactory connectionFactory, LegacyAssetStorage assetStorage)
     {
         _connectionFactory = connectionFactory;
         _assetStorage = assetStorage;
@@ -23,7 +23,7 @@ public sealed class ProductosService
         await connection.OpenAsync(cancellationToken);
 
         var items = new List<ProductoDto>();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT IdProducto, Nombre, Descripcion, Precio, Imagen, Activo
             FROM Productos
@@ -54,7 +54,7 @@ public sealed class ProductosService
         await connection.OpenAsync(cancellationToken);
 
         int idProducto;
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    """
                    INSERT INTO Productos (Nombre, Descripcion, Precio, Imagen, Activo)
                    VALUES (@Nombre, @Descripcion, @Precio, @Imagen, @Activo);
@@ -93,7 +93,7 @@ public sealed class ProductosService
 
         var normalized = await NormalizeAsync(request, existing, cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             UPDATE Productos
             SET Nombre = @Nombre,
@@ -121,13 +121,13 @@ public sealed class ProductosService
 
         try
         {
-            using var command = new SqlCommand(
+            using var command = new MySqlCommand(
                 "DELETE FROM Productos WHERE IdProducto = @IdProducto",
                 connection);
             command.Parameters.AddWithValue("@IdProducto", idProducto);
             return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
         }
-        catch (SqlException)
+        catch (MySqlException)
         {
             throw new BusinessRuleException(
                 "No se puede eliminar el producto porque ya tiene pedidos asociados.");
@@ -186,12 +186,12 @@ public sealed class ProductosService
     }
 
     private static async Task<ProductoDto?> GetByIdInternalAsync(
-        SqlConnection connection,
-        SqlTransaction? transaction,
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
         int idProducto,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT IdProducto, Nombre, Descripcion, Precio, Imagen, Activo
             FROM Productos
@@ -205,7 +205,7 @@ public sealed class ProductosService
         return await reader.ReadAsync(cancellationToken) ? MapProducto(reader) : null;
     }
 
-    private static ProductoDto MapProducto(SqlDataReader reader) =>
+    private static ProductoDto MapProducto(MySqlDataReader reader) =>
         new()
         {
             IdProducto = GetRequiredInt(reader, "IdProducto"),
@@ -216,18 +216,18 @@ public sealed class ProductosService
             Activo = GetBoolean(reader, "Activo")
         };
 
-    private static string GetString(SqlDataReader reader, string columnName) =>
+    private static string GetString(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? string.Empty : reader[columnName]?.ToString() ?? string.Empty;
 
-    private static int GetRequiredInt(SqlDataReader reader, string columnName) =>
+    private static int GetRequiredInt(MySqlDataReader reader, string columnName) =>
         Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static decimal GetDecimal(SqlDataReader reader, string columnName) =>
+    private static decimal GetDecimal(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? 0m
             : Convert.ToDecimal(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static bool GetBoolean(SqlDataReader reader, string columnName) =>
+    private static bool GetBoolean(MySqlDataReader reader, string columnName) =>
         reader[columnName] != DBNull.Value && Convert.ToBoolean(reader[columnName], CultureInfo.InvariantCulture);
 
     private sealed class NormalizedProducto

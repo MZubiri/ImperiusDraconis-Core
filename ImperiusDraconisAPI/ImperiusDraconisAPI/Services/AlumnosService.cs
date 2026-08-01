@@ -3,7 +3,7 @@ using ImperiusDraconisAPI.Common;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Alumnos;
 using ImperiusDraconisAPI.Models.Perfil;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services;
 
@@ -37,9 +37,9 @@ public sealed class AlumnosService
             ["Espa\u00f1a"] = "+34"
         };
 
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
 
-    public AlumnosService(SqlConnectionFactory connectionFactory)
+    public AlumnosService(MySqlConnectionFactory connectionFactory)
     {
         _connectionFactory = connectionFactory;
     }
@@ -54,30 +54,30 @@ public sealed class AlumnosService
         var orderDirection = string.Equals(query.Orden, "desc", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
 
         var filtros = new List<string> { "1 = 1" };
-        var parameters = new List<SqlParameter>();
+        var parameters = new List<MySqlParameter>();
 
         if (!string.IsNullOrWhiteSpace(query.Codigo))
         {
             filtros.Add("A.Codigo LIKE @Codigo");
-            parameters.Add(new SqlParameter("@Codigo", $"%{query.Codigo.Trim()}%"));
+            parameters.Add(new MySqlParameter("@Codigo", $"%{query.Codigo.Trim()}%"));
         }
 
         if (!string.IsNullOrWhiteSpace(query.Nombre))
         {
             filtros.Add("A.Nombre LIKE @Nombre");
-            parameters.Add(new SqlParameter("@Nombre", $"%{query.Nombre.Trim()}%"));
+            parameters.Add(new MySqlParameter("@Nombre", $"%{query.Nombre.Trim()}%"));
         }
 
         if (query.IdCasa.HasValue)
         {
             filtros.Add("A.IdCasa = @IdCasa");
-            parameters.Add(new SqlParameter("@IdCasa", query.IdCasa.Value));
+            parameters.Add(new MySqlParameter("@IdCasa", query.IdCasa.Value));
         }
 
         if (query.Activo.HasValue)
         {
             filtros.Add("A.Activo = @Activo");
-            parameters.Add(new SqlParameter("@Activo", query.Activo.Value));
+            parameters.Add(new MySqlParameter("@Activo", query.Activo.Value));
         }
 
         var whereClause = string.Join(" AND ", filtros);
@@ -87,7 +87,7 @@ public sealed class AlumnosService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using (var countCommand = new SqlCommand(
+        using (var countCommand = new MySqlCommand(
                    $"""
                     SELECT COUNT(*)
                     FROM Alumnos A
@@ -101,7 +101,7 @@ public sealed class AlumnosService
             totalRegistros = Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
         }
 
-        using (var command = new SqlCommand(
+        using (var command = new MySqlCommand(
                    $"""
                     SELECT
                         A.IdAlumno,
@@ -113,9 +113,9 @@ public sealed class AlumnosService
                         A.IdCargo,
                         A.Dracoins,
                         A.Activo,
-                        ISNULL(A.Categoria, 'Alumno') AS Categoria,
+                        COALESCE(A.Categoria, 'Alumno') AS Categoria,
                         C.Nombre AS CasaNombre,
-                        ISNULL(CG.Nombre, 'Alumno') AS NombreCargo,
+                        COALESCE(CG.Nombre, 'Alumno') AS NombreCargo,
                         A.Genero,
                         A.CorreoElectronico
                     FROM Alumnos A
@@ -123,7 +123,7 @@ public sealed class AlumnosService
                     LEFT JOIN Cargos CG ON A.IdCargo = CG.IdCargo
                     WHERE {whereClause}
                     ORDER BY {orderBy} {orderDirection}
-                    OFFSET @Offset ROWS FETCH NEXT @Fetch ROWS ONLY
+                    LIMIT @Fetch OFFSET @Offset
                     """,
                    connection))
         {
@@ -166,7 +166,7 @@ public sealed class AlumnosService
     public async Task<AlumnoDetailDto?> GetByIdAsync(int idAlumno, CancellationToken cancellationToken)
     {
         using var connection = _connectionFactory.CreateConnection();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT
                 A.IdAlumno,
@@ -177,12 +177,12 @@ public sealed class AlumnosService
                 A.IdCasa,
                 C.Nombre AS CasaNombre,
                 A.IdCargo,
-                ISNULL(CG.Nombre, 'Alumno') AS NombreCargo,
-                ISNULL(A.Puntos, 0) AS Puntos,
+                COALESCE(CG.Nombre, 'Alumno') AS NombreCargo,
+                COALESCE(A.Puntos, 0) AS Puntos,
                 A.Nivel,
                 A.Dracoins,
                 A.Activo,
-                ISNULL(A.Categoria, 'Alumno') AS Categoria,
+                COALESCE(A.Categoria, 'Alumno') AS Categoria,
                 A.Genero,
                 A.FotoPerfil,
                 A.Cumpleanos,
@@ -236,7 +236,7 @@ public sealed class AlumnosService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             $"""
             INSERT INTO Alumnos
             (
@@ -325,7 +325,7 @@ public sealed class AlumnosService
 
         sql += " WHERE IdAlumno = @IdAlumno";
 
-        using var command = new SqlCommand(sql, connection);
+        using var command = new MySqlCommand(sql, connection);
         FillSaveParameters(command, request, includePassword: !string.IsNullOrWhiteSpace(request.Contrasena));
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
 
@@ -350,7 +350,7 @@ public sealed class AlumnosService
 
         await EnsureEmojisAvailableAsync(connection, idAlumno, emojis, alumnoActivo.Value, cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             UPDATE Alumnos
             SET Emojis = @Emojis
@@ -367,7 +367,7 @@ public sealed class AlumnosService
     public async Task<bool> ChangeStatusAsync(int idAlumno, bool activo, CancellationToken cancellationToken)
     {
         using var connection = _connectionFactory.CreateConnection();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "UPDATE Alumnos SET Activo = @Activo WHERE IdAlumno = @IdAlumno",
             connection);
         command.Parameters.AddWithValue("@Activo", activo);
@@ -384,7 +384,7 @@ public sealed class AlumnosService
 
         using var transaction = connection.BeginTransaction();
 
-        using (var deleteNotesCommand = new SqlCommand(
+        using (var deleteNotesCommand = new MySqlCommand(
                    "DELETE FROM NotasAlumno WHERE IdAlumno = @IdAlumno",
                    connection,
                    transaction))
@@ -393,7 +393,7 @@ public sealed class AlumnosService
             await deleteNotesCommand.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        using var deleteAlumnoCommand = new SqlCommand(
+        using var deleteAlumnoCommand = new MySqlCommand(
             "DELETE FROM Alumnos WHERE IdAlumno = @IdAlumno",
             connection,
             transaction);
@@ -411,7 +411,7 @@ public sealed class AlumnosService
         var maxValue = 0;
 
         using var connection = _connectionFactory.CreateConnection();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT Codigo
             FROM Alumnos
@@ -455,7 +455,7 @@ public sealed class AlumnosService
         var notes = new List<AlumnoNoteDto>();
 
         using var connection = _connectionFactory.CreateConnection();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT IdNota, IdAlumno, Nota, Fecha
             FROM NotasAlumno
@@ -500,7 +500,7 @@ public sealed class AlumnosService
             throw new BusinessRuleException("El alumno no existe.");
         }
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             INSERT INTO NotasAlumno (IdAlumno, Nota)
             OUTPUT INSERTED.IdNota, INSERTED.IdAlumno, INSERTED.Nota, INSERTED.Fecha
@@ -537,7 +537,7 @@ public sealed class AlumnosService
         }
 
         using var connection = _connectionFactory.CreateConnection();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             $"UPDATE Alumnos SET {PasswordColumn} = @Contrasena WHERE IdAlumno = @IdAlumno",
             connection);
         command.Parameters.AddWithValue("@Contrasena", PasswordHasher.HashPassword(rawPassword));
@@ -553,7 +553,7 @@ public sealed class AlumnosService
         CancellationToken cancellationToken)
     {
         using var connection = _connectionFactory.CreateConnection();
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             UPDATE Alumnos
             SET
@@ -608,7 +608,7 @@ public sealed class AlumnosService
         await connection.OpenAsync(cancellationToken);
 
         string? hashActual;
-        using (var readCommand = new SqlCommand(
+        using (var readCommand = new MySqlCommand(
                    $"SELECT {PasswordColumn} FROM Alumnos WHERE IdAlumno = @IdAlumno",
                    connection))
         {
@@ -627,7 +627,7 @@ public sealed class AlumnosService
             throw new BusinessRuleException("La contrasena actual es incorrecta.");
         }
 
-        using var updateCommand = new SqlCommand(
+        using var updateCommand = new MySqlCommand(
             $"UPDATE Alumnos SET {PasswordColumn} = @Contrasena WHERE IdAlumno = @IdAlumno",
             connection);
         updateCommand.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -643,7 +643,7 @@ public sealed class AlumnosService
         var items = new List<CatalogItemDto>();
 
         using var connection = _connectionFactory.CreateConnection();
-        using var command = new SqlCommand(sql, connection);
+        using var command = new MySqlCommand(sql, connection);
         await connection.OpenAsync(cancellationToken);
 
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -660,11 +660,11 @@ public sealed class AlumnosService
     }
 
     private static async Task<bool> AlumnoExistsAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         int idAlumno,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "SELECT COUNT(1) FROM Alumnos WHERE IdAlumno = @IdAlumno",
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -674,7 +674,7 @@ public sealed class AlumnosService
             CultureInfo.InvariantCulture) > 0;
     }
 
-    private static void FillSaveParameters(SqlCommand command, SaveAlumnoRequest request, bool includePassword)
+    private static void FillSaveParameters(MySqlCommand command, SaveAlumnoRequest request, bool includePassword)
     {
         command.Parameters.AddWithValue("@Codigo", request.Codigo.Trim());
         command.Parameters.AddWithValue("@Nombre", request.Nombre.Trim());
@@ -733,11 +733,11 @@ public sealed class AlumnosService
     }
 
     private static async Task<bool?> GetAlumnoActivoAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         int idAlumno,
         CancellationToken cancellationToken)
     {
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             "SELECT Activo FROM Alumnos WHERE IdAlumno = @IdAlumno",
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -752,7 +752,7 @@ public sealed class AlumnosService
     }
 
     private static async Task EnsureEmojisAvailableAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         int? idAlumno,
         string? emojis,
         bool alumnoActivo,
@@ -765,7 +765,7 @@ public sealed class AlumnosService
 
         var emojiKey = CreateEmojiKey(emojis);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             """
             SELECT Codigo, Emojis
             FROM Alumnos
@@ -837,12 +837,12 @@ public sealed class AlumnosService
     public async Task<IReadOnlyCollection<CumpleanosItemDto>> GetCumpleanosAsync(int? mes, CancellationToken cancellationToken)
     {
         var filtros = new List<string> { "A.Cumpleanos IS NOT NULL", "A.Activo = 1" };
-        var parameters = new List<SqlParameter>();
+        var parameters = new List<MySqlParameter>();
 
         if (mes.HasValue && mes.Value >= 1 && mes.Value <= 12)
         {
             filtros.Add("MONTH(A.Cumpleanos) = @Mes");
-            parameters.Add(new SqlParameter("@Mes", mes.Value));
+            parameters.Add(new MySqlParameter("@Mes", mes.Value));
         }
 
         var whereClause = string.Join(" AND ", filtros);
@@ -851,13 +851,13 @@ public sealed class AlumnosService
         using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        using var command = new SqlCommand(
+        using var command = new MySqlCommand(
             $"""
              SELECT
                  A.IdAlumno,
                  A.Nombre,
                  A.FotoPerfil,
-                 ISNULL(A.Categoria, 'Alumno') AS Categoria,
+                 COALESCE(A.Categoria, 'Alumno') AS Categoria,
                  C.Nombre AS CasaNombre,
                  MONTH(A.Cumpleanos) AS MesCumpleanos,
                  DAY(A.Cumpleanos) AS DiaCumpleanos
@@ -888,29 +888,29 @@ public sealed class AlumnosService
         return items;
     }
 
-    private static SqlParameter CloneParameter(SqlParameter parameter) =>
+    private static MySqlParameter CloneParameter(MySqlParameter parameter) =>
         new(parameter.ParameterName, parameter.Value);
 
-    private static string GetString(SqlDataReader reader, string columnName) =>
+    private static string GetString(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value ? string.Empty : reader[columnName]?.ToString() ?? string.Empty;
 
-    private static int GetRequiredInt(SqlDataReader reader, string columnName) =>
+    private static int GetRequiredInt(MySqlDataReader reader, string columnName) =>
         Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static int? GetNullableInt(SqlDataReader reader, string columnName) =>
+    private static int? GetNullableInt(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? null
             : Convert.ToInt32(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static bool GetBool(SqlDataReader reader, string columnName) =>
+    private static bool GetBool(MySqlDataReader reader, string columnName) =>
         reader[columnName] != DBNull.Value && Convert.ToBoolean(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static decimal GetDecimal(SqlDataReader reader, string columnName) =>
+    private static decimal GetDecimal(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? 0m
             : Convert.ToDecimal(reader[columnName], CultureInfo.InvariantCulture);
 
-    private static DateTime? GetNullableDate(SqlDataReader reader, string columnName) =>
+    private static DateTime? GetNullableDate(MySqlDataReader reader, string columnName) =>
         reader[columnName] == DBNull.Value
             ? null
             : Convert.ToDateTime(reader[columnName], CultureInfo.InvariantCulture);

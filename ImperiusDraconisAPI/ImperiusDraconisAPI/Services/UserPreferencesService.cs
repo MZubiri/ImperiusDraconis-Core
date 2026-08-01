@@ -1,7 +1,7 @@
 using System.Text.Json;
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Preferences;
-using Microsoft.Data.SqlClient;
+using MySqlConnector;
 
 namespace ImperiusDraconisAPI.Services;
 
@@ -22,9 +22,9 @@ public sealed class UserPreferencesService
         "corporate",
         "kawaii"
     };
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly MySqlConnectionFactory _connectionFactory;
 
-    public UserPreferencesService(SqlConnectionFactory connectionFactory)
+    public UserPreferencesService(MySqlConnectionFactory connectionFactory)
     {
         _connectionFactory = connectionFactory;
     }
@@ -36,7 +36,7 @@ public sealed class UserPreferencesService
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             SELECT Valor
             FROM AlumnoPreferencias
@@ -82,16 +82,11 @@ public sealed class UserPreferencesService
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
-            MERGE AlumnoPreferencias AS target
-            USING (SELECT @IdAlumno AS IdAlumno, @Clave AS Clave) AS source
-              ON target.IdAlumno = source.IdAlumno AND target.Clave = source.Clave
-            WHEN MATCHED THEN
-              UPDATE SET Valor = @Valor, FechaActualizacion = SYSUTCDATETIME()
-            WHEN NOT MATCHED THEN
-              INSERT (IdAlumno, Clave, Valor, FechaActualizacion)
-              VALUES (@IdAlumno, @Clave, @Valor, SYSUTCDATETIME());
+            INSERT INTO AlumnoPreferencias (IdAlumno, Clave, Valor, FechaActualizacion)
+            VALUES (@IdAlumno, @Clave, @Valor, UTC_TIMESTAMP())
+            ON DUPLICATE KEY UPDATE Valor = @Valor, FechaActualizacion = UTC_TIMESTAMP()
             """,
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -108,7 +103,7 @@ public sealed class UserPreferencesService
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             SELECT Valor
             FROM AlumnoPreferencias
@@ -178,16 +173,11 @@ public sealed class UserPreferencesService
             })
             .ToArray();
 
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
-            MERGE AlumnoPreferencias AS target
-            USING (SELECT @IdAlumno AS IdAlumno, @Clave AS Clave) AS source
-              ON target.IdAlumno = source.IdAlumno AND target.Clave = source.Clave
-            WHEN MATCHED THEN
-              UPDATE SET Valor = @Valor, FechaActualizacion = SYSUTCDATETIME()
-            WHEN NOT MATCHED THEN
-              INSERT (IdAlumno, Clave, Valor, FechaActualizacion)
-              VALUES (@IdAlumno, @Clave, @Valor, SYSUTCDATETIME());
+            INSERT INTO AlumnoPreferencias (IdAlumno, Clave, Valor, FechaActualizacion)
+            VALUES (@IdAlumno, @Clave, @Valor, UTC_TIMESTAMP())
+            ON DUPLICATE KEY UPDATE Valor = @Valor, FechaActualizacion = UTC_TIMESTAMP()
             """,
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -207,7 +197,7 @@ public sealed class UserPreferencesService
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
             SELECT Valor
             FROM AlumnoPreferencias
@@ -231,16 +221,11 @@ public sealed class UserPreferencesService
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
-            MERGE AlumnoPreferencias AS target
-            USING (SELECT @IdAlumno AS IdAlumno, @Clave AS Clave) AS source
-              ON target.IdAlumno = source.IdAlumno AND target.Clave = source.Clave
-            WHEN MATCHED THEN
-              UPDATE SET Valor = @Valor, FechaActualizacion = SYSUTCDATETIME()
-            WHEN NOT MATCHED THEN
-              INSERT (IdAlumno, Clave, Valor, FechaActualizacion)
-              VALUES (@IdAlumno, @Clave, @Valor, SYSUTCDATETIME());
+            INSERT INTO AlumnoPreferencias (IdAlumno, Clave, Valor, FechaActualizacion)
+            VALUES (@IdAlumno, @Clave, @Valor, UTC_TIMESTAMP())
+            ON DUPLICATE KEY UPDATE Valor = @Valor, FechaActualizacion = UTC_TIMESTAMP()
             """,
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -254,15 +239,16 @@ public sealed class UserPreferencesService
 
 
     private static async Task<string> GetCurrentUserCodeAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         int idAlumno,
         CancellationToken cancellationToken)
     {
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             """
-            SELECT TOP 1 Codigo
+            SELECT Codigo
             FROM Alumnos
             WHERE IdAlumno = @IdAlumno
+            LIMIT 1
             """,
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -272,7 +258,7 @@ public sealed class UserPreferencesService
     }
 
     private static async Task<Dictionary<string, (string Codigo, string Nombre)>> GetActiveAlumnosByCodeAsync(
-        SqlConnection connection,
+        MySqlConnection connection,
         IReadOnlyList<string> codigos,
         CancellationToken cancellationToken)
     {
@@ -286,7 +272,7 @@ public sealed class UserPreferencesService
             .Select((_, index) => $"@Codigo{index}")
             .ToArray();
 
-        await using var command = new SqlCommand(
+        await using var command = new MySqlCommand(
             $"""
             SELECT Codigo, Nombre
             FROM Alumnos
