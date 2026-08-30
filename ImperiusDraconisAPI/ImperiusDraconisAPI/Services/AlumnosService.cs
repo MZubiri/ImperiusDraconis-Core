@@ -415,11 +415,11 @@ public sealed class AlumnosService
             """
             SELECT Codigo
             FROM Alumnos
-            WHERE IdCasa = @IdCasa AND Codigo LIKE @Prefijo + '%'
+            WHERE IdCasa = @IdCasa AND Codigo LIKE @PrefijoPattern
             """,
             connection);
         command.Parameters.AddWithValue("@IdCasa", idCasa);
-        command.Parameters.AddWithValue("@Prefijo", prefijo);
+        command.Parameters.AddWithValue("@PrefijoPattern", $"{prefijo}%");
 
         await connection.OpenAsync(cancellationToken);
         using var reader = await command.ExecuteReaderAsync(cancellationToken);

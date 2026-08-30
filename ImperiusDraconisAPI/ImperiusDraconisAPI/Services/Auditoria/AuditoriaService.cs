@@ -52,7 +52,7 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                 INSERT INTO HistorialAccesos 
                 (IdAlumno, DireccionIP, UserAgent, FingerprintHash, TipoDispositivo, PaisCodigo, Ciudad, ProveedorInternet, Exito, FechaAcceso) 
                 VALUES 
-                (@IdAlumno, @IP, @UA, @FP, @Dispositivo, @Pais, @Ciudad, @ISP, @Exito, GETDATE())", conn))
+                (@IdAlumno, @IP, @UA, @FP, @Dispositivo, @Pais, @Ciudad, @ISP, @Exito, NOW())", conn))
             {
                 cmdAcceso.Parameters.AddWithValue("@IdAlumno", idAlumno);
                 cmdAcceso.Parameters.AddWithValue("@IP", ip);
@@ -82,7 +82,7 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                     // Loggear evento
                     using (var cmdLogEv = new MySqlCommand(@"
                         INSERT INTO AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, ValorNuevo, FechaEvento)
-                        VALUES ('DISPOSITIVO_NUEVO', 'LOGIN', 'INFO', @Id, @FP, GETDATE())", conn))
+                        VALUES ('DISPOSITIVO_NUEVO', 'LOGIN', 'INFO', @Id, @FP, NOW())", conn))
                     {
                         cmdLogEv.Parameters.AddWithValue("@Id", idAlumno);
                         cmdLogEv.Parameters.AddWithValue("@FP", fingerprint);
@@ -117,7 +117,7 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                 INSERT INTO ExcepcionesAuditoria 
                 (TipoExcepcion, ValorA, ValorB, Motivo, FechaCreado, IdAdministrador, Activa) 
                 VALUES 
-                (@Tipo, @ValA, @ValB, @Motivo, GETDATE(), @IdAdmin, 1)", conn))
+                (@Tipo, @ValA, @ValB, @Motivo, NOW(), @IdAdmin, 1)", conn))
             {
                 cmd.Parameters.AddWithValue("@Tipo", excepcion.TipoExcepcion);
                 cmd.Parameters.AddWithValue("@ValA", excepcion.ValorA);
@@ -130,7 +130,7 @@ namespace ImperiusDraconisAPI.Services.Auditoria
             // Registrar Evento
             using (var cmdEvent = new MySqlCommand(@"
                 INSERT INTO AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, ValorNuevo, DetallesJson, FechaEvento)
-                VALUES ('EXCEPCION_CREADA', 'ADMINISTRADOR', 'LOW', @Id, @Tipo, @Detalles, GETDATE())", conn))
+                VALUES ('EXCEPCION_CREADA', 'ADMINISTRADOR', 'LOW', @Id, @Tipo, @Detalles, NOW())", conn))
             {
                 cmdEvent.Parameters.AddWithValue("@Id", int.Parse(excepcion.ValorA));
                 cmdEvent.Parameters.AddWithValue("@Tipo", excepcion.TipoExcepcion);
@@ -394,7 +394,7 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                 // Registrar evento de cambio de relevancia
                 using (var cmdLogEv = new MySqlCommand(@"
                     INSERT INTO AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, ValorAnterior, ValorNuevo, FechaEvento)
-                    VALUES ('CAMBIO_RELEVANCIA', 'SISTEMA', @Sev, @Id, @Prev, @New, GETDATE())", conn))
+                    VALUES ('CAMBIO_RELEVANCIA', 'SISTEMA', @Sev, @Id, @Prev, @New, NOW())", conn))
                 {
                     cmdLogEv.Parameters.AddWithValue("@Id", idAlumno);
                     cmdLogEv.Parameters.AddWithValue("@Sev", severidad);
@@ -450,7 +450,7 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                 {
                     using (var cmdLogEv = new MySqlCommand(@"
                         INSERT INTO AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, IdAlumnoRelacionado, ValorNuevo, FechaEvento)
-                        VALUES ('VINCULO_NUEVO', 'SISTEMA', 'HIGH', @IdA, @IdB, 'FINGERPRINT_COMPARTIDA', GETDATE())", conn))
+                        VALUES ('VINCULO_NUEVO', 'SISTEMA', 'HIGH', @IdA, @IdB, 'FINGERPRINT_COMPARTIDA', NOW())", conn))
                     {
                         cmdLogEv.Parameters.AddWithValue("@IdA", menor);
                         cmdLogEv.Parameters.AddWithValue("@IdB", mayor);
@@ -485,7 +485,7 @@ namespace ImperiusDraconisAPI.Services.Auditoria
                 INSERT INTO DecisionesAdministrativas 
                 (IdAlumno, IdAlumnoRelacionado, Decision, Motivo, NotasInternas, IdAdministrador, FechaDecision) 
                 VALUES 
-                (@IdAlumno, @IdAlumnoRelacionado, @Decision, @Motivo, @Notas, @IdAdmin, GETDATE())", conn);
+                (@IdAlumno, @IdAlumnoRelacionado, @Decision, @Motivo, @Notas, @IdAdmin, NOW())", conn);
 
             cmd.Parameters.AddWithValue("@IdAlumno", decision.IdAlumno);
             cmd.Parameters.AddWithValue("@IdAlumnoRelacionado", decision.IdAlumnoRelacionado ?? (object)DBNull.Value);
@@ -499,7 +499,7 @@ namespace ImperiusDraconisAPI.Services.Auditoria
 
             using (var cmdEvent = new MySqlCommand(@"
                 INSERT INTO AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, IdAlumnoRelacionado, ValorNuevo, DetallesJson, FechaEvento)
-                VALUES ('DECISION_REGISTRADA', 'ADMINISTRADOR', 'MEDIUM', @Id, @RelId, @Decision, @Detalles, GETDATE())", conn))
+                VALUES ('DECISION_REGISTRADA', 'ADMINISTRADOR', 'MEDIUM', @Id, @RelId, @Decision, @Detalles, NOW())", conn))
             {
                 cmdEvent.Parameters.AddWithValue("@Id", decision.IdAlumno);
                 cmdEvent.Parameters.AddWithValue("@RelId", decision.IdAlumnoRelacionado ?? (object)DBNull.Value);
@@ -560,7 +560,7 @@ namespace ImperiusDraconisAPI.Services.Auditoria
 
             using (var cmdEvent = new MySqlCommand(@"
                 INSERT INTO AuditoriaEventos (TipoEvento, OrigenEvento, Severidad, IdAlumno, ValorNuevo, DetallesJson, FechaEvento)
-                VALUES ('CUENTA_ESPECIAL_REGISTRADA', 'ADMINISTRADOR', 'LOW', @Id, @Tipo, @Detalles, GETDATE())", conn))
+                VALUES ('CUENTA_ESPECIAL_REGISTRADA', 'ADMINISTRADOR', 'LOW', @Id, @Tipo, @Detalles, NOW())", conn))
             {
                 cmdEvent.Parameters.AddWithValue("@Id", cuentaEspecial.IdAlumno);
                 cmdEvent.Parameters.AddWithValue("@Tipo", cuentaEspecial.TipoCuenta);

@@ -236,7 +236,7 @@ public sealed class BibliotecaService
                     (SELECT Codigo FROM Alumnos WHERE IdAlumno = @IdAlumno),
                     'COBRO',
                     @Monto,
-                    GETDATE(),
+                    NOW(),
                     @Observacion
                 )
                 """,
@@ -278,7 +278,7 @@ public sealed class BibliotecaService
 
         // Buscar si tiene suscripción activa que ya venció
         using var selectCmd = new MySqlCommand(
-            "SELECT Id, FechaVencimiento FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND Activa = 1 AND FechaVencimiento <= GETDATE()",
+            "SELECT Id, FechaVencimiento FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND Activa = 1 AND FechaVencimiento <= NOW()",
             connection);
         selectCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
 
@@ -340,7 +340,7 @@ public sealed class BibliotecaService
                         (SELECT Codigo FROM Alumnos WHERE IdAlumno = @IdAlumno),
                         'COBRO',
                         @Monto,
-                        GETDATE(),
+                        NOW(),
                         'Renovacion automatica de suscripcion a la biblioteca'
                     )
                     """,
@@ -355,7 +355,7 @@ public sealed class BibliotecaService
                 // 4. Actualizar suscripción
                 var nuevoVencimiento = DateTime.Now.AddDays(7);
                 using (var updateSuscCmd = new MySqlCommand(
-                    "UPDATE AlumnosSuscripciones SET FechaInicio = GETDATE(), FechaVencimiento = @FechaVencimiento WHERE Id = @Id",
+                    "UPDATE AlumnosSuscripciones SET FechaInicio = NOW(), FechaVencimiento = @FechaVencimiento WHERE Id = @Id",
                     connection,
                     transaction))
                 {
@@ -394,7 +394,7 @@ public sealed class BibliotecaService
         await connection.OpenAsync(cancellationToken);
 
         using var command = new MySqlCommand(
-            "UPDATE AlumnosSuscripciones SET Activa = 0 WHERE IdAlumno = @IdAlumno AND Activa = 1 AND FechaVencimiento > GETDATE()",
+            "UPDATE AlumnosSuscripciones SET Activa = 0 WHERE IdAlumno = @IdAlumno AND Activa = 1 AND FechaVencimiento > NOW()",
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
 
@@ -410,7 +410,7 @@ public sealed class BibliotecaService
         await connection.OpenAsync(cancellationToken);
 
         using var command = new MySqlCommand(
-            "SELECT COUNT(*) FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND FechaVencimiento > GETDATE()",
+            "SELECT COUNT(*) FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND FechaVencimiento > NOW()",
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
 
@@ -425,7 +425,7 @@ public sealed class BibliotecaService
         await connection.OpenAsync(cancellationToken);
 
         using var command = new MySqlCommand(
-            "SELECT FechaInicio, FechaVencimiento, Activa FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND FechaVencimiento > GETDATE() ORDER BY FechaVencimiento DESC LIMIT 1",
+            "SELECT FechaInicio, FechaVencimiento, Activa FROM AlumnosSuscripciones WHERE IdAlumno = @IdAlumno AND FechaVencimiento > NOW() ORDER BY FechaVencimiento DESC LIMIT 1",
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
 
@@ -527,7 +527,7 @@ public sealed class BibliotecaService
                     (SELECT Codigo FROM Alumnos WHERE IdAlumno = @IdAlumno),
                     'COBRO',
                     @Monto,
-                    GETDATE(),
+                    NOW(),
                     @Observacion
                 )
                 """,
@@ -571,7 +571,7 @@ public sealed class BibliotecaService
                 {
                     nuevaFechaVencimiento = DateTime.Now.AddDays(7);
                     using var insertSuscCommand = new MySqlCommand(
-                        "INSERT INTO AlumnosSuscripciones (IdAlumno, FechaInicio, FechaVencimiento, Activa) VALUES (@IdAlumno, GETDATE(), @FechaVencimiento, 1)",
+                        "INSERT INTO AlumnosSuscripciones (IdAlumno, FechaInicio, FechaVencimiento, Activa) VALUES (@IdAlumno, NOW(), @FechaVencimiento, 1)",
                         connection,
                         transaction);
                     insertSuscCommand.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -598,7 +598,7 @@ public sealed class BibliotecaService
         using var command = new MySqlCommand(
             """
             INSERT INTO BibliotecaLibros (Titulo, Autor, Sinopsis, IdCategoria, RutaArchivo, Formato, PrecioDracoins, Activo, FechaRegistro)
-            VALUES (@Titulo, @Autor, @Sinopsis, @IdCategoria, @RutaArchivo, @Formato, @PrecioDracoins, @Activo, GETDATE())
+            VALUES (@Titulo, @Autor, @Sinopsis, @IdCategoria, @RutaArchivo, @Formato, @PrecioDracoins, @Activo, NOW())
             """,
             connection);
 
@@ -809,7 +809,7 @@ public sealed class BibliotecaService
                 using var insertCmd = new MySqlCommand(
                     """
                     INSERT INTO BibliotecaLibros (Titulo, Autor, Sinopsis, IdCategoria, RutaArchivo, Formato, PrecioDracoins, Activo, FechaRegistro)
-                    VALUES (@Titulo, @Autor, @Sinopsis, @IdCategoria, @RutaArchivo, @Formato, @PrecioDracoins, @Activo, GETDATE())
+                    VALUES (@Titulo, @Autor, @Sinopsis, @IdCategoria, @RutaArchivo, @Formato, @PrecioDracoins, @Activo, NOW())
                     """, connection);
 
                 insertCmd.Parameters.AddWithValue("@Titulo", row.Titulo.Trim());
@@ -866,17 +866,9 @@ public sealed class BibliotecaService
 
         using var command = new MySqlCommand(
             """
-            IF EXISTS (SELECT 1 FROM BibliotecaHistorialLectura WHERE IdAlumno = @IdAlumno AND IdLibro = @IdLibro)
-            BEGIN
-                UPDATE BibliotecaHistorialLectura 
-                SET UltimoAcceso = GETDATE()
-                WHERE IdAlumno = @IdAlumno AND IdLibro = @IdLibro
-            END
-            ELSE
-            BEGIN
-                INSERT INTO BibliotecaHistorialLectura (IdAlumno, IdLibro, UltimaPaginaLeida, UltimoAcceso)
-                VALUES (@IdAlumno, @IdLibro, 1, GETDATE())
-            END
+            INSERT INTO BibliotecaHistorialLectura (IdAlumno, IdLibro, UltimaPaginaLeida, UltimoAcceso)
+            VALUES (@IdAlumno, @IdLibro, 1, NOW())
+            ON DUPLICATE KEY UPDATE UltimoAcceso = NOW()
             """, connection);
 
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
@@ -935,7 +927,7 @@ public sealed class BibliotecaService
     private async Task RegistrarDescargaInternaAsync(int idAlumno, int idLibro, MySqlConnection connection, CancellationToken cancellationToken)
     {
         using var insertCmd = new MySqlCommand(
-            "INSERT INTO AlumnosLibrosDescargados (IdAlumno, IdLibro, FechaDescarga) VALUES (@IdAlumno, @IdLibro, GETDATE())",
+            "INSERT INTO AlumnosLibrosDescargados (IdAlumno, IdLibro, FechaDescarga) VALUES (@IdAlumno, @IdLibro, NOW())",
             connection);
         insertCmd.Parameters.AddWithValue("@IdAlumno", idAlumno);
         insertCmd.Parameters.AddWithValue("@IdLibro", idLibro);
@@ -1053,7 +1045,7 @@ public sealed class BibliotecaService
         // Cantidad de suscripciones activas
         int suscripcionesActivas = 0;
         using (var cmdActivas = new MySqlCommand(
-            "SELECT COUNT(*) FROM AlumnosSuscripciones WHERE FechaVencimiento > GETDATE()",
+            "SELECT COUNT(*) FROM AlumnosSuscripciones WHERE FechaVencimiento > NOW()",
             connection))
         {
             suscripcionesActivas = Convert.ToInt32(await cmdActivas.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
@@ -1095,7 +1087,7 @@ public sealed class BibliotecaService
                 S.Activa AS AutoRenovacion
             FROM AlumnosSuscripciones S
             JOIN Alumnos A ON A.IdAlumno = S.IdAlumno
-            WHERE S.FechaVencimiento > GETDATE()
+            WHERE S.FechaVencimiento > NOW()
             ORDER BY S.FechaVencimiento DESC
             """, connection);
 
@@ -1121,7 +1113,7 @@ public sealed class BibliotecaService
         await connection.OpenAsync(cancellationToken);
 
         using var command = new MySqlCommand(
-            "UPDATE AlumnosSuscripciones SET Activa = 0, FechaVencimiento = GETDATE() WHERE IdAlumno = @IdAlumno AND FechaVencimiento > GETDATE()",
+            "UPDATE AlumnosSuscripciones SET Activa = 0, FechaVencimiento = NOW() WHERE IdAlumno = @IdAlumno AND FechaVencimiento > NOW()",
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
 
