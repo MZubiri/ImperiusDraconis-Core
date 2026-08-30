@@ -19,7 +19,7 @@ namespace ImperiusDraconisAPI.Services;
 
 public sealed class AuthService
 {
-    private const string PasswordColumn = "[Contraseña]";
+    private const string PasswordColumn = "Contrasena";
     private readonly MySqlConnectionFactory _connectionFactory;
     private readonly JwtOptions _jwtOptions;
     private readonly SmtpOptions _smtpOptions;

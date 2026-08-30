@@ -10,7 +10,7 @@ namespace ImperiusDraconisAPI.Services;
 public sealed class AlumnosService
 {
     private const string DefaultFotoPerfil = "~/Content/FotosPerfil/default.jpg";
-    private const string PasswordColumn = "[Contrase\u00f1a]";
+    private const string PasswordColumn = "Contrasena";
 
     private static readonly IReadOnlyDictionary<string, string> OrdenamientoPermitido =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
