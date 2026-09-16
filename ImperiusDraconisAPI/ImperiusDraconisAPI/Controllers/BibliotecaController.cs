@@ -124,9 +124,18 @@ public sealed class BibliotecaController : ControllerBase
         // que equivale a: {RootPath}/Biblioteca/Libros/...
         // El script 013 guarda la ruta como: "PDF/..." o "EPUB/...", por lo que puede faltar el prefijo "Libros".
         var pathSegments = rutaRelativa.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+        if (pathSegments.Length == 0 || pathSegments.Any(segment => segment is ".." or ".")
+            || Path.IsPathRooted(rutaRelativa) || rutaRelativa.Contains(':'))
+        {
+            return BadRequest(new { message = "Ruta del archivo no permitida." });
+        }
         var baseDir = Path.Combine(_environment.ContentRootPath, "..", "Biblioteca");
         var absolutePath = Path.Combine(baseDir, Path.Combine(pathSegments));
 
+        if (!LibraryPath.IsWithin(baseDir, absolutePath))
+        {
+            return BadRequest(new { message = "Ruta del archivo no permitida." });
+        }
         if (!System.IO.File.Exists(absolutePath))
         {
             // Intentar buscar dentro de la subcarpeta "Libros" si no está presente en la ruta
@@ -135,6 +144,10 @@ public sealed class BibliotecaController : ControllerBase
                 var fallbackSegments = new List<string> { "Libros" };
                 fallbackSegments.AddRange(pathSegments);
                 var fallbackPath = Path.Combine(baseDir, Path.Combine(fallbackSegments.ToArray()));
+                if (!LibraryPath.IsWithin(baseDir, fallbackPath))
+                {
+                    return BadRequest(new { message = "Ruta del archivo no permitida." });
+                }
                 if (System.IO.File.Exists(fallbackPath))
                 {
                     absolutePath = fallbackPath;
@@ -142,13 +155,21 @@ public sealed class BibliotecaController : ControllerBase
             }
         }
 
+        if (!LibraryPath.IsWithin(baseDir, absolutePath))
+        {
+            return BadRequest(new { message = "Ruta del archivo no permitida." });
+        }
         if (!System.IO.File.Exists(absolutePath))
         {
             // Intentar buscar directamente en Biblioteca/ si el path ya incluye Biblioteca/
             absolutePath = Path.Combine(_environment.ContentRootPath, "..", Path.Combine(pathSegments));
+            if (!LibraryPath.IsWithin(baseDir, absolutePath))
+            {
+                return BadRequest(new { message = "Ruta del archivo no permitida." });
+            }
             if (!System.IO.File.Exists(absolutePath))
             {
-                return NotFound(new { message = $"El archivo físico del libro no se encuentra en el servidor. Ruta buscada: {absolutePath}" });
+                return NotFound(new { message = "El archivo físico del libro no se encuentra en el servidor." });
             }
         }
 
@@ -186,9 +207,18 @@ public sealed class BibliotecaController : ControllerBase
 
         // Resolver la ruta física del archivo
         var pathSegments = rutaRelativa.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+        if (pathSegments.Length == 0 || pathSegments.Any(segment => segment is ".." or ".")
+            || Path.IsPathRooted(rutaRelativa) || rutaRelativa.Contains(':'))
+        {
+            return BadRequest(new { message = "Ruta del archivo no permitida." });
+        }
         var baseDir = Path.Combine(_environment.ContentRootPath, "..", "Biblioteca");
         var absolutePath = Path.Combine(baseDir, Path.Combine(pathSegments));
 
+        if (!LibraryPath.IsWithin(baseDir, absolutePath))
+        {
+            return BadRequest(new { message = "Ruta del archivo no permitida." });
+        }
         if (!System.IO.File.Exists(absolutePath))
         {
             if (pathSegments.Length > 0 && !pathSegments[0].Equals("Libros", StringComparison.OrdinalIgnoreCase))
@@ -196,6 +226,10 @@ public sealed class BibliotecaController : ControllerBase
                 var fallbackSegments = new List<string> { "Libros" };
                 fallbackSegments.AddRange(pathSegments);
                 var fallbackPath = Path.Combine(baseDir, Path.Combine(fallbackSegments.ToArray()));
+                if (!LibraryPath.IsWithin(baseDir, fallbackPath))
+                {
+                    return BadRequest(new { message = "Ruta del archivo no permitida." });
+                }
                 if (System.IO.File.Exists(fallbackPath))
                 {
                     absolutePath = fallbackPath;
@@ -203,9 +237,17 @@ public sealed class BibliotecaController : ControllerBase
             }
         }
 
+        if (!LibraryPath.IsWithin(baseDir, absolutePath))
+        {
+            return BadRequest(new { message = "Ruta del archivo no permitida." });
+        }
         if (!System.IO.File.Exists(absolutePath))
         {
             absolutePath = Path.Combine(_environment.ContentRootPath, "..", Path.Combine(pathSegments));
+            if (!LibraryPath.IsWithin(baseDir, absolutePath))
+            {
+                return BadRequest(new { message = "Ruta del archivo no permitida." });
+            }
             if (!System.IO.File.Exists(absolutePath))
             {
                 return NotFound(new { message = "El archivo físico del libro no se encuentra en el servidor." });
