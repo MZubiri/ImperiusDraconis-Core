@@ -18,9 +18,8 @@ public sealed class DracoinGameService
             """
             UPDATE Alumnos
             SET Dracoins = COALESCE(Dracoins, 0) + @Amount
-            OUTPUT INSERTED.Dracoins
             WHERE IdAlumno = @IdAlumno
-              AND Activo = 1;
+              AND Activo = 1; SELECT Dracoins FROM Alumnos WHERE IdAlumno = @IdAlumno AND Activo = 1;
             """,
             connection,
             transaction);
@@ -40,7 +39,7 @@ public sealed class DracoinGameService
             INSERT INTO GameDracoinLedger
                 (IdAlumno, Amount, BalanceAfter, Reason, ReferenceType, ReferenceId)
             VALUES
-                (@IdAlumno, @Amount, @BalanceAfter, N'WELCOME_LINK', N'ROBLOX_LINK', @ReferenceId);
+                (@IdAlumno, @Amount, @BalanceAfter, 'WELCOME_LINK', 'ROBLOX_LINK', @ReferenceId);
             """,
             connection,
             transaction);
@@ -78,9 +77,8 @@ public sealed class DracoinGameService
             """
             UPDATE Alumnos
             SET Dracoins = COALESCE(Dracoins, 0) + @Amount
-            OUTPUT INSERTED.Dracoins
             WHERE IdAlumno = @IdAlumno
-              AND Activo = 1;
+              AND Activo = 1; SELECT Dracoins FROM Alumnos WHERE IdAlumno = @IdAlumno AND Activo = 1;
             """,
             connection,
             transaction);

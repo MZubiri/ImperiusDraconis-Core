@@ -284,17 +284,17 @@ public sealed class GameLinkService
         await using var command = new MySqlCommand(
             """
             SELECT
-                CONVERT(BIT, COALESCE(A.Activo, 0)) AS Active,
-                CONVERT(BIT, CASE WHEN EXISTS
+                CAST(COALESCE(A.Activo, 0) AS UNSIGNED) AS Active,
+                CAST(CASE WHEN EXISTS
                 (
                     SELECT 1
-                    FROM GameRobloxLinks L WITH (UPDLOCK, HOLDLOCK)
+                    FROM GameRobloxLinks L
                     WHERE L.IdAlumno = A.IdAlumno
-                      AND L.Active = 1
+                      AND L.Active = 1 FOR UPDATE
                 )
-                THEN 1 ELSE 0 END) AS HasActiveRobloxLink
-            FROM Alumnos A WITH (UPDLOCK, HOLDLOCK)
-            WHERE A.IdAlumno = @IdAlumno;
+                THEN 1 ELSE 0 END AS UNSIGNED) AS HasActiveRobloxLink
+            FROM Alumnos A
+            WHERE A.IdAlumno = @IdAlumno FOR UPDATE;
             """,
             connection,
             transaction);
@@ -367,7 +367,7 @@ public sealed class GameLinkService
         CancellationToken cancellationToken)
     {
         await using var command = new MySqlCommand(
-            "SELECT CONVERT(DATETIME2(3), SYSUTCDATETIME());",
+            "SELECT UTC_TIMESTAMP(3);",
             connection,
             transaction);
         var value = Convert.ToDateTime(
@@ -533,9 +533,8 @@ public sealed class GameLinkService
             """
             INSERT INTO GameRobloxLinks
                 (IdAlumno, RobloxUserId, LinkedAt, Active)
-            OUTPUT INSERTED.Id
             VALUES
-                (@IdAlumno, @RobloxUserId, @LinkedAt, 1);
+                (@IdAlumno, @RobloxUserId, @LinkedAt, 1); SELECT LAST_INSERT_ID();
             """,
             connection,
             transaction);

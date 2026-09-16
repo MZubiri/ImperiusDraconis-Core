@@ -88,7 +88,7 @@ public sealed class GameDragonService
             // 1. Obtener IdAlumno del usuario Roblox que hace la llamada
             await using var linkCommand = new MySqlCommand(
                 """
-                SELECT L.IdAlumno, CONVERT(BIT, COALESCE(A.Activo, 0))
+                SELECT L.IdAlumno, CAST(COALESCE(A.Activo, 0) AS UNSIGNED)
                 FROM GameRobloxLinks L
                 INNER JOIN Alumnos A ON A.IdAlumno = L.IdAlumno
                 WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;
@@ -123,8 +123,8 @@ public sealed class GameDragonService
             await using var dragonCommand = new MySqlCommand(
                 """
                 SELECT IdAlumno, Status, Selected
-                FROM GameDragons WITH (UPDLOCK, HOLDLOCK)
-                WHERE Id = @Id;
+                FROM GameDragons
+                WHERE Id = @Id FOR UPDATE;
                 """,
                 connection,
                 transaction);
@@ -230,12 +230,12 @@ public sealed class GameDragonService
         await connection.OpenAsync(cancellationToken);
         await using var command = new MySqlCommand(
             """
-            SELECT 
+            SELECT
                 D.Id,
                 D.Name,
                 D.Rarity,
                 D.Temperament,
-                COALESCE(E.EggDefinitionCode, N'') AS SpeciesCode,
+                COALESCE(E.EggDefinitionCode, '') AS SpeciesCode,
                 D.Level,
                 D.Stage,
                 D.HatchedAt,

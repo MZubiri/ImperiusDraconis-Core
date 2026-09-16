@@ -69,9 +69,9 @@ public sealed class GamePlayerService
                 L.IdAlumno,
                 L.RobloxUserId,
                 A.Nombre AS DisplayName,
-                COALESCE(C.Nombre, N'') AS HouseName,
+                COALESCE(C.Nombre, '') AS HouseName,
                 COALESCE(A.Dracoins, 0) AS Dracoins,
-                CONVERT(BIT, COALESCE(A.Activo, 0)) AS Active,
+                CAST(COALESCE(A.Activo, 0) AS UNSIGNED) AS Active,
                 DC.PurchasedSlots,
                 DC.MaxCapacity
             FROM GameRobloxLinks L
@@ -191,13 +191,13 @@ public sealed class GamePlayerService
                 """
                 SELECT
                     L.IdAlumno,
-                    CONVERT(BIT, COALESCE(A.Activo, 0)) AS Active,
+                    CAST(COALESCE(A.Activo, 0) AS UNSIGNED) AS Active,
                     DC.PurchasedSlots,
                     DC.MaxCapacity
-                FROM GameRobloxLinks L WITH (UPDLOCK, HOLDLOCK)
-                INNER JOIN Alumnos A WITH (UPDLOCK, HOLDLOCK) ON A.IdAlumno = L.IdAlumno
-                LEFT JOIN GameDragonCapacity DC WITH (UPDLOCK, HOLDLOCK) ON DC.IdAlumno = A.IdAlumno
-                WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;
+                FROM GameRobloxLinks L
+                INNER JOIN Alumnos A  ON A.IdAlumno = L.IdAlumno
+                LEFT JOIN GameDragonCapacity DC  ON DC.IdAlumno = A.IdAlumno
+                WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1 FOR UPDATE;
                 """,
                 connection,
                 transaction);
@@ -267,7 +267,7 @@ public sealed class GamePlayerService
                 """
                 UPDATE GameDragonCapacity
                 SET PurchasedSlots = PurchasedSlots + 1,
-                    UpdatedAt = SYSUTCDATETIME()
+                    UpdatedAt = UTC_TIMESTAMP(3)
                 WHERE IdAlumno = @IdAlumno;
                 """,
                 connection,

@@ -18,9 +18,9 @@ public sealed class GameIdempotencyService
         await using var selectCommand = new MySqlCommand(
             """
             SELECT Id, RequestHash, Status, ResponseJson
-            FROM GameIdempotency WITH (UPDLOCK, HOLDLOCK)
+            FROM GameIdempotency
             WHERE Operation = @Operation
-              AND IdempotencyKey = @IdempotencyKey;
+              AND IdempotencyKey = @IdempotencyKey FOR UPDATE;
             """,
             connection,
             transaction);
@@ -56,9 +56,8 @@ public sealed class GameIdempotencyService
             """
             INSERT INTO GameIdempotency
                 (Operation, IdempotencyKey, RequestHash, Status)
-            OUTPUT INSERTED.Id
             VALUES
-                (@Operation, @IdempotencyKey, @RequestHash, N'Pending');
+                (@Operation, @IdempotencyKey, @RequestHash, 'Pending'); SELECT LAST_INSERT_ID();
             """,
             connection,
             transaction);
@@ -80,12 +79,12 @@ public sealed class GameIdempotencyService
         await using var command = new MySqlCommand(
             """
             UPDATE GameIdempotency
-            SET Status = N'Completed',
+            SET Status = 'Completed',
                 ResponseStatusCode = 200,
                 ResponseJson = @ResponseJson,
-                CompletedAt = SYSUTCDATETIME()
+                CompletedAt = UTC_TIMESTAMP(3)
             WHERE Id = @Id
-              AND Status = N'Pending';
+              AND Status = 'Pending';
             """,
             connection,
             transaction);

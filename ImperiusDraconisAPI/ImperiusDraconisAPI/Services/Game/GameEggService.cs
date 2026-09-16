@@ -80,16 +80,8 @@ public sealed class GameEggService
             await using var command = new MySqlCommand(
                 """
                 INSERT INTO GameEggs (IdAlumno, EggDefinitionCode, Rarity)
-                OUTPUT
-                    INSERTED.Id,
-                    INSERTED.IdAlumno,
-                    INSERTED.Rarity,
-                    INSERTED.AcquiredAt,
-                    INSERTED.IncubationStartedAt,
-                    INSERTED.IncubationEndsAt,
-                    INSERTED.Status,
-                    INSERTED.EggDefinitionCode
                 VALUES (@IdAlumno, @EggDefinitionCode, @Rarity);
+                SELECT Id, IdAlumno, Rarity, AcquiredAt, IncubationStartedAt, IncubationEndsAt, Status, EggDefinitionCode FROM GameEggs WHERE Id = LAST_INSERT_ID();
                 """,
                 connection,
                 transaction);
@@ -196,6 +188,7 @@ public sealed class GameEggService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await using var command = new MySqlCommand(
             """
             UPDATE GameEggs
@@ -203,19 +196,11 @@ public sealed class GameEggService
                 IncubationStartedAt = @IncubationStartedAt,
                 IncubationEndsAt = @IncubationEndsAt,
                 Status = @Status,
-                UpdatedAt = SYSUTCDATETIME()
-            OUTPUT
-                INSERTED.Id,
-                INSERTED.IdAlumno,
-                INSERTED.Rarity,
-                INSERTED.AcquiredAt,
-                INSERTED.IncubationStartedAt,
-                INSERTED.IncubationEndsAt,
-                INSERTED.Status,
-                INSERTED.EggDefinitionCode
+                UpdatedAt = UTC_TIMESTAMP(3)
             WHERE Id = @Id;
+            SELECT Id, IdAlumno, Rarity, AcquiredAt, IncubationStartedAt, IncubationEndsAt, Status, EggDefinitionCode FROM GameEggs WHERE Id = @Id;
             """,
-            connection);
+            connection, transaction);
         command.Parameters.Add("@Id", MySqlDbType.Int64).Value = id;
         command.Parameters.Add("@IncubationStartedAt", MySqlDbType.DateTime).Value =
             (object?)request.IncubationStartedAt ?? DBNull.Value;
@@ -232,7 +217,10 @@ public sealed class GameEggService
                 StatusCodes.Status404NotFound);
         }
 
-        return ReadEgg(reader, DateTime.UtcNow);
+        var updatedEgg = ReadEgg(reader, DateTime.UtcNow);
+        await reader.CloseAsync();
+        await transaction.CommitAsync(cancellationToken);
+        return updatedEgg;
     }
 
     public async Task DeleteAsync(long id, CancellationToken cancellationToken)
@@ -245,7 +233,7 @@ public sealed class GameEggService
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
         await using var command = new MySqlCommand(
-            "DELETE FROM GameEggs WHERE Id = @Id AND Status = N'OWNED';",
+            "DELETE FROM GameEggs WHERE Id = @Id AND Status = 'OWNED';",
             connection);
         command.Parameters.Add("@Id", MySqlDbType.Int64).Value = id;
 
@@ -305,19 +293,19 @@ public sealed class GameEggService
         await using var command = new MySqlCommand(
             """
             SELECT
-                CONVERT(BIT, COALESCE(A.Activo, 0)) AS Active,
+                CAST(COALESCE(A.Activo, 0) AS UNSIGNED) AS Active,
                 DC.PurchasedSlots,
                 DC.MaxCapacity,
                 (
-                    SELECT COUNT_BIG(*)
-                    FROM GameEggs E WITH (UPDLOCK, HOLDLOCK)
+                    SELECT COUNT(*)
+                    FROM GameEggs E
                     WHERE E.IdAlumno = A.IdAlumno
-                      AND E.Status <> N'HATCHED'
+                      AND E.Status <> 'HATCHED' FOR UPDATE
                 ) AS OccupiedSlots
-            FROM Alumnos A WITH (UPDLOCK, HOLDLOCK)
-            LEFT JOIN GameDragonCapacity DC WITH (UPDLOCK, HOLDLOCK)
+            FROM Alumnos A
+            LEFT JOIN GameDragonCapacity DC
                 ON DC.IdAlumno = A.IdAlumno
-            WHERE A.IdAlumno = @IdAlumno;
+            WHERE A.IdAlumno = @IdAlumno FOR UPDATE;
             """,
             connection,
             transaction);
@@ -421,8 +409,8 @@ public sealed class GameEggService
             await using var eggCommand = new MySqlCommand(
                 """
                 SELECT IdAlumno, EggDefinitionCode, Status, AcquiredAt
-                FROM GameEggs WITH (UPDLOCK, HOLDLOCK)
-                WHERE Id = @Id;
+                FROM GameEggs
+                WHERE Id = @Id FOR UPDATE;
                 """,
                 connection,
                 transaction);
@@ -481,20 +469,12 @@ public sealed class GameEggService
             await using var updateCommand = new MySqlCommand(
                 """
                 UPDATE GameEggs
-                SET Status = N'INCUBATING',
+                SET Status = 'INCUBATING',
                     IncubationStartedAt = @StartedAt,
                     IncubationEndsAt = @EndsAt,
-                    UpdatedAt = SYSUTCDATETIME()
-                OUTPUT
-                    INSERTED.Id,
-                    INSERTED.IdAlumno,
-                    INSERTED.Rarity,
-                    INSERTED.AcquiredAt,
-                    INSERTED.IncubationStartedAt,
-                    INSERTED.IncubationEndsAt,
-                    INSERTED.Status,
-                    INSERTED.EggDefinitionCode
-                WHERE Id = @Id AND Status = N'OWNED';
+                    UpdatedAt = UTC_TIMESTAMP(3)
+                WHERE Id = @Id AND Status = 'OWNED';
+                SELECT Id, IdAlumno, Rarity, AcquiredAt, IncubationStartedAt, IncubationEndsAt, Status, EggDefinitionCode FROM GameEggs WHERE Id = @Id AND ROW_COUNT() > 0;
                 """,
                 connection,
                 transaction);
@@ -579,7 +559,7 @@ public sealed class GameEggService
             // 1. Obtener datos del jugador vinculado
             await using var playerCommand = new MySqlCommand(
                 """
-                SELECT L.IdAlumno, CONVERT(BIT, COALESCE(A.Activo, 0)) AS Active
+                SELECT L.IdAlumno, CAST(COALESCE(A.Activo, 0) AS UNSIGNED) AS Active
                 FROM GameRobloxLinks L
                 INNER JOIN Alumnos A ON A.IdAlumno = L.IdAlumno
                 WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;
@@ -660,8 +640,7 @@ public sealed class GameEggService
             await using var insertEggCommand = new MySqlCommand(
                 """
                 INSERT INTO GameEggs (IdAlumno, EggDefinitionCode, Rarity, Status)
-                OUTPUT INSERTED.Id
-                VALUES (@IdAlumno, @EggDefinitionCode, @Rarity, N'OWNED');
+                VALUES (@IdAlumno, @EggDefinitionCode, @Rarity, 'OWNED'); SELECT LAST_INSERT_ID();
                 """,
                 connection,
                 transaction);
@@ -749,7 +728,7 @@ public sealed class GameEggService
         {
             // 0. Validar vinculación del usuario que eclosiona
             await using var linkCommand = new MySqlCommand(
-                "SELECT L.IdAlumno, CONVERT(BIT, COALESCE(A.Activo, 0)) FROM GameRobloxLinks L INNER JOIN Alumnos A ON A.IdAlumno = L.IdAlumno WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;",
+                "SELECT L.IdAlumno, CAST(COALESCE(A.Activo, 0) AS UNSIGNED) FROM GameRobloxLinks L INNER JOIN Alumnos A ON A.IdAlumno = L.IdAlumno WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;",
                 connection,
                 transaction);
             linkCommand.Parameters.Add("@RobloxUserId", MySqlDbType.Int64).Value = request.RobloxUserId;
@@ -776,12 +755,12 @@ public sealed class GameEggService
                 callerIdAlumno = reader.GetInt32(0);
             }
 
-            // 1. Obtener huevo con UPDLOCK, HOLDLOCK
+            // 1. Obtener y bloquear el huevo durante la transaccion
             await using var eggCommand = new MySqlCommand(
                 """
                 SELECT E.IdAlumno, E.Rarity, E.Status, E.IncubationEndsAt
-                FROM GameEggs E WITH (UPDLOCK, HOLDLOCK)
-                WHERE E.Id = @Id;
+                FROM GameEggs E
+                WHERE E.Id = @Id FOR UPDATE;
                 """,
                 connection,
                 transaction);
@@ -832,8 +811,7 @@ public sealed class GameEggService
             await using var dragonCommand = new MySqlCommand(
                 """
                 INSERT INTO GameDragons (IdAlumno, Name, Rarity, Temperament, Level, Stage, HatchedAt)
-                OUTPUT INSERTED.Id, INSERTED.HatchedAt
-                VALUES (@IdAlumno, @Name, @Rarity, @Temperament, 1, N'BABY', SYSUTCDATETIME());
+                VALUES (@IdAlumno, @Name, @Rarity, @Temperament, 1, 'BABY', UTC_TIMESTAMP(3)); SELECT Id, HatchedAt FROM GameDragons WHERE Id = LAST_INSERT_ID();
                 """,
                 connection,
                 transaction);
@@ -855,9 +833,9 @@ public sealed class GameEggService
             await using var updateEggCommand = new MySqlCommand(
                 """
                 UPDATE GameEggs
-                SET Status = N'HATCHED',
+                SET Status = 'HATCHED',
                     HatchedDragonId = @HatchedDragonId,
-                    UpdatedAt = SYSUTCDATETIME()
+                    UpdatedAt = UTC_TIMESTAMP(3)
                 WHERE Id = @Id;
                 """,
                 connection,
@@ -961,7 +939,7 @@ public sealed class GameEggService
             // 1. Validar remitente y obtener su IdAlumno
             await using var senderCommand = new MySqlCommand(
                 """
-                SELECT L.IdAlumno, CONVERT(BIT, COALESCE(A.Activo, 0))
+                SELECT L.IdAlumno, CAST(COALESCE(A.Activo, 0) AS UNSIGNED)
                 FROM GameRobloxLinks L
                 INNER JOIN Alumnos A ON A.IdAlumno = L.IdAlumno
                 WHERE L.RobloxUserId = @SenderRobloxUserId AND L.Active = 1;
@@ -995,7 +973,7 @@ public sealed class GameEggService
             // 2. Validar receptor y obtener su IdAlumno
             await using var receiverCommand = new MySqlCommand(
                 """
-                SELECT L.IdAlumno, CONVERT(BIT, COALESCE(A.Activo, 0))
+                SELECT L.IdAlumno, CAST(COALESCE(A.Activo, 0) AS UNSIGNED)
                 FROM GameRobloxLinks L
                 INNER JOIN Alumnos A ON A.IdAlumno = L.IdAlumno
                 WHERE L.RobloxUserId = @ReceiverRobloxUserId AND L.Active = 1;
@@ -1025,7 +1003,7 @@ public sealed class GameEggService
 
             // 3. Validar huevo y propiedad
             await using var eggCommand = new MySqlCommand(
-                "SELECT IdAlumno, Status FROM GameEggs WITH (UPDLOCK, HOLDLOCK) WHERE Id = @Id;",
+                "SELECT IdAlumno, Status FROM GameEggs WHERE Id = @Id FOR UPDATE;",
                 connection,
                 transaction);
             eggCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = eggId;
@@ -1064,7 +1042,7 @@ public sealed class GameEggService
 
             // 4. Actualizar estado del huevo a IN_TRANSFER
             await using var updateEggCommand = new MySqlCommand(
-                "UPDATE GameEggs SET Status = N'IN_TRANSFER', UpdatedAt = SYSUTCDATETIME() WHERE Id = @Id;",
+                "UPDATE GameEggs SET Status = 'IN_TRANSFER', UpdatedAt = UTC_TIMESTAMP(3) WHERE Id = @Id;",
                 connection,
                 transaction);
             updateEggCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = eggId;
@@ -1074,8 +1052,7 @@ public sealed class GameEggService
             await using var insertTransferCommand = new MySqlCommand(
                 """
                 INSERT INTO GameEggTransfers (EggId, SenderIdAlumno, ReceiverRobloxUserId, Status)
-                OUTPUT INSERTED.Id
-                VALUES (@EggId, @SenderIdAlumno, @ReceiverRobloxUserId, N'PENDING');
+                VALUES (@EggId, @SenderIdAlumno, @ReceiverRobloxUserId, 'PENDING'); SELECT LAST_INSERT_ID();
                 """,
                 connection,
                 transaction);
@@ -1170,7 +1147,7 @@ public sealed class GameEggService
 
             // 1. Obtener transferencia bajo lock
             await using var transferCommand = new MySqlCommand(
-                "SELECT EggId, SenderIdAlumno, ReceiverRobloxUserId, Status FROM GameEggTransfers WITH (UPDLOCK, HOLDLOCK) WHERE Id = @Id;",
+                "SELECT EggId, SenderIdAlumno, ReceiverRobloxUserId, Status FROM GameEggTransfers WHERE Id = @Id FOR UPDATE;",
                 connection,
                 transaction);
             transferCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = transferId;
@@ -1216,7 +1193,7 @@ public sealed class GameEggService
             // 2. Obtener IdAlumno del receptor y validar su estado y capacidad
             await using var receiverCommand = new MySqlCommand(
                 """
-                SELECT L.IdAlumno, CONVERT(BIT, COALESCE(A.Activo, 0))
+                SELECT L.IdAlumno, CAST(COALESCE(A.Activo, 0) AS UNSIGNED)
                 FROM GameRobloxLinks L
                 INNER JOIN Alumnos A ON A.IdAlumno = L.IdAlumno
                 WHERE L.RobloxUserId = @ReceiverRobloxUserId AND L.Active = 1;
@@ -1261,7 +1238,7 @@ public sealed class GameEggService
 
             // 4. Actualizar dueño del huevo y estado a OWNED
             await using var updateEggCommand = new MySqlCommand(
-                "UPDATE GameEggs SET IdAlumno = @ReceiverIdAlumno, Status = N'OWNED', UpdatedAt = SYSUTCDATETIME() WHERE Id = @Id;",
+                "UPDATE GameEggs SET IdAlumno = @ReceiverIdAlumno, Status = 'OWNED', UpdatedAt = UTC_TIMESTAMP(3) WHERE Id = @Id;",
                 connection,
                 transaction);
             updateEggCommand.Parameters.Add("@ReceiverIdAlumno", MySqlDbType.Int32).Value = receiverIdAlumno;
@@ -1270,7 +1247,7 @@ public sealed class GameEggService
 
             // 5. Actualizar transferencia a ACCEPTED y registrar ReceiverIdAlumno
             await using var updateTransferCommand = new MySqlCommand(
-                "UPDATE GameEggTransfers SET Status = N'ACCEPTED', ReceiverIdAlumno = @ReceiverIdAlumno, UpdatedAt = SYSUTCDATETIME() WHERE Id = @Id;",
+                "UPDATE GameEggTransfers SET Status = 'ACCEPTED', ReceiverIdAlumno = @ReceiverIdAlumno, UpdatedAt = UTC_TIMESTAMP(3) WHERE Id = @Id;",
                 connection,
                 transaction);
             updateTransferCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = transferId;
@@ -1362,7 +1339,7 @@ public sealed class GameEggService
 
             // 1. Obtener transferencia bajo lock
             await using var transferCommand = new MySqlCommand(
-                "SELECT EggId, SenderIdAlumno, ReceiverRobloxUserId, Status FROM GameEggTransfers WITH (UPDLOCK, HOLDLOCK) WHERE Id = @Id;",
+                "SELECT EggId, SenderIdAlumno, ReceiverRobloxUserId, Status FROM GameEggTransfers WHERE Id = @Id FOR UPDATE;",
                 connection,
                 transaction);
             transferCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = transferId;
@@ -1416,7 +1393,7 @@ public sealed class GameEggService
 
             // 3. Devolver huevo a estado OWNED
             await using var updateEggCommand = new MySqlCommand(
-                "UPDATE GameEggs SET Status = N'OWNED', UpdatedAt = SYSUTCDATETIME() WHERE Id = @Id;",
+                "UPDATE GameEggs SET Status = 'OWNED', UpdatedAt = UTC_TIMESTAMP(3) WHERE Id = @Id;",
                 connection,
                 transaction);
             updateEggCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = eggId;
@@ -1424,7 +1401,7 @@ public sealed class GameEggService
 
             // 4. Actualizar transferencia a REJECTED
             await using var updateTransferCommand = new MySqlCommand(
-                "UPDATE GameEggTransfers SET Status = N'REJECTED', UpdatedAt = SYSUTCDATETIME() WHERE Id = @Id;",
+                "UPDATE GameEggTransfers SET Status = 'REJECTED', UpdatedAt = UTC_TIMESTAMP(3) WHERE Id = @Id;",
                 connection,
                 transaction);
             updateTransferCommand.Parameters.Add("@Id", MySqlDbType.Int64).Value = transferId;
