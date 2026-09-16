@@ -101,7 +101,7 @@ if (corsOrigins is not { Length: > 0 } || corsOrigins.Any(origin => string.IsNul
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AngularDevClient", policy =>
+    options.AddPolicy("AppCorsPolicy", policy =>
         policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod());
 });
 
@@ -206,7 +206,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseHttpsRedirection();
-app.UseCors("AngularDevClient");
+app.UseCors("AppCorsPolicy");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
