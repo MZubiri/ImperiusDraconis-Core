@@ -39,6 +39,12 @@ local function call(player: Player, action: string, payload: any): (boolean, any
 		return ApiClient.request("GET", "/dragons/food-catalog", nil, nil)
 	elseif action == "pendingGifts" then
 		return ApiClient.request("GET", `/egg-gifts/pending/by-roblox/{userId}`, nil, nil)
+	elseif action == "giftEgg" then
+		return ApiClient.request("POST", `/eggs/{payload.eggId}/gift`, { senderRobloxUserId = userId, receiverRobloxUserId = payload.receiverRobloxUserId }, ApiClient.newIdempotencyKey(player, action))
+	elseif action == "acceptGift" then
+		return ApiClient.request("POST", `/egg-gifts/{payload.transferId}/accept`, { receiverRobloxUserId = userId }, ApiClient.newIdempotencyKey(player, action))
+	elseif action == "rejectGift" then
+		return ApiClient.request("POST", `/egg-gifts/{payload.transferId}/reject`, { receiverRobloxUserId = userId }, ApiClient.newIdempotencyKey(player, action))
 	elseif action == "missions" then
 		return ApiClient.request("GET", `/missions/by-roblox/{userId}`, nil, nil)
 	elseif action == "claimMission" then

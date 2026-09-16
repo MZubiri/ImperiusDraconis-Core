@@ -1,86 +1,54 @@
 --!strict
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players=game:GetService("Players")
+local ReplicatedStorage=game:GetService("ReplicatedStorage")
+local RunService=game:GetService("RunService")
+local player=Players.LocalPlayer
+local remote=ReplicatedStorage:WaitForChild("ImperiusDragons"):WaitForChild("ImperiusGameRequest")::RemoteFunction
+local session:any=nil
+local companion:Model?=nil
+local C={bg=Color3.fromRGB(22,16,38),surface=Color3.fromRGB(43,31,68),primary=Color3.fromRGB(126,83,190),text=Color3.fromRGB(246,240,255),muted=Color3.fromRGB(190,176,210),danger=Color3.fromRGB(205,82,98)}
 
-local player = Players.LocalPlayer
-local requestRemote = ReplicatedStorage:WaitForChild("ImperiusDragons"):WaitForChild("ImperiusGameRequest") :: RemoteFunction
+local gui=Instance.new("ScreenGui");gui.Name="ImperiusDragonsGui";gui.ResetOnSpawn=false;gui.IgnoreGuiInset=true;gui.Parent=player:WaitForChild("PlayerGui")
+local root=Instance.new("Frame");root.Size=UDim2.fromScale(1,1);root.BackgroundColor3=C.bg;root.Parent=gui
+local top=Instance.new("Frame");top.Size=UDim2.new(1,0,0,64);top.BackgroundColor3=C.surface;top.Parent=root
+local title=Instance.new("TextLabel");title.Size=UDim2.new(.6,0,1,0);title.Position=UDim2.fromOffset(18,0);title.BackgroundTransparency=1;title.Text="IMPERIUS DRAGONS";title.TextColor3=C.text;title.TextXAlignment=Enum.TextXAlignment.Left;title.Font=Enum.Font.GothamBold;title.TextSize=22;title.Parent=top
+local balance=title:Clone();balance.Size=UDim2.new(.35,-18,1,0);balance.Position=UDim2.fromScale(.65,0);balance.Text="";balance.TextColor3=Color3.fromRGB(246,205,82);balance.TextXAlignment=Enum.TextXAlignment.Right;balance.TextSize=18;balance.Parent=top
+local nav=Instance.new("ScrollingFrame");nav.Size=UDim2.new(0,170,1,-64);nav.Position=UDim2.fromOffset(0,64);nav.BackgroundColor3=Color3.fromRGB(31,23,49);nav.BorderSizePixel=0;nav.ScrollBarThickness=3;nav.AutomaticCanvasSize=Enum.AutomaticSize.Y;nav.CanvasSize=UDim2.new();nav.Parent=root
+local nl=Instance.new("UIListLayout");nl.Padding=UDim.new(0,6);nl.Parent=nav
+local np=Instance.new("UIPadding");np.PaddingTop=UDim.new(0,12);np.PaddingLeft=UDim.new(0,10);np.PaddingRight=UDim.new(0,10);np.Parent=nav
+local content=Instance.new("ScrollingFrame");content.Size=UDim2.new(1,-170,1,-64);content.Position=UDim2.fromOffset(170,64);content.BackgroundTransparency=1;content.BorderSizePixel=0;content.ScrollBarThickness=5;content.AutomaticCanvasSize=Enum.AutomaticSize.Y;content.CanvasSize=UDim2.new();content.Parent=root
+local cl=Instance.new("UIListLayout");cl.Padding=UDim.new(0,10);cl.Parent=content
+local cp=Instance.new("UIPadding");cp.PaddingTop=UDim.new(0,18);cp.PaddingBottom=UDim.new(0,30);cp.PaddingLeft=UDim.new(0,18);cp.PaddingRight=UDim.new(0,18);cp.Parent=content
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "ImperiusDragonsGui"
-gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
+local function clear()for _,child in content:GetChildren()do if not child:IsA("UIListLayout")and not child:IsA("UIPadding")then child:Destroy()end end end
+local function label(text:string,height:number?,color:Color3?):TextLabel local v=Instance.new("TextLabel");v.Size=UDim2.new(1,0,0,height or 38);v.BackgroundTransparency=1;v.Text=text;v.TextWrapped=true;v.TextColor3=color or C.text;v.TextXAlignment=Enum.TextXAlignment.Left;v.Font=Enum.Font.Gotham;v.TextSize=16;v.Parent=content;return v end
+local function heading(text:string)local v=label(text,50);v.Font=Enum.Font.GothamBold;v.TextSize=26;return v end
+local function button(text:string,parent:Instance?,callback:()->()):TextButton local b=Instance.new("TextButton");b.Size=UDim2.new(1,0,0,44);b.BackgroundColor3=C.primary;b.TextColor3=C.text;b.Text=text;b.Font=Enum.Font.GothamBold;b.TextSize=15;b.Parent=parent or content;Instance.new("UICorner",b).CornerRadius=UDim.new(0,9);b.Activated:Connect(callback);return b end
+local function input(placeholder:string):TextBox local box=Instance.new("TextBox");box.Size=UDim2.new(1,0,0,44);box.BackgroundColor3=C.surface;box.TextColor3=C.text;box.PlaceholderColor3=C.muted;box.PlaceholderText=placeholder;box.Text="";box.Font=Enum.Font.Gotham;box.TextSize=16;box.Parent=content;Instance.new("UICorner",box).CornerRadius=UDim.new(0,9);return box end
+local function card(name:string,details:string):Frame local f=Instance.new("Frame");f.Size=UDim2.new(1,0,0,100);f.BackgroundColor3=C.surface;f.Parent=content;Instance.new("UICorner",f).CornerRadius=UDim.new(0,12);local t=Instance.new("TextLabel");t.Size=UDim2.new(1,-20,0,34);t.Position=UDim2.fromOffset(10,7);t.BackgroundTransparency=1;t.Text=name;t.TextColor3=C.text;t.TextXAlignment=Enum.TextXAlignment.Left;t.Font=Enum.Font.GothamBold;t.TextSize=17;t.Parent=f;local d=t:Clone();d.Position=UDim2.fromOffset(10,39);d.Size=UDim2.new(1,-20,0,55);d.Text=details;d.TextWrapped=true;d.TextColor3=C.muted;d.Font=Enum.Font.Gotham;d.TextSize=14;d.Parent=f;return f end
+local function invoke(action:string,payload:any?):any local ok,result=pcall(remote.InvokeServer,remote,action,payload or{});if not ok then return{ok=false,error={message="No se pudo comunicar con el servidor."}}end;return result end
+local function failure(result:any)label(result.error and result.error.message or"Ha ocurrido un error.",55,C.danger)end
+local function refresh():boolean local result=invoke("bootstrap");if not result.ok then return false end;session=result.data;balance.Text=`{session.economy.dracoins} DC`;return true end
 
-local panel = Instance.new("Frame")
-panel.Name = "StatusPanel"
-panel.Size = UDim2.fromOffset(380, 240)
-panel.Position = UDim2.new(0.5, -190, 0.5, -120)
-panel.BackgroundColor3 = Color3.fromRGB(31, 22, 51)
-panel.Parent = gui
-Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 18)
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -32, 0, 48)
-title.Position = UDim2.fromOffset(16, 14)
-title.BackgroundTransparency = 1
-title.Text = "IMPERIUS DRAGONS"
-title.TextColor3 = Color3.fromRGB(233, 216, 255)
-title.TextScaled = true
-title.Font = Enum.Font.GothamBold
-title.Parent = panel
-
-local status = Instance.new("TextLabel")
-status.Size = UDim2.new(1, -32, 0, 72)
-status.Position = UDim2.fromOffset(16, 70)
-status.BackgroundTransparency = 1
-status.TextColor3 = Color3.fromRGB(255, 255, 255)
-status.TextWrapped = true
-status.Text = "Cargando tu perfil…"
-status.Parent = panel
-
-local codeBox = Instance.new("TextBox")
-codeBox.Size = UDim2.new(1, -32, 0, 44)
-codeBox.Position = UDim2.fromOffset(16, 142)
-codeBox.PlaceholderText = "Codigo de Imperius"
-codeBox.Text = ""
-codeBox.ClearTextOnFocus = false
-codeBox.Parent = panel
-Instance.new("UICorner", codeBox).CornerRadius = UDim.new(0, 10)
-
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(1, -32, 0, 40)
-button.Position = UDim2.fromOffset(16, 192)
-button.Text = "VINCULAR"
-button.BackgroundColor3 = Color3.fromRGB(119, 76, 180)
-button.TextColor3 = Color3.new(1, 1, 1)
-button.Parent = panel
-Instance.new("UICorner", button).CornerRadius = UDim.new(0, 10)
-
-local function invoke(action: string, payload: any?): any
-	local ok, result = pcall(requestRemote.InvokeServer, requestRemote, action, payload or {})
-	if not ok then return { ok = false, error = { message = "No se pudo comunicar con el servidor." } } end
-	return result
+local function spawnCompanion()
+	if companion then companion:Destroy();companion=nil end
+	if not session or not session.selectedDragon then return end
+	local model=Instance.new("Model");model.Name=session.selectedDragon.name
+	local body=Instance.new("Part");body.Name="Body";body.Shape=Enum.PartType.Ball;body.Size=Vector3.new(2.4,1.5,3);body.Color=Color3.fromRGB(132,83,191);body.Material=Enum.Material.SmoothPlastic;body.CanCollide=false;body.Anchored=true;body.Parent=model
+	local head=Instance.new("Part");head.Name="Head";head.Shape=Enum.PartType.Ball;head.Size=Vector3.new(1.4,1.2,1.5);head.Color=body.Color;head.CanCollide=false;head.Anchored=true;head.CFrame=body.CFrame*CFrame.new(0,.3,-1.8);head.Parent=model
+	model.PrimaryPart=body;model.Parent=workspace;companion=model
 end
+RunService.RenderStepped:Connect(function()if not companion or not companion.PrimaryPart then return end;local character=player.Character;local hrp=character and character:FindFirstChild("HumanoidRootPart")::BasePart?;if hrp then companion:PivotTo(companion:GetPivot():Lerp(hrp.CFrame*CFrame.new(3,1.5,3),.08))end end)
 
-local function showBootstrap(data: any)
-	status.Text = `{data.player.displayName} · {data.economy.dracoins} Dracoins\nHuevos: #{data.eggs} · Dragones: #{data.dragons} · Espacios: {data.capacity.availableSlots}`
-	codeBox.Visible = false
-	button.Visible = false
-	task.delay(5, function() panel.Visible = false end)
-end
+local renderHome:()->();local renderEggs:()->();local renderDragons:()->();local renderMissions:()->();local renderBattle:()->();local renderRanking:()->();local renderGifts:()->()
+renderHome=function()clear();heading(`Bienvenido, {session.player.displayName}`);label(`Casa: {session.player.houseName}\nEspacios disponibles: {session.capacity.availableSlots} de {session.capacity.totalSlots}`,70);if session.selectedDragon then card(session.selectedDragon.name,`{session.selectedDragon.speciesCode} · Nivel {session.selectedDragon.level} · {session.selectedDragon.stage}`)else label("Aún no has seleccionado un dragón acompañante.")end;button("Comprar un espacio adicional",nil,function()local r=invoke("buyCapacity");if r.ok then refresh();renderHome()else clear();failure(r)end end)end
+renderEggs=function()clear();heading("Huevos e incubación");local dragonName=input("Nombre para el próximo dragón");for _,egg in session.eggs do local f=card(`# {egg.id} · {egg.eggDefinitionCode or"LEGACY"}`,`{egg.rarity} · {egg.status}`);if egg.status=="OWNED"then local b=button("Incubar",f,function()local r=invoke("incubate",{eggId=egg.id});if r.ok then refresh();renderEggs()else clear();failure(r)end end);b.Size=UDim2.fromOffset(105,32);b.Position=UDim2.new(1,-115,0,8)elseif egg.status=="READY_TO_HATCH"then local b=button("Eclosionar",f,function()local chosen=dragonName.Text;if chosen==""then chosen=`Dragon {egg.id}`end;local r=invoke("hatch",{eggId=egg.id,name=chosen});if r.ok then refresh();spawnCompanion();renderDragons()else clear();failure(r)end end);b.Size=UDim2.fromOffset(110,32);b.Position=UDim2.new(1,-120,0,8)end end;heading("Tienda de huevos");local catalog=invoke("eggCatalog");if catalog.ok then for _,item in catalog.data do local f=card(item.displayName,`{item.description}\n{item.priceDracoins} DC · {item.incubationMinutes} min`);local b=button("Comprar",f,function()local r=invoke("purchaseEgg",{code=item.code});if r.ok then refresh();renderEggs()else clear();failure(r)end end);b.Size=UDim2.fromOffset(100,32);b.Position=UDim2.new(1,-110,0,8)end else failure(catalog)end end
+renderDragons=function()clear();heading("Mis dragones");for _,dragon in session.dragons do local f=card(dragon.name,`{dragon.speciesCode} · {dragon.rarity} · Nv. {dragon.level}\nVida {dragon.life} · Felicidad {dragon.happiness} · Hambre {dragon.hunger}`);if not dragon.selected and dragon.status~="FLED"then local b=button("Elegir",f,function()local r=invoke("selectDragon",{dragonId=dragon.id});if r.ok then refresh();spawnCompanion();renderDragons()else clear();failure(r)end end);b.Size=UDim2.fromOffset(90,30);b.Position=UDim2.new(1,-100,0,6)end;if dragon.status~="FLED"then local b=button("Acariciar",f,function()local r=invoke("pet",{dragonId=dragon.id});if r.ok then refresh();renderDragons()else clear();failure(r)end end);b.Size=UDim2.fromOffset(100,30);b.Position=UDim2.new(1,-110,0,42)end end;heading("Alimentos");local foods=invoke("foodCatalog");if foods.ok and session.selectedDragon then for _,food in foods.data do button(`{food.displayName} · {food.priceDracoins} DC`,nil,function()local r=invoke("feed",{dragonId=session.selectedDragon.id,foodCode=food.code});if r.ok then refresh();renderDragons()else clear();failure(r)end end)end elseif not session.selectedDragon then label("Selecciona un dragón para alimentarlo.")else failure(foods)end end
+renderMissions=function()clear();heading("Misiones de hoy");local result=invoke("missions");if not result.ok then failure(result);return end;for _,mission in result.data do local f=card(mission.displayName,`{mission.description}\n{mission.progressAmount}/{mission.targetAmount} · +{mission.rewardDracoins} DC · +{mission.rewardExperience} XP`);if mission.status=="COMPLETED"then local b=button("Reclamar",f,function()local r=invoke("claimMission",{missionId=mission.id});if r.ok then refresh();renderMissions()else clear();failure(r)end end);b.Size=UDim2.fromOffset(105,32);b.Position=UDim2.new(1,-115,0,8)end end end
+renderBattle=function()clear();heading("Arena de duelo");if not session.selectedDragon then label("Selecciona un dragón antes de combatir.");return end;label(`Combatirá {session.selectedDragon.name}. Los primeros cinco duelos del día entregan Dracoins.`,60);button("Iniciar duelo automático",nil,function()clear();heading("Resolviendo duelo…");local r=invoke("battle");clear();if not r.ok then failure(r);return end;heading(r.data.result);label(`Rival: {r.data.opponentName}\nRanking: +{r.data.rankingPoints} · Dracoins: +{r.data.rewardDracoins} · XP: +{r.data.rewardExperience}`,70);for _,round in r.data.rounds do label(`Ronda {round.round}: infliges {round.playerDamage}, recibes {round.opponentDamage} · Vida {round.playerLife}/{round.opponentLife}`,35)end;refresh()end)end
+renderRanking=function()clear();heading("Ranking de cuidadores");local r=invoke("ranking");if not r.ok then failure(r);return end;for _,entry in r.data do card(`#{entry.position} · {entry.displayName}`,`{entry.houseName} · {entry.points} puntos · {entry.wins} victorias / {entry.battles} duelos`)end end
+renderGifts=function()clear();heading("Regalos pendientes");local pending=invoke("pendingGifts");if pending.ok then for _,gift in pending.data do local f=card(`De {gift.senderDisplayName}`,`Huevo # {gift.eggId} · {gift.eggDefinitionCode or"LEGACY"} · {gift.rarity}`);local a=button("Aceptar",f,function()local r=invoke("acceptGift",{transferId=gift.transferId});if r.ok then refresh();renderGifts()else clear();failure(r)end end);a.Size=UDim2.fromOffset(90,30);a.Position=UDim2.new(1,-195,0,62);local x=button("Rechazar",f,function()local r=invoke("rejectGift",{transferId=gift.transferId});if r.ok then renderGifts()else clear();failure(r)end end);x.Size=UDim2.fromOffset(90,30);x.Position=UDim2.new(1,-98,0,62)end else failure(pending)end;heading("Enviar un huevo");local egg=input("ID del huevo");local receiver=input("Roblox User ID del destinatario");button("Enviar regalo",nil,function()local r=invoke("giftEgg",{eggId=tonumber(egg.Text),receiverRobloxUserId=tonumber(receiver.Text)});clear();if r.ok then refresh();renderGifts()else failure(r)end end)end
 
-button.Activated:Connect(function()
-	button.Active = false
-	status.Text = "Vinculando…"
-	local result = invoke("link", { code = codeBox.Text })
-	button.Active = true
-	if not result.ok then status.Text = result.error.message or "No se pudo vincular." return end
-	local bootstrap = invoke("bootstrap")
-	if bootstrap.ok then showBootstrap(bootstrap.data) else status.Text = bootstrap.error.message end
-end)
-
-local initial = invoke("bootstrap")
-if initial.ok then
-	showBootstrap(initial.data)
-else
-	status.Text = "Tu cuenta aún no está vinculada. Genera un código en imperiusdraconis.online."
-end
+for _,entry in{{"Inicio",renderHome},{"Huevos",renderEggs},{"Dragones",renderDragons},{"Misiones",renderMissions},{"Combate",renderBattle},{"Ranking",renderRanking},{"Regalos",renderGifts}}do local b=button(entry[1]::string,nav,entry[2]::any);b.BackgroundColor3=C.surface end
+local function renderLink(message:string?)clear();balance.Text="Sin vincular";heading("Vincula tu cuenta");label(message or"Genera un código en imperiusdraconis.online y escríbelo aquí.",65);local code=input("Código de 6 caracteres");button("Vincular con Imperius",nil,function()local r=invoke("link",{code=code.Text});if not r.ok then renderLink(r.error.message);return end;if refresh()then invoke("missions");spawnCompanion();renderHome()end end)end
+if refresh()then invoke("missions");spawnCompanion();renderHome()else renderLink(nil)end
