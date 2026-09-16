@@ -1,781 +1,843 @@
 <!-- Sección Bloqueada (Pantalla de Contraseña) -->
-<div *ngIf="!desbloqueado()" class="lock-screen-container">
-  <div class="lock-box">
-    <div class="lock-icon-wrapper">
-      <svg lucideIcon="lock" class="lock-icon"></svg>
+@if (!desbloqueado()) {
+  <div class="lock-screen-container">
+    <div class="lock-box">
+      <div class="lock-icon-wrapper">
+        <svg lucideIcon="lock" class="lock-icon"></svg>
+      </div>
+      <h1 class="magic-title">Sección Prohibida</h1>
+      <p class="magic-subtitle">Introduce la contraseña de la biblioteca para desbloquear los antiguos libros.</p>
+      <div class="input-group">
+        <input
+          type="password"
+          placeholder="Introduce la contraseña..."
+          [(ngModel)]="passwordInput"
+          (keyup.enter)="desbloquear()"
+          class="magic-input"
+          [disabled]="loading()"
+          />
+      </div>
+      @if (errorMsg()) {
+        <div class="magic-error">
+          {{ errorMsg() }}
+        </div>
+      }
+      <button (click)="desbloquear()" class="magic-button" [disabled]="loading()">
+        @if (!loading()) {
+          <span>Revelar Libros</span>
+        }
+        @if (loading()) {
+          <span>Abriendo portal...</span>
+        }
+      </button>
     </div>
-    <h1 class="magic-title">Sección Prohibida</h1>
-    <p class="magic-subtitle">Introduce la contraseña de la biblioteca para desbloquear los antiguos libros.</p>
-
-    <div class="input-group">
-      <input 
-        type="password" 
-        placeholder="Introduce la contraseña..." 
-        [(ngModel)]="passwordInput"
-        (keyup.enter)="desbloquear()"
-        class="magic-input"
-        [disabled]="loading()"
-      />
-    </div>
-
-    <div *ngIf="errorMsg()" class="magic-error">
-      {{ errorMsg() }}
-    </div>
-
-    <button (click)="desbloquear()" class="magic-button" [disabled]="loading()">
-      <span *ngIf="!loading()">Revelar Libros</span>
-      <span *ngIf="loading()">Abriendo portal...</span>
-    </button>
   </div>
-</div>
+}
 
 <!-- Sección Desbloqueada (Biblioteca) -->
-<section *ngIf="desbloqueado() && !libroActivo()" class="module-layout">
-  
-  <!-- Encabezado de la página -->
-  <article class="module-hero panel">
-    <div class="stack">
-      <span class="pill success">Biblioteca</span>
-      <h1>La Gran Biblioteca de Imperius</h1>
-      <p class="muted">Explora los tomos de conocimiento y magia de la orden.</p>
-    </div>
-    
-    <!-- Lado derecho: Saldo y Botón Admin -->
-    <div class="header-actions">
-      <!-- Botón de administración de biblioteca -->
-      <button *ngIf="esAdmin()" (click)="abrirAdminPanel()" class="admin-action-btn">
-        <svg lucideIcon="edit" class="btn-icon"></svg> Panel Admin
-      </button>
-
-      <div class="dracoins-badge">
-        <svg lucideIcon="coins" class="coin-icon"></svg>
-        <span class="coin-amount">{{ alumnoDracoins() | number }} Dracoins</span>
+@if (desbloqueado() && !libroActivo()) {
+  <section class="module-layout">
+    <!-- Encabezado de la página -->
+    <article class="module-hero panel">
+      <div class="stack">
+        <span class="pill success">Biblioteca</span>
+        <h1>La Gran Biblioteca de Imperius</h1>
+        <p class="muted">Explora los tomos de conocimiento y magia de la orden.</p>
       </div>
-    </div>
-  </article>
-
-  <!-- Panel de control de Tabs Principales (Todos / Mis Libros / Suscripción) -->
-  <div class="tab-selector-bar">
-    <button 
-      class="tab-btn" 
-      [class.active]="tabActivo() === 'todos'"
-      (click)="cambiarTab('todos')"
-    >
-      Todos los Libros
-    </button>
-    <button 
-      class="tab-btn" 
-      [class.active]="tabActivo() === 'mis-libros'"
-      (click)="cambiarTab('mis-libros')"
-    >
-      Mis Libros
-    </button>
-    <button 
-      class="tab-btn" 
-      [class.active]="tabActivo() === 'suscripcion'"
-      (click)="cambiarTab('suscripcion')"
-    >
-      Suscripción
-    </button>
-  </div>
-
-  <div *ngIf="tabActivo() !== 'suscripcion'" class="tab-content-wrapper">
-    <!-- Controles de Filtros y Búsqueda -->
-    <div class="controls-panel">
-      <div class="search-bar-wrapper">
-        <svg lucideIcon="search" class="search-icon"></svg>
-        <input 
-          type="text" 
-          placeholder="Buscar por título, autor..." 
-          [(ngModel)]="busquedaInput"
-          (keyup.enter)="buscarLibros()"
-          class="search-input"
-        />
-        <button (click)="buscarLibros()" class="search-button">Buscar</button>
+      <!-- Lado derecho: Saldo y Botón Admin -->
+      <div class="header-actions">
+        <!-- Botón de administración de biblioteca -->
+        @if (esAdmin()) {
+          <button (click)="abrirAdminPanel()" class="admin-action-btn">
+            <svg lucideIcon="edit" class="btn-icon"></svg> Panel Admin
+          </button>
+        }
+        <div class="dracoins-badge">
+          <svg lucideIcon="coins" class="coin-icon"></svg>
+          <span class="coin-amount">{{ alumnoDracoins() | number }} Dracoins</span>
+        </div>
       </div>
-
-      <!-- Grupos de categorías principales (Artes Arcanas, Ciencia Ficción, etc.) -->
-      <div class="category-groups-bar">
-        <button 
-          *ngFor="let grupo of gruposCategoriasVisibles()" 
-          [class.active]="grupoSeleccionado() === grupo.key"
-          (click)="seleccionarGrupo(grupo.key)"
-          class="group-tab"
+    </article>
+    <!-- Panel de control de Tabs Principales (Todos / Mis Libros / Suscripción) -->
+    <div class="tab-selector-bar">
+      <button
+        class="tab-btn"
+        [class.active]="tabActivo() === 'todos'"
+        (click)="cambiarTab('todos')"
         >
-          <svg [lucideIcon]="grupo.icon" class="group-tab-icon"></svg>
-          <span class="group-tab-name">{{ grupo.nombre }}</span>
-        </button>
-      </div>
-
-      <!-- Subcategorías del grupo seleccionado -->
-      <div *ngIf="grupoSeleccionado() !== 'todas' && categoriasFiltradas().length > 0" class="subcategories-panel">
-        <div class="subcategories-title">Filtrar por subcategoría:</div>
-        <div class="subcategories-list">
-          <button 
-            [class.active]="categoriaSeleccionada() === null"
-            (click)="seleccionarSubcategoria(null)"
-            class="subcategory-pill"
-          >
-            Todas
-          </button>
-          <button 
-            *ngFor="let cat of categoriasFiltradas()" 
-            [class.active]="categoriaSeleccionada() === cat.id"
-            (click)="seleccionarSubcategoria(cat.id)"
-            class="subcategory-pill"
-          >
-            {{ cat.nombre }}
-          </button>
-        </div>
-      </div>
+        Todos los Libros
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="tabActivo() === 'mis-libros'"
+        (click)="cambiarTab('mis-libros')"
+        >
+        Mis Libros
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="tabActivo() === 'suscripcion'"
+        (click)="cambiarTab('suscripcion')"
+        >
+        Suscripción
+      </button>
     </div>
-
-    <!-- Estados de carga y vacío -->
-    <div *ngIf="loading()" class="loading-state">
-      <div class="spinner"></div>
-      <p>Consultando los archivos de la biblioteca...</p>
-    </div>
-
-    <div *ngIf="!loading() && librosFiltrados().length === 0" class="empty-state">
-      <svg lucideIcon="book-open" class="empty-icon"></svg>
-      <p *ngIf="tabActivo() === 'todos'">No se encontraron libros que coincidan con la búsqueda o los filtros.</p>
-      <p *ngIf="tabActivo() === 'mis-libros'">Todavía no has adquirido ningún libro propio en esta categoría ni posees una suscripción activa.</p>
-    </div>
-
-    <!-- Grid de Libros -->
-    <div *ngIf="!loading() && librosFiltrados().length > 0" class="books-grid">
-      <div *ngFor="let libro of librosPaginados()" class="book-card" (click)="abrirDetalle(libro)" style="cursor: pointer;">
-        
-        <!-- Controles de edición rápidos en la esquina para Administradores -->
-        <div *ngIf="esAdmin()" class="admin-card-overlay" (click)="$event.stopPropagation()">
-          <button (click)="abrirEditarLibroModal(libro)" class="card-admin-btn edit" title="Editar Libro">
-            <svg lucideIcon="edit"></svg>
-          </button>
-          <button (click)="eliminarLibro(libro)" class="card-admin-btn delete" title="Eliminar Libro">
-            <svg lucideIcon="trash-2"></svg>
-          </button>
-        </div>
-
-        <div class="book-cover" [class]="'book-cover-' + clasificarCategoria(libro.categoriaNombre)">
-          <div class="book-spine"></div>
-          <div class="book-cover-content">
-            <span class="book-format-badge" [class.pdf]="libro.formato === '.pdf'">{{ libro.formato.replace('.', '').toUpperCase() }}</span>
-            <h4 class="cover-book-title">{{ libro.titulo }}</h4>
-            <p class="cover-book-author">{{ libro.autor }}</p>
+    @if (tabActivo() !== 'suscripcion') {
+      <div class="tab-content-wrapper">
+        <!-- Controles de Filtros y Búsqueda -->
+        <div class="controls-panel">
+          <div class="search-bar-wrapper">
+            <svg lucideIcon="search" class="search-icon"></svg>
+            <input
+              type="text"
+              placeholder="Buscar por título, autor..."
+              [(ngModel)]="busquedaInput"
+              (keyup.enter)="buscarLibros()"
+              class="search-input"
+              />
+            <button (click)="buscarLibros()" class="search-button">Buscar</button>
           </div>
-        </div>
-        
-        <div class="book-details">
-          <span class="book-category">{{ libro.categoriaNombre }}</span>
-          <h3 class="book-title" [title]="libro.titulo">{{ libro.titulo }}</h3>
-          <p class="book-author">Por {{ libro.autor }}</p>
-          <p class="book-synopsis" *ngIf="libro.sinopsis">{{ libro.sinopsis }}</p>
-          <p class="book-synopsis" *ngIf="!libro.sinopsis">Sin sinopsis disponible.</p>
-
-          <div class="book-action-area" (click)="$event.stopPropagation()">
-            <!-- Libro Gratuito o Ya Comprado o con Acceso por Suscripción -->
-            <div *ngIf="libro.precioDracoins === 0 || libro.comprado || suscripcion()?.activa" class="access-box">
-              <span class="owned-tag" *ngIf="libro.precioDracoins > 0 && !suscripcion()?.activa">Adquirido</span>
-              <span class="owned-tag sub" *ngIf="suscripcion()?.activa && libro.precioDracoins > 0 && !libro.comprado">Acceso por Suscripción</span>
-              <div class="access-buttons-row">
-                <button (click)="leer(libro)" class="action-button read-button">
-                  Ver
+          <!-- Grupos de categorías principales (Artes Arcanas, Ciencia Ficción, etc.) -->
+          <div class="category-groups-bar">
+            @for (grupo of gruposCategoriasVisibles(); track grupo) {
+              <button
+                [class.active]="grupoSeleccionado() === grupo.key"
+                (click)="seleccionarGrupo(grupo.key)"
+                class="group-tab"
+                >
+                <svg [lucideIcon]="grupo.icon" class="group-tab-icon"></svg>
+                <span class="group-tab-name">{{ grupo.nombre }}</span>
+              </button>
+            }
+          </div>
+          <!-- Subcategorías del grupo seleccionado -->
+          @if (grupoSeleccionado() !== 'todas' && categoriasFiltradas().length > 0) {
+            <div class="subcategories-panel">
+              <div class="subcategories-title">Filtrar por subcategoría:</div>
+              <div class="subcategories-list">
+                <button
+                  [class.active]="categoriaSeleccionada() === null"
+                  (click)="seleccionarSubcategoria(null)"
+                  class="subcategory-pill"
+                  >
+                  Todas
                 </button>
-                <button (click)="descargar(libro)" class="action-button download-button" title="Descargar PDF/EPUB">
-                  Descargar
-                </button>
+                @for (cat of categoriasFiltradas(); track cat.id) {
+                  <button
+                    [class.active]="categoriaSeleccionada() === cat.id"
+                    (click)="seleccionarSubcategoria(cat.id)"
+                    class="subcategory-pill"
+                    >
+                    {{ cat.nombre }}
+                  </button>
+                }
               </div>
             </div>
-
-            <!-- Libro de Pago no comprado -->
-            <div *ngIf="libro.precioDracoins > 0 && !libro.comprado && !suscripcion()?.activa" class="purchase-box">
-                <span class="price-tag">
-                  <svg lucideIcon="coins" class="inline-coin"></svg>
-                  {{ libro.precioDracoins | number }} Dc.
-                </span>
-                <button (click)="comprar(libro)" class="action-button buy-button">
-                  Adquirir
-                </button>
-              </div>
-          </div>
+          }
         </div>
-      </div>
-    </div>
-
-    <!-- Paginación -->
-    <div *ngIf="!loading() && paginasTotales() > 1" class="pagination-controls">
-      <button 
-        [disabled]="paginaActual() === 1" 
-        (click)="cambiarPagina(paginaActual() - 1)" 
-        class="page-nav-btn"
-        title="Página Anterior"
-      >
-        <svg lucideIcon="chevron-left" class="btn-icon"></svg> Anterior
-      </button>
-
-      <div class="page-info">
-        <span>Página</span>
-        <span class="page-number-active">{{ paginaActual() }}</span>
-        <span>de</span>
-        <span>{{ paginasTotales() }}</span>
-      </div>
-
-      <button 
-        [disabled]="paginaActual() === paginasTotales()" 
-        (click)="cambiarPagina(paginaActual() + 1)" 
-        class="page-nav-btn"
-        title="Siguiente Página"
-      >
-        Siguiente <svg lucideIcon="chevron-right" class="btn-icon"></svg>
-      </button>
-    </div>
-  </div>
-
-  <!-- Pestaña de Suscripción Dedicada -->
-  <div *ngIf="tabActivo() === 'suscripcion'" class="suscripcion-tab-container">
-    <div class="suscripcion-card" [class.activa]="suscripcion()?.activa">
-      <div class="suscripcion-card-header">
-        <h2 class="suscripcion-card-title">
-          <svg lucideIcon="book-open" class="suscripcion-card-icon"></svg>
-          Pase de Suscripción Semanal
-        </h2>
-        <span class="suscripcion-status-badge" [class.activa]="suscripcion()?.activa">
-          {{ suscripcion()?.activa ? 'Activa' : 'Inactiva' }}
-        </span>
-      </div>
-
-      <div class="suscripcion-card-body">
-        <p class="suscripcion-card-desc" *ngIf="!suscripcion()?.activa">
-          Disfruta de acceso ilimitado de lectura y descarga para todos los libros de la orden por un costo semanal de <strong>{{ suscripcion()?.costoSuscripcion ?? 250 }} Dracoins</strong>. El cobro es recurrente y se renovará automáticamente cada 7 días mientras tengas saldo disponible.
-        </p>
-
-        <div class="suscripcion-card-details" *ngIf="suscripcion()?.activa">
-          <div class="detail-row">
-            <span class="detail-label">Fecha de Vencimiento:</span>
-            <span class="detail-value"><strong>{{ suscripcion()?.fechaVencimiento | date: 'dd/MM/yyyy' : 'UTC' }}</strong></span>
+        <!-- Estados de carga y vacío -->
+        @if (loading()) {
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Consultando los archivos de la biblioteca...</p>
           </div>
-          <div class="detail-row">
-            <span class="detail-label">Renovación Automática:</span>
-            <span class="detail-value">
-              <strong [style.color]="suscripcion()?.autoRenovacion ? 'var(--emerald)' : 'var(--danger)'">
-                {{ suscripcion()?.autoRenovacion ? 'Habilitada' : 'Cancelada' }}
-              </strong>
+        }
+        @if (!loading() && librosFiltrados().length === 0) {
+          <div class="empty-state">
+            <svg lucideIcon="book-open" class="empty-icon"></svg>
+            @if (tabActivo() === 'todos') {
+              <p>No se encontraron libros que coincidan con la búsqueda o los filtros.</p>
+            }
+            @if (tabActivo() === 'mis-libros') {
+              <p>Todavía no has adquirido ningún libro propio en esta categoría ni posees una suscripción activa.</p>
+            }
+          </div>
+        }
+        <!-- Grid de Libros -->
+        @if (!loading() && librosFiltrados().length > 0) {
+          <div class="books-grid">
+            @for (libro of librosPaginados(); track libro.id) {
+              <div class="book-card" (click)="abrirDetalle(libro)" style="cursor: pointer;">
+                <!-- Controles de edición rápidos en la esquina para Administradores -->
+                @if (esAdmin()) {
+                  <div class="admin-card-overlay" (click)="$event.stopPropagation()">
+                    <button (click)="abrirEditarLibroModal(libro)" class="card-admin-btn edit" title="Editar Libro">
+                      <svg lucideIcon="edit"></svg>
+                    </button>
+                    <button (click)="eliminarLibro(libro)" class="card-admin-btn delete" title="Eliminar Libro">
+                      <svg lucideIcon="trash-2"></svg>
+                    </button>
+                  </div>
+                }
+                <div class="book-cover" [class]="'book-cover-' + clasificarCategoria(libro.categoriaNombre)">
+                  <div class="book-spine"></div>
+                  <div class="book-cover-content">
+                    <span class="book-format-badge" [class.pdf]="libro.formato === '.pdf'">{{ libro.formato.replace('.', '').toUpperCase() }}</span>
+                    <h4 class="cover-book-title">{{ libro.titulo }}</h4>
+                    <p class="cover-book-author">{{ libro.autor }}</p>
+                  </div>
+                </div>
+                <div class="book-details">
+                  <span class="book-category">{{ libro.categoriaNombre }}</span>
+                  <h3 class="book-title" [title]="libro.titulo">{{ libro.titulo }}</h3>
+                  <p class="book-author">Por {{ libro.autor }}</p>
+                  @if (libro.sinopsis) {
+                    <p class="book-synopsis">{{ libro.sinopsis }}</p>
+                  }
+                  @if (!libro.sinopsis) {
+                    <p class="book-synopsis">Sin sinopsis disponible.</p>
+                  }
+                  <div class="book-action-area" (click)="$event.stopPropagation()">
+                    <!-- Libro Gratuito o Ya Comprado o con Acceso por Suscripción -->
+                    @if (libro.precioDracoins === 0 || libro.comprado || suscripcion()?.activa) {
+                      <div class="access-box">
+                        @if (libro.precioDracoins > 0 && !suscripcion()?.activa) {
+                          <span class="owned-tag">Adquirido</span>
+                        }
+                        @if (suscripcion()?.activa && libro.precioDracoins > 0 && !libro.comprado) {
+                          <span class="owned-tag sub">Acceso por Suscripción</span>
+                        }
+                        <div class="access-buttons-row">
+                          <button (click)="leer(libro)" class="action-button read-button">
+                            Ver
+                          </button>
+                          <button (click)="descargar(libro)" class="action-button download-button" title="Descargar PDF/EPUB">
+                            Descargar
+                          </button>
+                        </div>
+                      </div>
+                    }
+                    <!-- Libro de Pago no comprado -->
+                    @if (libro.precioDracoins > 0 && !libro.comprado && !suscripcion()?.activa) {
+                      <div class="purchase-box">
+                        <span class="price-tag">
+                          <svg lucideIcon="coins" class="inline-coin"></svg>
+                          {{ libro.precioDracoins | number }} Dc.
+                        </span>
+                        <button (click)="comprar(libro)" class="action-button buy-button">
+                          Adquirir
+                        </button>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+        <!-- Paginación -->
+        @if (!loading() && paginasTotales() > 1) {
+          <div class="pagination-controls">
+            <button
+              [disabled]="paginaActual() === 1"
+              (click)="cambiarPagina(paginaActual() - 1)"
+              class="page-nav-btn"
+              title="Página Anterior"
+              >
+              <svg lucideIcon="chevron-left" class="btn-icon"></svg> Anterior
+            </button>
+            <div class="page-info">
+              <span>Página</span>
+              <span class="page-number-active">{{ paginaActual() }}</span>
+              <span>de</span>
+              <span>{{ paginasTotales() }}</span>
+            </div>
+            <button
+              [disabled]="paginaActual() === paginasTotales()"
+              (click)="cambiarPagina(paginaActual() + 1)"
+              class="page-nav-btn"
+              title="Siguiente Página"
+              >
+              Siguiente <svg lucideIcon="chevron-right" class="btn-icon"></svg>
+            </button>
+          </div>
+        }
+      </div>
+    }
+    <!-- Pestaña de Suscripción Dedicada -->
+    @if (tabActivo() === 'suscripcion') {
+      <div class="suscripcion-tab-container">
+        <div class="suscripcion-card" [class.activa]="suscripcion()?.activa">
+          <div class="suscripcion-card-header">
+            <h2 class="suscripcion-card-title">
+              <svg lucideIcon="book-open" class="suscripcion-card-icon"></svg>
+              Pase de Suscripción Semanal
+            </h2>
+            <span class="suscripcion-status-badge" [class.activa]="suscripcion()?.activa">
+              {{ suscripcion()?.activa ? 'Activa' : 'Inactiva' }}
             </span>
           </div>
-          <p class="detail-disclaimer" *ngIf="!suscripcion()?.autoRenovacion">
-            * Tu suscripción no se renovará al expirar. Perderás el acceso el día indicado.
-          </p>
+          <div class="suscripcion-card-body">
+            @if (!suscripcion()?.activa) {
+              <p class="suscripcion-card-desc">
+                Disfruta de acceso ilimitado de lectura y descarga para todos los libros de la orden por un costo semanal de <strong>{{ suscripcion()?.costoSuscripcion ?? 250 }} Dracoins</strong>. El cobro es recurrente y se renovará automáticamente cada 7 días mientras tengas saldo disponible.
+              </p>
+            }
+            @if (suscripcion()?.activa) {
+              <div class="suscripcion-card-details">
+                <div class="detail-row">
+                  <span class="detail-label">Fecha de Vencimiento:</span>
+                  <span class="detail-value"><strong>{{ suscripcion()?.fechaVencimiento | date: 'dd/MM/yyyy' : 'UTC' }}</strong></span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Renovación Automática:</span>
+                  <span class="detail-value">
+                    <strong [style.color]="suscripcion()?.autoRenovacion ? 'var(--emerald)' : 'var(--danger)'">
+                      {{ suscripcion()?.autoRenovacion ? 'Habilitada' : 'Cancelada' }}
+                    </strong>
+                  </span>
+                </div>
+                @if (!suscripcion()?.autoRenovacion) {
+                  <p class="detail-disclaimer">
+                    * Tu suscripción no se renovará al expirar. Perderás el acceso el día indicado.
+                  </p>
+                }
+              </div>
+            }
+            <div class="suscripcion-card-actions">
+              @if (suscripcion()?.activa && suscripcion()?.autoRenovacion) {
+                <button (click)="cancelarSuscripcion()" class="action-btn cancel-sub-btn" [disabled]="loading()">
+                  Cancelar Renovación
+                </button>
+              }
+              @if (!suscripcion()?.activa || !suscripcion()?.autoRenovacion) {
+                <button (click)="suscribirse()" class="action-btn activate-sub-btn" [disabled]="loading()">
+                  <svg lucideIcon="coins" class="btn-icon-inline"></svg>
+                  {{ suscripcion()?.activa ? 'Reactivar Renovación (' + (suscripcion()?.costoSuscripcion ?? 250) + ' Dc)' : 'Activar Suscripción (' + (suscripcion()?.costoSuscripcion ?? 250) + ' Dc)' }}
+                </button>
+              }
+            </div>
+          </div>
         </div>
-
-        <div class="suscripcion-card-actions">
-          <button *ngIf="suscripcion()?.activa && suscripcion()?.autoRenovacion" (click)="cancelarSuscripcion()" class="action-btn cancel-sub-btn" [disabled]="loading()">
-            Cancelar Renovación
-          </button>
-          <button *ngIf="!suscripcion()?.activa || !suscripcion()?.autoRenovacion" (click)="suscribirse()" class="action-btn activate-sub-btn" [disabled]="loading()">
-            <svg lucideIcon="coins" class="btn-icon-inline"></svg>
-            {{ suscripcion()?.activa ? 'Reactivar Renovación (' + (suscripcion()?.costoSuscripcion ?? 250) + ' Dc)' : 'Activar Suscripción (' + (suscripcion()?.costoSuscripcion ?? 250) + ' Dc)' }}
-          </button>
+        <!-- Sección de Estadísticas de Biblioteca -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-card-icon-wrapper">
+              <svg lucideIcon="book-open" class="stat-card-icon"></svg>
+            </div>
+            <div class="stat-card-content">
+              <span class="stat-card-label">Libros Leídos</span>
+              <span class="stat-card-value">{{ suscripcion()?.librosVistos ?? 0 }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-icon-wrapper">
+              <svg lucideIcon="download" class="stat-card-icon"></svg>
+            </div>
+            <div class="stat-card-content">
+              <span class="stat-card-label">Libros Descargados</span>
+              <span class="stat-card-value">{{ suscripcion()?.librosDescargados ?? 0 }}</span>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-
-    <!-- Sección de Estadísticas de Biblioteca -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-card-icon-wrapper">
-          <svg lucideIcon="book-open" class="stat-card-icon"></svg>
-        </div>
-        <div class="stat-card-content">
-          <span class="stat-card-label">Libros Leídos</span>
-          <span class="stat-card-value">{{ suscripcion()?.librosVistos ?? 0 }}</span>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-card-icon-wrapper">
-          <svg lucideIcon="download" class="stat-card-icon"></svg>
-        </div>
-        <div class="stat-card-content">
-          <span class="stat-card-label">Libros Descargados</span>
-          <span class="stat-card-value">{{ suscripcion()?.librosDescargados ?? 0 }}</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
+    }
+  </section>
+}
 
 
 <!-- Visor de PDF/EPUB Pantalla Completa (Lectura) -->
-<div *ngIf="libroActivo()" class="reader-overlay">
-  <div class="reader-header">
-    <button (click)="cerrarLectura()" class="back-button">
-      <svg lucideIcon="arrow-left"></svg> Volver
-    </button>
-    <div class="reader-title-info">
-      <h2>{{ libroActivo()?.titulo }}</h2>
-      <p>{{ libroActivo()?.autor }}</p>
-    </div>
-    <div class="reader-header-actions">
-      <!-- Botón abrir en nueva pestaña (muy útil en móvil y siempre disponible) -->
-      <button 
-        *ngIf="libroActivo()?.formato === '.pdf'"
-        (click)="abrirEnNuevaPestana()" 
-        class="open-tab-button"
-        title="Abrir en nueva pestaña"
-      >
-        <svg lucideIcon="external-link"></svg>
-        <span class="open-tab-label">Nueva pestaña</span>
+@if (libroActivo()) {
+  <div class="reader-overlay">
+    <div class="reader-header">
+      <button (click)="cerrarLectura()" class="back-button">
+        <svg lucideIcon="arrow-left"></svg> Volver
       </button>
-      <button (click)="cerrarLectura()" class="close-button">
-        <svg lucideIcon="x"></svg>
-      </button>
-    </div>
-  </div>
-  
-  <div class="reader-body" (contextmenu)="$event.preventDefault()">
-    <!-- Si es PDF, renderizar iframe con fallback -->
-    <ng-container *ngIf="libroActivo()?.formato === '.pdf' && libroUrlSafe()">
-      <iframe [src]="libroUrlSafe()" class="pdf-iframe" frameborder="0"></iframe>
-      <!-- Fallback visible si el iframe falla (ej. móvil) -->
-      <div class="pdf-mobile-fallback">
-        <svg lucideIcon="file-text" class="epub-icon"></svg>
-        <h3>Visor no disponible aquí</h3>
-        <p>Tu navegador no puede mostrar el PDF integrado.<br/>Ábrelo en una nueva pestaña para leerlo.</p>
-        <button (click)="abrirEnNuevaPestana()" class="epub-download-btn">
-          <svg lucideIcon="external-link" class="btn-icon-inline"></svg>
-          Abrir PDF en nueva pestaña
-        </button>
-        <button (click)="descargar(libroActivo()!)" class="epub-download-btn" style="background: transparent; color: var(--gold); border: 1px solid var(--gold); box-shadow: none; margin-top: 10px;">
-          <svg lucideIcon="download" class="btn-icon-inline"></svg>
-          Descargar PDF
-        </button>
+      <div class="reader-title-info">
+        <h2>{{ libroActivo()?.titulo }}</h2>
+        <p>{{ libroActivo()?.autor }}</p>
       </div>
-    </ng-container>
-    
-    <!-- Si es EPUB, renderizar fallback amigable -->
-    <div *ngIf="libroActivo()?.formato === '.epub'" class="epub-fallback-container">
-      <div class="epub-fallback-box">
-        <svg lucideIcon="book-open" class="epub-icon"></svg>
-        <h3>Lectura en Formato EPUB</h3>
-        <p>Los archivos en formato EPUB no admiten previsualización directa en el navegador de la academia.</p>
-        <p class="epub-instruction">Para leerlo, por favor descarga el archivo y ábrelo en tu lector de libros electrónicos favorito (como Apple Books, Google Play Books, Lithium o Calibre).</p>
-        
-        <button (click)="descargar(libroActivo()!)" class="epub-download-btn">
-          <svg lucideIcon="download" class="btn-icon-inline"></svg>
-          Descargar Libro EPUB
+      <div class="reader-header-actions">
+        <!-- Botón abrir en nueva pestaña (muy útil en móvil y siempre disponible) -->
+        @if (libroActivo()?.formato === '.pdf') {
+          <button
+            (click)="abrirEnNuevaPestana()"
+            class="open-tab-button"
+            title="Abrir en nueva pestaña"
+            >
+            <svg lucideIcon="external-link"></svg>
+            <span class="open-tab-label">Nueva pestaña</span>
+          </button>
+        }
+        <button (click)="cerrarLectura()" class="close-button">
+          <svg lucideIcon="x"></svg>
         </button>
       </div>
     </div>
+    <div class="reader-body" (contextmenu)="$event.preventDefault()">
+      <!-- Si es PDF, renderizar iframe con fallback -->
+      @if (libroActivo()?.formato === '.pdf' && libroUrlSafe()) {
+        <iframe [src]="libroUrlSafe()" class="pdf-iframe" frameborder="0"></iframe>
+        <!-- Fallback visible si el iframe falla (ej. móvil) -->
+        <div class="pdf-mobile-fallback">
+          <svg lucideIcon="file-text" class="epub-icon"></svg>
+          <h3>Visor no disponible aquí</h3>
+          <p>Tu navegador no puede mostrar el PDF integrado.<br/>Ábrelo en una nueva pestaña para leerlo.</p>
+          <button (click)="abrirEnNuevaPestana()" class="epub-download-btn">
+            <svg lucideIcon="external-link" class="btn-icon-inline"></svg>
+            Abrir PDF en nueva pestaña
+          </button>
+          <button (click)="descargar(libroActivo()!)" class="epub-download-btn" style="background: transparent; color: var(--gold); border: 1px solid var(--gold); box-shadow: none; margin-top: 10px;">
+            <svg lucideIcon="download" class="btn-icon-inline"></svg>
+            Descargar PDF
+          </button>
+        </div>
+      }
+      <!-- Si es EPUB, renderizar fallback amigable -->
+      @if (libroActivo()?.formato === '.epub') {
+        <div class="epub-fallback-container">
+          <div class="epub-fallback-box">
+            <svg lucideIcon="book-open" class="epub-icon"></svg>
+            <h3>Lectura en Formato EPUB</h3>
+            <p>Los archivos en formato EPUB no admiten previsualización directa en el navegador de la academia.</p>
+            <p class="epub-instruction">Para leerlo, por favor descarga el archivo y ábrelo en tu lector de libros electrónicos favorito (como Apple Books, Google Play Books, Lithium o Calibre).</p>
+            <button (click)="descargar(libroActivo()!)" class="epub-download-btn">
+              <svg lucideIcon="download" class="btn-icon-inline"></svg>
+              Descargar Libro EPUB
+            </button>
+          </div>
+        </div>
+      }
+    </div>
   </div>
-</div>
+}
 
 <!-- MODAL CRUD DE EDICIÓN / REGISTRO DE LIBRO (Administradores) -->
-<div *ngIf="mostrarCrudModal()" class="crud-modal-overlay">
-  <div class="crud-modal-box">
-    <div class="crud-modal-header">
-      <h2>{{ editandoLibroId() !== null ? 'Editar Libro Antiguo' : 'Registrar Nuevo Libro' }}</h2>
-      <button (click)="cerrarCrudModal()" class="close-btn-crud">
-        <svg lucideIcon="x"></svg>
-      </button>
-    </div>
-
-    <div class="crud-modal-body">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Título del libro *</label>
-          <input type="text" [(ngModel)]="formTitulo" placeholder="Ej: La Filosofía de la Magia" class="crud-input" />
+@if (mostrarCrudModal()) {
+  <div class="crud-modal-overlay">
+    <div class="crud-modal-box">
+      <div class="crud-modal-header">
+        <h2>{{ editandoLibroId() !== null ? 'Editar Libro Antiguo' : 'Registrar Nuevo Libro' }}</h2>
+        <button (click)="cerrarCrudModal()" class="close-btn-crud">
+          <svg lucideIcon="x"></svg>
+        </button>
+      </div>
+      <div class="crud-modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Título del libro *</label>
+            <input type="text" [(ngModel)]="formTitulo" placeholder="Ej: La Filosofía de la Magia" class="crud-input" />
+          </div>
+          <div class="form-group">
+            <label>Autor *</label>
+            <input type="text" [(ngModel)]="formAutor" placeholder="Ej: Nicolas Flamel" class="crud-input" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Categoría</label>
+            <select [(ngModel)]="formIdCategoria" class="crud-input">
+              <option [value]="null">Sin Categoría</option>
+              @for (cat of categorias(); track cat.id) {
+                <option [value]="cat.id">{{ cat.nombre }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Precio en Dracoins</label>
+            <input type="number" [(ngModel)]="formPrecioDracoins" min="0" placeholder="0 para gratis" class="crud-input" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Ruta física del archivo *</label>
+            <input type="text" [(ngModel)]="formRutaArchivo" placeholder="Ej: Libros/PDF/nombre.pdf" class="crud-input" />
+          </div>
+          <div class="form-group">
+            <label>Formato *</label>
+            <select [(ngModel)]="formFormato" class="crud-input">
+              <option value=".pdf">PDF (.pdf)</option>
+              <option value=".epub">EPUB (.epub)</option>
+            </select>
+          </div>
         </div>
         <div class="form-group">
-          <label>Autor *</label>
-          <input type="text" [(ngModel)]="formAutor" placeholder="Ej: Nicolas Flamel" class="crud-input" />
+          <label>Sinopsis / Descripción</label>
+          <textarea [(ngModel)]="formSinopsis" rows="4" placeholder="Sinopsis del libro..." class="crud-textarea"></textarea>
+        </div>
+        <div class="form-group-checkbox">
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="formActivo" />
+            <span>Libro visible y activo en la biblioteca</span>
+          </label>
         </div>
       </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label>Categoría</label>
-          <select [(ngModel)]="formIdCategoria" class="crud-input">
-            <option [value]="null">Sin Categoría</option>
-            <option *ngFor="let cat of categorias()" [value]="cat.id">{{ cat.nombre }}</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Precio en Dracoins</label>
-          <input type="number" [(ngModel)]="formPrecioDracoins" min="0" placeholder="0 para gratis" class="crud-input" />
-        </div>
+      <div class="crud-modal-footer">
+        <button (click)="cerrarCrudModal()" class="crud-btn-cancel">Cancelar</button>
+        <button (click)="guardarLibro()" class="crud-btn-save" [disabled]="loading()">
+          <svg lucideIcon="check" class="btn-icon-inline"></svg>
+          {{ editandoLibroId() !== null ? 'Guardar Cambios' : 'Registrar Libro' }}
+        </button>
       </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label>Ruta física del archivo *</label>
-          <input type="text" [(ngModel)]="formRutaArchivo" placeholder="Ej: Libros/PDF/nombre.pdf" class="crud-input" />
-        </div>
-        <div class="form-group">
-          <label>Formato *</label>
-          <select [(ngModel)]="formFormato" class="crud-input">
-            <option value=".pdf">PDF (.pdf)</option>
-            <option value=".epub">EPUB (.epub)</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>Sinopsis / Descripción</label>
-        <textarea [(ngModel)]="formSinopsis" rows="4" placeholder="Sinopsis del libro..." class="crud-textarea"></textarea>
-      </div>
-
-      <div class="form-group-checkbox">
-        <label class="checkbox-label">
-          <input type="checkbox" [(ngModel)]="formActivo" />
-          <span>Libro visible y activo en la biblioteca</span>
-        </label>
-      </div>
-    </div>
-
-    <div class="crud-modal-footer">
-      <button (click)="cerrarCrudModal()" class="crud-btn-cancel">Cancelar</button>
-      <button (click)="guardarLibro()" class="crud-btn-save" [disabled]="loading()">
-        <svg lucideIcon="check" class="btn-icon-inline"></svg>
-        {{ editandoLibroId() !== null ? 'Guardar Cambios' : 'Registrar Libro' }}
-      </button>
     </div>
   </div>
-</div>
+}
 
 <!-- Modal de Información y Confirmación Personalizado -->
-<div *ngIf="modalConfig().visible" class="custom-modal-overlay">
-  <div class="custom-modal-box">
-    <div class="custom-modal-header">
-      <h3>
-        <svg lucideIcon="sparkles" class="modal-title-icon"></svg>
-        {{ modalConfig().title }}
-      </h3>
-      <button (click)="cerrarModalInfo()" class="close-btn-custom">
-        <svg lucideIcon="x"></svg>
-      </button>
-    </div>
-    <div class="custom-modal-body">
-      <p>{{ modalConfig().message }}</p>
-    </div>
-    <div class="custom-modal-footer">
-      <button *ngIf="modalConfig().isConfirm" (click)="modalConfig().onCancel ? modalConfig().onCancel!() : cerrarModalInfo()" class="modal-btn-cancel">
-        Cancelar
-      </button>
-      <button (click)="modalConfig().onAccept()" class="modal-btn-accept">
-        <svg lucideIcon="check" class="btn-icon-inline"></svg>
-        Aceptar
-      </button>
+@if (modalConfig().visible) {
+  <div class="custom-modal-overlay">
+    <div class="custom-modal-box">
+      <div class="custom-modal-header">
+        <h3>
+          <svg lucideIcon="sparkles" class="modal-title-icon"></svg>
+          {{ modalConfig().title }}
+        </h3>
+        <button (click)="cerrarModalInfo()" class="close-btn-custom">
+          <svg lucideIcon="x"></svg>
+        </button>
+      </div>
+      <div class="custom-modal-body">
+        <p>{{ modalConfig().message }}</p>
+      </div>
+      <div class="custom-modal-footer">
+        @if (modalConfig().isConfirm) {
+          <button (click)="modalConfig().onCancel ? modalConfig().onCancel!() : cerrarModalInfo()" class="modal-btn-cancel">
+            Cancelar
+          </button>
+        }
+        <button (click)="modalConfig().onAccept()" class="modal-btn-accept">
+          <svg lucideIcon="check" class="btn-icon-inline"></svg>
+          Aceptar
+        </button>
+      </div>
     </div>
   </div>
-</div>
+}
 
 <!-- MODAL DE DETALLES DE LIBRO -->
-<div *ngIf="libroDetalle()" class="custom-modal-overlay" (click)="cerrarDetalle()">
-  <div class="detail-modal-box" (click)="$event.stopPropagation()">
-    <div class="detail-modal-header">
-      <h3>
-        <svg lucideIcon="book-open" class="modal-title-icon"></svg>
-        Detalles del Libro
-      </h3>
-      <button (click)="cerrarDetalle()" class="close-btn-custom">
-        <svg lucideIcon="x"></svg>
-      </button>
-    </div>
-    <div class="detail-modal-body">
-      <div class="detail-book-info">
-        <!-- Portada en miniatura -->
-        <div class="book-cover {{ 'book-cover-' + clasificarCategoria(libroDetalle()!.categoriaNombre) }}" style="transform: none; pointer-events: none; width: 130px; height: 180px; flex-shrink: 0; border: 1px solid var(--border-strong);">
-          <div class="book-spine"></div>
-          <div class="book-cover-content">
-            <span class="book-format-badge" [class.pdf]="libroDetalle()!.formato === '.pdf'">
-              {{ libroDetalle()!.formato.replace('.', '').toUpperCase() }}
-            </span>
-            <h4 class="cover-book-title" style="font-size: 11px;">{{ libroDetalle()!.titulo }}</h4>
-            <p class="cover-book-author" style="font-size: 9px;">{{ libroDetalle()!.autor }}</p>
+@if (libroDetalle()) {
+  <div class="custom-modal-overlay" (click)="cerrarDetalle()">
+    <div class="detail-modal-box" (click)="$event.stopPropagation()">
+      <div class="detail-modal-header">
+        <h3>
+          <svg lucideIcon="book-open" class="modal-title-icon"></svg>
+          Detalles del Libro
+        </h3>
+        <button (click)="cerrarDetalle()" class="close-btn-custom">
+          <svg lucideIcon="x"></svg>
+        </button>
+      </div>
+      <div class="detail-modal-body">
+        <div class="detail-book-info">
+          <!-- Portada en miniatura -->
+          <div class="book-cover {{ 'book-cover-' + clasificarCategoria(libroDetalle()!.categoriaNombre) }}" style="transform: none; pointer-events: none; width: 130px; height: 180px; flex-shrink: 0; border: 1px solid var(--border-strong);">
+            <div class="book-spine"></div>
+            <div class="book-cover-content">
+              <span class="book-format-badge" [class.pdf]="libroDetalle()!.formato === '.pdf'">
+                {{ libroDetalle()!.formato.replace('.', '').toUpperCase() }}
+              </span>
+              <h4 class="cover-book-title" style="font-size: 11px;">{{ libroDetalle()!.titulo }}</h4>
+              <p class="cover-book-author" style="font-size: 9px;">{{ libroDetalle()!.autor }}</p>
+            </div>
           </div>
-        </div>
-        <!-- Información textual -->
-        <div class="detail-text-info">
-          <span class="book-category">{{ libroDetalle()!.categoriaNombre }}</span>
-          <h3 class="detail-title">{{ libroDetalle()!.titulo }}</h3>
-          <p class="detail-author">Por <strong>{{ libroDetalle()!.autor }}</strong></p>
-          
-          <div class="detail-synopsis-section">
-            <h4>Sinopsis:</h4>
-            <p class="detail-synopsis">{{ libroDetalle()!.sinopsis || 'Sin sinopsis disponible.' }}</p>
+          <!-- Información textual -->
+          <div class="detail-text-info">
+            <span class="book-category">{{ libroDetalle()!.categoriaNombre }}</span>
+            <h3 class="detail-title">{{ libroDetalle()!.titulo }}</h3>
+            <p class="detail-author">Por <strong>{{ libroDetalle()!.autor }}</strong></p>
+            <div class="detail-synopsis-section">
+              <h4>Sinopsis:</h4>
+              <p class="detail-synopsis">{{ libroDetalle()!.sinopsis || 'Sin sinopsis disponible.' }}</p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-    <div class="detail-modal-footer">
-      <button (click)="cerrarDetalle()" class="modal-btn-cancel">Cerrar</button>
-      
-      <!-- Acciones de Compra / Acceso -->
-      <div class="detail-actions">
-        <div *ngIf="libroDetalle()!.precioDracoins === 0 || libroDetalle()!.comprado || suscripcion()?.activa" class="access-buttons-row">
-          <button (click)="leerDesdeDetalle()" class="action-button read-button" style="padding: 8px 16px;">
-            Ver Libro
-          </button>
-          <button (click)="descargar(libroDetalle()!)" class="action-button download-button" style="padding: 8px 16px;">
-            Descargar
-          </button>
-        </div>
-        <div *ngIf="libroDetalle()!.precioDracoins > 0 && !libroDetalle()!.comprado && !suscripcion()?.activa" class="purchase-box">
-          <span class="price-tag" style="padding: 6px 10px; font-size: 13px;">
-            <svg lucideIcon="coins" class="inline-coin"></svg>
-            {{ libroDetalle()!.precioDracoins | number }} Dc.
-          </span>
-          <button (click)="comprarDesdeDetalle()" class="action-button buy-button" style="padding: 8px 16px;">
-            Adquirir
-          </button>
+      <div class="detail-modal-footer">
+        <button (click)="cerrarDetalle()" class="modal-btn-cancel">Cerrar</button>
+        <!-- Acciones de Compra / Acceso -->
+        <div class="detail-actions">
+          @if (libroDetalle()!.precioDracoins === 0 || libroDetalle()!.comprado || suscripcion()?.activa) {
+            <div class="access-buttons-row">
+              <button (click)="leerDesdeDetalle()" class="action-button read-button" style="padding: 8px 16px;">
+                Ver Libro
+              </button>
+              <button (click)="descargar(libroDetalle()!)" class="action-button download-button" style="padding: 8px 16px;">
+                Descargar
+              </button>
+            </div>
+          }
+          @if (libroDetalle()!.precioDracoins > 0 && !libroDetalle()!.comprado && !suscripcion()?.activa) {
+            <div class="purchase-box">
+              <span class="price-tag" style="padding: 6px 10px; font-size: 13px;">
+                <svg lucideIcon="coins" class="inline-coin"></svg>
+                {{ libroDetalle()!.precioDracoins | number }} Dc.
+              </span>
+              <button (click)="comprarDesdeDetalle()" class="action-button buy-button" style="padding: 8px 16px;">
+                Adquirir
+              </button>
+            </div>
+          }
         </div>
       </div>
     </div>
   </div>
-</div>
+}
 
 <!-- Modal Éxito de Compra -->
-<div *ngIf="mostrarModalExitoCompra()" class="custom-modal-overlay">
-  <div class="custom-modal-box">
-    <div class="custom-modal-header">
-      <h3>
-        <svg lucideIcon="sparkles" class="modal-title-icon"></svg>
-        ¡Libro Adquirido!
-      </h3>
-    </div>
-    <div class="custom-modal-body" style="text-align: center; padding: 30px 20px;">
-      <svg lucideIcon="check" style="width: 50px; height: 50px; color: #2b844b; margin: 0 auto 15px; display: block; filter: drop-shadow(0 0 5px rgba(43, 132, 75, 0.4));"></svg>
-      <p>Has adquirido con éxito el libro:<br/><strong>"{{ libroCompradoTitulo() }}"</strong>.</p>
-    </div>
-    <div class="custom-modal-footer" style="justify-content: space-between; gap: 10px;">
-      <button (click)="mostrarModalExitoCompra.set(false)" class="modal-btn-cancel" style="flex: 1;">
-        Seguir viendo libros
-      </button>
-      <button (click)="mostrarModalExitoCompra.set(false); cambiarTab('mis-libros')" class="modal-btn-accept" style="flex: 1; justify-content: center; margin: 0;">
-        Ir a mis libros
-      </button>
+@if (mostrarModalExitoCompra()) {
+  <div class="custom-modal-overlay">
+    <div class="custom-modal-box">
+      <div class="custom-modal-header">
+        <h3>
+          <svg lucideIcon="sparkles" class="modal-title-icon"></svg>
+          ¡Libro Adquirido!
+        </h3>
+      </div>
+      <div class="custom-modal-body" style="text-align: center; padding: 30px 20px;">
+        <svg lucideIcon="check" style="width: 50px; height: 50px; color: #2b844b; margin: 0 auto 15px; display: block; filter: drop-shadow(0 0 5px rgba(43, 132, 75, 0.4));"></svg>
+        <p>Has adquirido con éxito el libro:<br/><strong>"{{ libroCompradoTitulo() }}"</strong>.</p>
+      </div>
+      <div class="custom-modal-footer" style="justify-content: space-between; gap: 10px;">
+        <button (click)="mostrarModalExitoCompra.set(false)" class="modal-btn-cancel" style="flex: 1;">
+          Seguir viendo libros
+        </button>
+        <button (click)="mostrarModalExitoCompra.set(false); cambiarTab('mis-libros')" class="modal-btn-accept" style="flex: 1; justify-content: center; margin: 0;">
+          Ir a mis libros
+        </button>
+      </div>
     </div>
   </div>
-</div>
+}
 
 <!-- MODAL DE ADMINISTRACIÓN DE BIBLIOTECA -->
-<div *ngIf="mostrarAdminPanel()" class="admin-panel-overlay">
-  <div class="admin-panel-box">
-    <div class="admin-panel-header">
-      <h2>
-        <svg lucideIcon="edit" class="modal-title-icon"></svg>
-        Panel de Administración de la Biblioteca
-      </h2>
-      <button (click)="cerrarAdminPanel()" class="close-btn-admin">
-        <svg lucideIcon="x"></svg>
-      </button>
-    </div>
-
-    <!-- Sub-tabs del Panel Admin -->
-    <div class="admin-tabs-bar">
-      <button class="admin-tab-btn" [class.active]="tabAdmin() === 'balance'" (click)="cambiarTabAdmin('balance')">
-        Resumen / Balance
-      </button>
-      <button class="admin-tab-btn" [class.active]="tabAdmin() === 'libros'" (click)="cambiarTabAdmin('libros')">
-        Catálogo de Libros
-      </button>
-      <button class="admin-tab-btn" [class.active]="tabAdmin() === 'compras'" (click)="cambiarTabAdmin('compras')">
-        Historial de Compras
-      </button>
-      <button class="admin-tab-btn" [class.active]="tabAdmin() === 'descargas'" (click)="cambiarTabAdmin('descargas')">
-        Historial de Descargas
-      </button>
-      <button class="admin-tab-btn" [class.active]="tabAdmin() === 'suscritos'" (click)="cambiarTabAdmin('suscritos')">
-        Usuarios Suscritos
-      </button>
-    </div>
-
-    <div class="admin-panel-body">
-      <!-- 1. PESTAÑA: BALANCE / RESUMEN -->
-      <div *ngIf="tabAdmin() === 'balance'" class="admin-content-section animate-fade">
-        <div class="admin-stats-grid">
-          <div class="admin-stat-card">
-            <span class="admin-stat-label">Ingresos por Suscripciones (Semana)</span>
-            <span class="admin-stat-value gold">{{ balanceAdmin()?.ingresosSuscripciones | number }} Dc</span>
-          </div>
-          <div class="admin-stat-card">
-            <span class="admin-stat-label">Ingresos por Compras (Semana)</span>
-            <span class="admin-stat-value gold">{{ balanceAdmin()?.ingresosCompras | number }} Dc</span>
-          </div>
-          <div class="admin-stat-card">
-            <span class="admin-stat-label">Ingresos Totales (Semana)</span>
-            <span class="admin-stat-value gold total">{{ balanceAdmin()?.ingresosTotales | number }} Dc</span>
-          </div>
-          <div class="admin-stat-card">
-            <span class="admin-stat-label">Suscripciones Activas Hoy</span>
-            <span class="admin-stat-value">{{ balanceAdmin()?.totalSuscripcionesActivas ?? 0 }}</span>
-          </div>
-          <div class="admin-stat-card">
-            <span class="admin-stat-label">Total Libros en Catálogo</span>
-            <span class="admin-stat-value">{{ balanceAdmin()?.totalLibrosEnCatalogo ?? 0 }}</span>
-          </div>
-        </div>
+@if (mostrarAdminPanel()) {
+  <div class="admin-panel-overlay">
+    <div class="admin-panel-box">
+      <div class="admin-panel-header">
+        <h2>
+          <svg lucideIcon="edit" class="modal-title-icon"></svg>
+          Panel de Administración de la Biblioteca
+        </h2>
+        <button (click)="cerrarAdminPanel()" class="close-btn-admin">
+          <svg lucideIcon="x"></svg>
+        </button>
       </div>
-
-      <!-- 2. PESTAÑA: CATÁLOGO DE LIBROS (CRUD + IMPORT/EXPORT) -->
-      <div *ngIf="tabAdmin() === 'libros'" class="admin-content-section animate-fade">
-        <div class="admin-actions-row">
-          <div class="import-export-actions">
-            <button (click)="exportarBiblioteca()" class="admin-action-btn secondary" title="Exportar Catálogo a Excel">
-              <svg lucideIcon="download" class="btn-icon"></svg> Exportar Excel
-            </button>
-            <button (click)="adminFileInput.click()" class="admin-action-btn secondary" title="Importar Catálogo desde Excel">
-              <svg lucideIcon="upload" class="btn-icon"></svg> Importar Excel
-            </button>
-            <input 
-              #adminFileInput 
-              type="file" 
-              accept=".xlsx" 
-              (change)="onImportarArchivo($event)" 
-              style="display: none;" 
-            />
+      <!-- Sub-tabs del Panel Admin -->
+      <div class="admin-tabs-bar">
+        <button class="admin-tab-btn" [class.active]="tabAdmin() === 'balance'" (click)="cambiarTabAdmin('balance')">
+          Resumen / Balance
+        </button>
+        <button class="admin-tab-btn" [class.active]="tabAdmin() === 'libros'" (click)="cambiarTabAdmin('libros')">
+          Catálogo de Libros
+        </button>
+        <button class="admin-tab-btn" [class.active]="tabAdmin() === 'compras'" (click)="cambiarTabAdmin('compras')">
+          Historial de Compras
+        </button>
+        <button class="admin-tab-btn" [class.active]="tabAdmin() === 'descargas'" (click)="cambiarTabAdmin('descargas')">
+          Historial de Descargas
+        </button>
+        <button class="admin-tab-btn" [class.active]="tabAdmin() === 'suscritos'" (click)="cambiarTabAdmin('suscritos')">
+          Usuarios Suscritos
+        </button>
+      </div>
+      <div class="admin-panel-body">
+        <!-- 1. PESTAÑA: BALANCE / RESUMEN -->
+        @if (tabAdmin() === 'balance') {
+          <div class="admin-content-section animate-fade">
+            <div class="admin-stats-grid">
+              <div class="admin-stat-card">
+                <span class="admin-stat-label">Ingresos por Suscripciones (Semana)</span>
+                <span class="admin-stat-value gold">{{ balanceAdmin()?.ingresosSuscripciones | number }} Dc</span>
+              </div>
+              <div class="admin-stat-card">
+                <span class="admin-stat-label">Ingresos por Compras (Semana)</span>
+                <span class="admin-stat-value gold">{{ balanceAdmin()?.ingresosCompras | number }} Dc</span>
+              </div>
+              <div class="admin-stat-card">
+                <span class="admin-stat-label">Ingresos Totales (Semana)</span>
+                <span class="admin-stat-value gold total">{{ balanceAdmin()?.ingresosTotales | number }} Dc</span>
+              </div>
+              <div class="admin-stat-card">
+                <span class="admin-stat-label">Suscripciones Activas Hoy</span>
+                <span class="admin-stat-value">{{ balanceAdmin()?.totalSuscripcionesActivas ?? 0 }}</span>
+              </div>
+              <div class="admin-stat-card">
+                <span class="admin-stat-label">Total Libros en Catálogo</span>
+                <span class="admin-stat-value">{{ balanceAdmin()?.totalLibrosEnCatalogo ?? 0 }}</span>
+              </div>
+            </div>
           </div>
-          <button (click)="abrirNuevoLibroModal()" class="admin-action-btn">
-            <svg lucideIcon="plus" class="btn-icon"></svg> Añadir Libro
-          </button>
-        </div>
-
-        <div class="admin-table-wrapper">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th class="desktop-only">ID</th>
-                <th>Título</th>
-                <th class="desktop-only">Autor</th>
-                <th class="desktop-only">Categoría</th>
-                <th class="desktop-only">Formato</th>
-                <th>Precio</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let libro of libros()">
-                <td class="desktop-only">{{ libro.id }}</td>
-                <td class="bold">{{ libro.titulo }}</td>
-                <td class="desktop-only">{{ libro.autor }}</td>
-                <td class="desktop-only"><span class="tag-cat">{{ libro.categoriaNombre }}</span></td>
-                <td class="desktop-only"><span class="tag-fmt" [class.pdf]="libro.formato === '.pdf'">{{ libro.formato.replace('.', '').toUpperCase() }}</span></td>
-                <td class="gold">{{ libro.precioDracoins | number }} Dc.</td>
-                <td class="table-actions">
-                  <button (click)="abrirEditarLibroModal(libro)" class="action-table-btn edit" title="Editar">
-                    <svg lucideIcon="edit"></svg>
-                  </button>
-                  <button (click)="eliminarLibro(libro)" class="action-table-btn delete" title="Eliminar">
-                    <svg lucideIcon="trash-2"></svg>
-                  </button>
-                </td>
-              </tr>
-              <tr *ngIf="libros().length === 0">
-                <td colspan="7" class="text-center text-muted">No hay libros registrados en el catálogo.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 3. PESTAÑA: HISTORIAL DE COMPRAS -->
-      <div *ngIf="tabAdmin() === 'compras'" class="admin-content-section animate-fade">
-        <div class="admin-table-wrapper">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th class="desktop-only">ID</th>
-                <th>Alumno</th>
-                <th class="desktop-only">Código</th>
-                <th>Libro</th>
-                <th class="desktop-only">Fecha Compra</th>
-                <th>Monto Pagado</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let compra of comprasAdmin()">
-                <td class="desktop-only">{{ compra.id }}</td>
-                <td class="bold">{{ compra.alumnoNombre }}</td>
-                <td class="desktop-only">{{ compra.alumnoCodigo }}</td>
-                <td>{{ compra.libroTitulo }}</td>
-                <td class="desktop-only">{{ compra.fechaCompra | date: 'dd/MM/yyyy' : 'UTC' }}</td>
-                <td class="gold">{{ compra.montoPagado | number }} Dc.</td>
-              </tr>
-              <tr *ngIf="comprasAdmin().length === 0">
-                <td colspan="6" class="text-center text-muted">No se registran compras en el sistema.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 4. PESTAÑA: HISTORIAL DE DESCARGAS -->
-      <div *ngIf="tabAdmin() === 'descargas'" class="admin-content-section animate-fade">
-        <div class="admin-table-wrapper">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th class="desktop-only">ID</th>
-                <th>Alumno</th>
-                <th class="desktop-only">Código</th>
-                <th>Libro</th>
-                <th class="desktop-only">Fecha Descarga</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let descarga of descargasAdmin()">
-                <td class="desktop-only">{{ descarga.id }}</td>
-                <td class="bold">{{ descarga.alumnoNombre }}</td>
-                <td class="desktop-only">{{ descarga.alumnoCodigo }}</td>
-                <td>{{ descarga.libroTitulo }}</td>
-                <td class="desktop-only">{{ descarga.fechaDescarga | date: 'dd/MM/yyyy' : 'UTC' }}</td>
-              </tr>
-              <tr *ngIf="descargasAdmin().length === 0">
-                <td colspan="5" class="text-center text-muted">No se registran descargas en el sistema.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 5. PESTAÑA: USUARIOS SUSCRITOS -->
-      <div *ngIf="tabAdmin() === 'suscritos'" class="admin-content-section animate-fade">
-        <div class="admin-table-wrapper">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Alumno</th>
-                <th class="desktop-only">Código</th>
-                <th class="desktop-only">Fecha Inicio</th>
-                <th>Fecha Vencimiento</th>
-                <th class="desktop-only">Auto-Renovación</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let suscrito of suscritosAdmin()">
-                <td class="bold">{{ suscrito.alumnoNombre }}</td>
-                <td class="desktop-only">{{ suscrito.alumnoCodigo }}</td>
-                <td class="desktop-only">{{ suscrito.fechaInicio | date: 'dd/MM/yyyy' : 'UTC' }}</td>
-                <td>{{ suscrito.fechaVencimiento | date: 'dd/MM/yyyy' : 'UTC' }}</td>
-                <td class="desktop-only">
-                  <span class="badge-auto" [class.enabled]="suscrito.autoRenovacion">
-                    {{ suscrito.autoRenovacion ? 'Habilitada' : 'Inhabilitada' }}
-                  </span>
-                </td>
-                <td>
-                  <button (click)="revocarSuscripcion(suscrito.idAlumno, suscrito.alumnoNombre)" class="btn-revoke-sub">
-                    Revocar Pase
-                  </button>
-                </td>
-              </tr>
-              <tr *ngIf="suscritosAdmin().length === 0">
-                <td colspan="6" class="text-center text-muted">No hay alumnos suscritos actualmente.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        }
+        <!-- 2. PESTAÑA: CATÁLOGO DE LIBROS (CRUD + IMPORT/EXPORT) -->
+        @if (tabAdmin() === 'libros') {
+          <div class="admin-content-section animate-fade">
+            <div class="admin-actions-row">
+              <div class="import-export-actions">
+                <button (click)="exportarBiblioteca()" class="admin-action-btn secondary" title="Exportar Catálogo a Excel">
+                  <svg lucideIcon="download" class="btn-icon"></svg> Exportar Excel
+                </button>
+                <button (click)="adminFileInput.click()" class="admin-action-btn secondary" title="Importar Catálogo desde Excel">
+                  <svg lucideIcon="upload" class="btn-icon"></svg> Importar Excel
+                </button>
+                <input
+                  #adminFileInput
+                  type="file"
+                  accept=".xlsx"
+                  (change)="onImportarArchivo($event)"
+                  style="display: none;"
+                  />
+              </div>
+              <button (click)="abrirNuevoLibroModal()" class="admin-action-btn">
+                <svg lucideIcon="plus" class="btn-icon"></svg> Añadir Libro
+              </button>
+            </div>
+            <div class="admin-table-wrapper">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th class="desktop-only">ID</th>
+                    <th>Título</th>
+                    <th class="desktop-only">Autor</th>
+                    <th class="desktop-only">Categoría</th>
+                    <th class="desktop-only">Formato</th>
+                    <th>Precio</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (libro of libros(); track libro.id) {
+                    <tr>
+                      <td class="desktop-only">{{ libro.id }}</td>
+                      <td class="bold">{{ libro.titulo }}</td>
+                      <td class="desktop-only">{{ libro.autor }}</td>
+                      <td class="desktop-only"><span class="tag-cat">{{ libro.categoriaNombre }}</span></td>
+                      <td class="desktop-only"><span class="tag-fmt" [class.pdf]="libro.formato === '.pdf'">{{ libro.formato.replace('.', '').toUpperCase() }}</span></td>
+                      <td class="gold">{{ libro.precioDracoins | number }} Dc.</td>
+                      <td class="table-actions">
+                        <button (click)="abrirEditarLibroModal(libro)" class="action-table-btn edit" title="Editar">
+                          <svg lucideIcon="edit"></svg>
+                        </button>
+                        <button (click)="eliminarLibro(libro)" class="action-table-btn delete" title="Eliminar">
+                          <svg lucideIcon="trash-2"></svg>
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                  @if (libros().length === 0) {
+                    <tr>
+                      <td colspan="7" class="text-center text-muted">No hay libros registrados en el catálogo.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+        <!-- 3. PESTAÑA: HISTORIAL DE COMPRAS -->
+        @if (tabAdmin() === 'compras') {
+          <div class="admin-content-section animate-fade">
+            <div class="admin-table-wrapper">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th class="desktop-only">ID</th>
+                    <th>Alumno</th>
+                    <th class="desktop-only">Código</th>
+                    <th>Libro</th>
+                    <th class="desktop-only">Fecha Compra</th>
+                    <th>Monto Pagado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (compra of comprasAdmin(); track $index) {
+                    <tr>
+                      <td class="desktop-only">{{ compra.id }}</td>
+                      <td class="bold">{{ compra.alumnoNombre }}</td>
+                      <td class="desktop-only">{{ compra.alumnoCodigo }}</td>
+                      <td>{{ compra.libroTitulo }}</td>
+                      <td class="desktop-only">{{ compra.fechaCompra | date: 'dd/MM/yyyy' : 'UTC' }}</td>
+                      <td class="gold">{{ compra.montoPagado | number }} Dc.</td>
+                    </tr>
+                  }
+                  @if (comprasAdmin().length === 0) {
+                    <tr>
+                      <td colspan="6" class="text-center text-muted">No se registran compras en el sistema.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+        <!-- 4. PESTAÑA: HISTORIAL DE DESCARGAS -->
+        @if (tabAdmin() === 'descargas') {
+          <div class="admin-content-section animate-fade">
+            <div class="admin-table-wrapper">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th class="desktop-only">ID</th>
+                    <th>Alumno</th>
+                    <th class="desktop-only">Código</th>
+                    <th>Libro</th>
+                    <th class="desktop-only">Fecha Descarga</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (descarga of descargasAdmin(); track $index) {
+                    <tr>
+                      <td class="desktop-only">{{ descarga.id }}</td>
+                      <td class="bold">{{ descarga.alumnoNombre }}</td>
+                      <td class="desktop-only">{{ descarga.alumnoCodigo }}</td>
+                      <td>{{ descarga.libroTitulo }}</td>
+                      <td class="desktop-only">{{ descarga.fechaDescarga | date: 'dd/MM/yyyy' : 'UTC' }}</td>
+                    </tr>
+                  }
+                  @if (descargasAdmin().length === 0) {
+                    <tr>
+                      <td colspan="5" class="text-center text-muted">No se registran descargas en el sistema.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+        <!-- 5. PESTAÑA: USUARIOS SUSCRITOS -->
+        @if (tabAdmin() === 'suscritos') {
+          <div class="admin-content-section animate-fade">
+            <div class="admin-table-wrapper">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Alumno</th>
+                    <th class="desktop-only">Código</th>
+                    <th class="desktop-only">Fecha Inicio</th>
+                    <th>Fecha Vencimiento</th>
+                    <th class="desktop-only">Auto-Renovación</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (suscrito of suscritosAdmin(); track $index) {
+                    <tr>
+                      <td class="bold">{{ suscrito.alumnoNombre }}</td>
+                      <td class="desktop-only">{{ suscrito.alumnoCodigo }}</td>
+                      <td class="desktop-only">{{ suscrito.fechaInicio | date: 'dd/MM/yyyy' : 'UTC' }}</td>
+                      <td>{{ suscrito.fechaVencimiento | date: 'dd/MM/yyyy' : 'UTC' }}</td>
+                      <td class="desktop-only">
+                        <span class="badge-auto" [class.enabled]="suscrito.autoRenovacion">
+                          {{ suscrito.autoRenovacion ? 'Habilitada' : 'Inhabilitada' }}
+                        </span>
+                      </td>
+                      <td>
+                        <button (click)="revocarSuscripcion(suscrito.idAlumno, suscrito.alumnoNombre)" class="btn-revoke-sub">
+                          Revocar Pase
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                  @if (suscritosAdmin().length === 0) {
+                    <tr>
+                      <td colspan="6" class="text-center text-muted">No hay alumnos suscritos actualmente.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
       </div>
     </div>
   </div>
-</div>
+}

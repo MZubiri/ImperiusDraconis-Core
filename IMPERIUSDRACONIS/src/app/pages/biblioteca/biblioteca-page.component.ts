@@ -1,5 +1,5 @@
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { CommonModule } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, DestroyRef, inject, OnInit, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -39,7 +39,7 @@ import { AuthService } from '../../core/services/auth.service';
 @Component({
   selector: 'app-biblioteca-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideDynamicIcon],
+  imports: [DatePipe, DecimalPipe, FormsModule, LucideDynamicIcon],
   templateUrl: './biblioteca-page.component.html',
   styleUrls: ['./biblioteca-page.component.css'],
   providers: [
