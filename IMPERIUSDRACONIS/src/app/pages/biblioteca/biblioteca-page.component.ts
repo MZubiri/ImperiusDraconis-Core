@@ -483,6 +483,13 @@ export class BibliotecaPageComponent implements OnInit {
 
   leer(libro: BibliotecaLibro): void {
     const rawUrl = this.bibliotecaService.getLeerUrl(libro.id);
+    // Validar antes del iframe y de la apertura en una pestaña móvil.
+    const isValidProtocol = /^https?:\/\//i.test(rawUrl)
+      || (rawUrl.startsWith('/') && !rawUrl.startsWith('//'));
+    if (!isValidProtocol || /[\\\u0000-\u0020\u007f]/.test(rawUrl)) {
+      console.warn('URL de libro rechazada por protocolo inseguro.');
+      return;
+    }
 
     // En móvil, Chrome Android no puede mostrar PDFs en iframes.
     // Abrimos directamente en nueva pestaña para usar el visor nativo.
