@@ -92,19 +92,17 @@ builder.Services.AddSwaggerGen(options =>
         "ImperiusDraconisAPI.xml"));
 });
 
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+if (corsOrigins is not { Length: > 0 } || corsOrigins.Any(origin => string.IsNullOrWhiteSpace(origin) || origin == "*"))
+{
+    throw new InvalidOperationException(
+        "Cors:AllowedOrigins no esta configurado. No se permite arrancar sin origenes definidos.");
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AngularDevClient", policy =>
-    {
-        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
-        if (origins is { Length: > 0 })
-        {
-            policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod();
-            return;
-        }
-
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
-    });
+        policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod());
 });
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
