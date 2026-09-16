@@ -1,5 +1,6 @@
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import {
@@ -71,6 +72,7 @@ import { AuthService } from '../../core/services/auth.service';
   ]
 })
 export class BibliotecaPageComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly bibliotecaService = inject(BibliotecaService);
   private readonly authService = inject(AuthService);
   private readonly sanitizer = inject(DomSanitizer);
@@ -306,7 +308,7 @@ export class BibliotecaPageComponent implements OnInit {
     this.loading.set(true);
     this.errorMsg.set('');
 
-    this.bibliotecaService.unlock(this.passwordInput()).subscribe({
+    this.bibliotecaService.unlock(this.passwordInput()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         if (res.success) {
           sessionStorage.setItem('biblioteca_desbloqueada', 'true');
@@ -326,12 +328,12 @@ export class BibliotecaPageComponent implements OnInit {
     this.errorMsg.set('');
 
     // Cargar categorias
-    this.bibliotecaService.getCategorias().subscribe({
+    this.bibliotecaService.getCategorias().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (cats) => this.categorias.set(cats)
     });
 
     // Cargar estado de la suscripción
-    this.bibliotecaService.getSuscripcionStatus().subscribe({
+    this.bibliotecaService.getSuscripcionStatus().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (status) => this.suscripcion.set(status)
     });
 
@@ -344,7 +346,7 @@ export class BibliotecaPageComponent implements OnInit {
     const soloMisLibros = this.tabActivo() === 'mis-libros';
 
     // Se solicita sin ID de categoría para filtrar localmente en cliente y soportar agrupaciones dinámicas
-    this.bibliotecaService.getLibros(null, this.busquedaInput(), soloMisLibros).subscribe({
+    this.bibliotecaService.getLibros(null, this.busquedaInput(), soloMisLibros).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (lbs) => {
         this.libros.set(lbs);
         this.paginaActual.set(1); // Resetear paginación al buscar
@@ -384,7 +386,7 @@ export class BibliotecaPageComponent implements OnInit {
     if (tab !== 'suscripcion') {
       this.buscarLibros();
     } else {
-      this.bibliotecaService.getSuscripcionStatus().subscribe({
+      this.bibliotecaService.getSuscripcionStatus().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (status) => this.suscripcion.set(status)
       });
     }
@@ -404,12 +406,12 @@ export class BibliotecaPageComponent implements OnInit {
       `¿Estás seguro de que deseas comprar "${libro.titulo}" por ${libro.precioDracoins} Dracoins?`,
       () => {
         this.loading.set(true);
-        this.bibliotecaService.comprarLibro(libro.id).subscribe({
+        this.bibliotecaService.comprarLibro(libro.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (res) => {
             if (res.success) {
               this.libroCompradoTitulo.set(libro.titulo);
               this.mostrarModalExitoCompra.set(true);
-              this.authService.hydrateSession().subscribe();
+              this.authService.hydrateSession().pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
               this.buscarLibros();
             }
           },
@@ -442,11 +444,11 @@ export class BibliotecaPageComponent implements OnInit {
       confirmMsg,
       () => {
         this.loading.set(true);
-        this.bibliotecaService.suscribirse().subscribe({
+        this.bibliotecaService.suscribirse().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (res) => {
             if (res.success) {
               this.mostrarAlerta('Éxito', res.message);
-              this.authService.hydrateSession().subscribe();
+              this.authService.hydrateSession().pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
               this.cargarDatos(); // Recarga libros y estado de suscripción
             }
           },
@@ -465,7 +467,7 @@ export class BibliotecaPageComponent implements OnInit {
       '¿Estás seguro de que deseas cancelar la renovación automática de tu suscripción? Seguirás teniendo acceso completo hasta el final de tu período actual.',
       () => {
         this.loading.set(true);
-        this.bibliotecaService.cancelarSuscripcion().subscribe({
+        this.bibliotecaService.cancelarSuscripcion().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (res) => {
             if (res.success) {
               this.mostrarAlerta('Suscripción Cancelada', res.message);
@@ -496,9 +498,9 @@ export class BibliotecaPageComponent implements OnInit {
     if (libro.formato === '.pdf' && this.esMobile) {
       window.open(rawUrl, '_blank');
       // Registrar lectura de todas formas
-      this.bibliotecaService.registrarLectura(libro.id).subscribe({
+      this.bibliotecaService.registrarLectura(libro.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
-          this.bibliotecaService.getSuscripcionStatus().subscribe({
+          this.bibliotecaService.getSuscripcionStatus().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
             next: (status) => this.suscripcion.set(status)
           });
         }
@@ -511,9 +513,9 @@ export class BibliotecaPageComponent implements OnInit {
     this.libroUrlRaw.set(rawUrl);
     this.libroUrlSafe.set(this.sanitizer.bypassSecurityTrustResourceUrl(rawUrl));
     
-    this.bibliotecaService.registrarLectura(libro.id).subscribe({
+    this.bibliotecaService.registrarLectura(libro.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
-        this.bibliotecaService.getSuscripcionStatus().subscribe({
+        this.bibliotecaService.getSuscripcionStatus().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (status) => this.suscripcion.set(status)
         });
       }
@@ -550,7 +552,7 @@ export class BibliotecaPageComponent implements OnInit {
 
   descargar(libro: BibliotecaLibro): void {
     this.loading.set(true);
-    this.bibliotecaService.descargarLibro(libro.id).subscribe({
+    this.bibliotecaService.descargarLibro(libro.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (blob) => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -562,7 +564,7 @@ export class BibliotecaPageComponent implements OnInit {
         window.URL.revokeObjectURL(url);
         
         // Refrescar el estado de la suscripción para actualizar las descargas usadas
-        this.bibliotecaService.getSuscripcionStatus().subscribe({
+        this.bibliotecaService.getSuscripcionStatus().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (status) => {
             this.suscripcion.set(status);
             this.loading.set(false);
@@ -649,6 +651,7 @@ export class BibliotecaPageComponent implements OnInit {
       : this.bibliotecaService.crearLibro(payload);
 
     request$.pipe(
+      takeUntilDestroyed(this.destroyRef),
       finalize(() => this.loading.set(false))
     ).subscribe({
       next: (res) => {
@@ -669,6 +672,7 @@ export class BibliotecaPageComponent implements OnInit {
       () => {
         this.loading.set(true);
         this.bibliotecaService.eliminarLibro(libro.id).pipe(
+          takeUntilDestroyed(this.destroyRef),
           finalize(() => this.loading.set(false))
         ).subscribe({
           next: (res) => {
@@ -686,6 +690,7 @@ export class BibliotecaPageComponent implements OnInit {
   exportarBiblioteca(): void {
     this.loading.set(true);
     this.bibliotecaService.exportarExcel().pipe(
+      takeUntilDestroyed(this.destroyRef),
       finalize(() => this.loading.set(false))
     ).subscribe({
       next: (blob) => {
@@ -715,6 +720,7 @@ export class BibliotecaPageComponent implements OnInit {
       () => {
         this.loading.set(true);
         this.bibliotecaService.importarExcel(file).pipe(
+          takeUntilDestroyed(this.destroyRef),
           finalize(() => {
             this.loading.set(false);
             input.value = ''; // Limpiar el input para permitir subir el mismo archivo después
@@ -758,6 +764,7 @@ export class BibliotecaPageComponent implements OnInit {
 
     if (tab === 'balance') {
       this.bibliotecaService.getBalanceAdmin().pipe(
+        takeUntilDestroyed(this.destroyRef),
         finalize(() => this.loading.set(false))
       ).subscribe({
         next: (res) => this.balanceAdmin.set(res),
@@ -765,6 +772,7 @@ export class BibliotecaPageComponent implements OnInit {
       });
     } else if (tab === 'compras') {
       this.bibliotecaService.getComprasAdmin().pipe(
+        takeUntilDestroyed(this.destroyRef),
         finalize(() => this.loading.set(false))
       ).subscribe({
         next: (res) => this.comprasAdmin.set(res),
@@ -772,6 +780,7 @@ export class BibliotecaPageComponent implements OnInit {
       });
     } else if (tab === 'descargas') {
       this.bibliotecaService.getDescargasAdmin().pipe(
+        takeUntilDestroyed(this.destroyRef),
         finalize(() => this.loading.set(false))
       ).subscribe({
         next: (res) => this.descargasAdmin.set(res),
@@ -779,6 +788,7 @@ export class BibliotecaPageComponent implements OnInit {
       });
     } else if (tab === 'suscritos') {
       this.bibliotecaService.getSuscritosAdmin().pipe(
+        takeUntilDestroyed(this.destroyRef),
         finalize(() => this.loading.set(false))
       ).subscribe({
         next: (res) => this.suscritosAdmin.set(res),
@@ -796,6 +806,7 @@ export class BibliotecaPageComponent implements OnInit {
       () => {
         this.loading.set(true);
         this.bibliotecaService.revocarSuscripcionAdmin(idAlumno).pipe(
+          takeUntilDestroyed(this.destroyRef),
           finalize(() => this.loading.set(false))
         ).subscribe({
           next: (res) => {
