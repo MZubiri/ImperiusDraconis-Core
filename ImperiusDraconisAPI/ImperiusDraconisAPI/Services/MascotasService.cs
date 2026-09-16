@@ -60,7 +60,7 @@ public sealed class MascotasService
                    SELECT COUNT(*)
                    FROM MascotasPorAlumno
                    WHERE Estado IN ('Suscrita', 'No activa')
-                     AND (FechaUltimoPago IS NULL OR CONVERT(date, FechaUltimoPago) < @InicioSemana)
+                     AND (FechaUltimoPago IS NULL OR DATE(FechaUltimoPago) < @InicioSemana)
                    """,
                    connection))
         {
@@ -687,7 +687,7 @@ public sealed class MascotasService
             query.Append(
                 """
                  AND MPA.Estado IN ('Suscrita', 'No activa')
-                 AND (MPA.FechaUltimoPago IS NULL OR CONVERT(date, MPA.FechaUltimoPago) < @InicioSemana)
+                 AND (MPA.FechaUltimoPago IS NULL OR DATE(MPA.FechaUltimoPago) < @InicioSemana)
                 """);
             command.Parameters.AddWithValue("@InicioSemana", GetStartOfWeek(DateTime.Today));
         }
@@ -807,7 +807,7 @@ public sealed class MascotasService
             INNER JOIN Alumnos A ON A.IdAlumno = MPA.IdAlumno
             INNER JOIN Mascotas M ON M.IdMascota = MPA.IdMascota
             WHERE MPA.Estado IN ('Suscrita', 'No activa')
-              AND (MPA.FechaUltimoPago IS NULL OR CONVERT(date, MPA.FechaUltimoPago) < @InicioSemana)
+              AND (MPA.FechaUltimoPago IS NULL OR DATE(MPA.FechaUltimoPago) < @InicioSemana)
             ORDER BY A.Nombre, M.Nombre, MPA.IdMascotaAlumno
             """,
             connection,
@@ -858,7 +858,7 @@ public sealed class MascotasService
             INNER JOIN Mascotas M ON M.IdMascota = MPA.IdMascota
             WHERE MPA.IdMascotaAlumno = @IdMascotaAlumno
               AND MPA.Estado IN ('Suscrita', 'No activa')
-              AND (MPA.FechaUltimoPago IS NULL OR CONVERT(date, MPA.FechaUltimoPago) < @InicioSemana)
+              AND (MPA.FechaUltimoPago IS NULL OR DATE(MPA.FechaUltimoPago) < @InicioSemana)
             """,
             connection,
             transaction);

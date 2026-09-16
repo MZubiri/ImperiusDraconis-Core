@@ -751,7 +751,7 @@ public sealed class BibliotecaService
                 {
                     // Crear categoria nueva en caliente
                     using var insertCatCmd = new MySqlCommand(
-                        "INSERT INTO BibliotecaCategorias (Nombre, Descripcion, Activo) OUTPUT INSERTED.Id VALUES (@Nombre, @Descripcion, 1)",
+                        "INSERT INTO BibliotecaCategorias (Nombre, Descripcion, Activo) VALUES (@Nombre, @Descripcion, 1); SELECT LAST_INSERT_ID();",
                         connection);
                     insertCatCmd.Parameters.AddWithValue("@Nombre", catNombre);
                     insertCatCmd.Parameters.AddWithValue("@Descripcion", $"Categoria creada en importacion");

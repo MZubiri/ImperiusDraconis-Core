@@ -503,8 +503,8 @@ public sealed class AlumnosService
         using var command = new MySqlCommand(
             """
             INSERT INTO NotasAlumno (IdAlumno, Nota)
-            OUTPUT INSERTED.IdNota, INSERTED.IdAlumno, INSERTED.Nota, INSERTED.Fecha
-            VALUES (@IdAlumno, @Nota)
+            VALUES (@IdAlumno, @Nota);
+            SELECT IdNota, IdAlumno, Nota, Fecha FROM NotasAlumno WHERE IdNota = LAST_INSERT_ID();
             """,
             connection);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);

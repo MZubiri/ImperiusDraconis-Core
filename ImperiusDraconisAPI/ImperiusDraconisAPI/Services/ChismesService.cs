@@ -144,8 +144,7 @@ public sealed class ChismesService
             using (var command = new MySqlCommand(
                        """
                        INSERT INTO Chismes (IdAlumno, Texto)
-                       OUTPUT INSERTED.IdChisme
-                       VALUES (@IdAlumno, @Texto)
+                       VALUES (@IdAlumno, @Texto); SELECT LAST_INSERT_ID();
                        """,
                        connection,
                        (MySqlTransaction)transaction))
