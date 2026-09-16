@@ -31,7 +31,15 @@ export interface RecoverPasswordResponse {
   temporaryPasswordPreview: string | null;
 }
 
+export interface TokenResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
+  user: AuthenticatedUser;
+}
+
 export interface AuthSession {
+  refreshToken?: string;
   token: string;
   expiresAt: string;
   user: AuthenticatedUser;

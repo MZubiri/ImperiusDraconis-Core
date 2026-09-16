@@ -10,5 +10,7 @@ public sealed class JwtOptions
 
     public string SecretKey { get; set; } = string.Empty;
 
-    public int ExpirationMinutes { get; set; } = 480;
+    public int ExpirationMinutes { get; set; } = 30;
+
+    public int RefreshTokenExpirationDays { get; set; } = 7;
 }

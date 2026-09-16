@@ -1,10 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, Observable, of, tap } from 'rxjs';
+import { catchError, finalize, map, Observable, of, shareReplay, tap, throwError } from 'rxjs';
 import { RuntimeConfigService } from './runtime-config.service';
 import {
   AuthenticatedUser,
+  TokenResponse,
   AuthSession,
   LoginRequest,
   RecoverPasswordRequest,
@@ -20,6 +21,8 @@ export class AuthService {
   private readonly router = inject(Router);
   private readonly sessionState = signal<AuthSession | null>(this.readSession());
 
+  private refreshInFlight: Observable<AuthSession> | null = null;
+
   readonly session = this.sessionState.asReadonly();
   readonly token = computed(() => this.sessionState()?.token ?? null);
   readonly user = computed(() => this.sessionState()?.user ?? null);
@@ -30,6 +33,33 @@ export class AuthService {
     return this.http.post<AuthSession>(`${this.runtimeConfig.apiUrl}/auth/login`, payload).pipe(
       tap((session) => this.persistSession(session))
     );
+  }
+
+  refreshToken(): Observable<AuthSession> {
+    if (this.refreshInFlight) return this.refreshInFlight;
+    const current = this.sessionState();
+    if (!current?.refreshToken) return throwError(() => new Error('La sesión no puede renovarse.'));
+
+    this.refreshInFlight = this.http.post<TokenResponse>(`${this.runtimeConfig.apiUrl}/auth/refresh`, {
+      refreshToken: current.refreshToken
+    }).pipe(
+      map((response): AuthSession => ({
+        token: response.accessToken,
+        refreshToken: response.refreshToken,
+        expiresAt: response.expiresAt,
+        user: response.user
+      })),
+      tap((session) => {
+        // No restaurar una sesión cerrada o reemplazada durante la petición.
+        if (this.sessionState()?.refreshToken !== current.refreshToken) {
+          throw new Error('La sesión ha cambiado.');
+        }
+        this.persistSession(session);
+      }),
+      finalize(() => { this.refreshInFlight = null; }),
+      shareReplay({ bufferSize: 1, refCount: false })
+    );
+    return this.refreshInFlight;
   }
 
   recoverPassword(payload: RecoverPasswordRequest): Observable<RecoverPasswordResponse> {

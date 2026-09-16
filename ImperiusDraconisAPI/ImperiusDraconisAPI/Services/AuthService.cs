@@ -101,9 +101,61 @@ public sealed class AuthService
         return new LoginResponse
         {
             Token = BuildToken(user, expiresAt),
+            RefreshToken = await StoreRefreshTokenAsync(connection, null, user.IdAlumno, cancellationToken),
             ExpiresAt = expiresAt,
             User = user
         };
+    }
+
+    private static string GenerateRefreshToken() => Convert.ToHexString(RandomNumberGenerator.GetBytes(64));
+
+    private static string HashRefreshToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
+    private async Task<string> StoreRefreshTokenAsync(
+        MySqlConnection connection, MySqlTransaction? transaction, int idAlumno, CancellationToken ct)
+    {
+        var token = GenerateRefreshToken();
+        await using var command = new MySqlCommand(
+            "INSERT INTO RefreshTokens (IdAlumno, Token, ExpiresAt, CreatedAt) VALUES (@IdAlumno, @Hash, @ExpiresAt, UTC_TIMESTAMP(3));",
+            connection, transaction);
+        command.Parameters.AddWithValue("@IdAlumno", idAlumno);
+        command.Parameters.AddWithValue("@Hash", HashRefreshToken(token));
+        command.Parameters.AddWithValue("@ExpiresAt", DateTime.UtcNow.AddDays(_jwtOptions.RefreshTokenExpirationDays));
+        await command.ExecuteNonQueryAsync(ct);
+        return token;
+    }
+
+    public async Task<TokenResponse?> RefreshAsync(string refreshToken, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken) || refreshToken.Length != 128) return null;
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(ct);
+        await using var transaction = await connection.BeginTransactionAsync(ct);
+        await using var command = new MySqlCommand(
+            """
+            SELECT IdAlumno FROM RefreshTokens
+            WHERE Token = @Hash AND RevokedAt IS NULL AND ExpiresAt > UTC_TIMESTAMP(3)
+            FOR UPDATE;
+            """, connection, transaction);
+        command.Parameters.AddWithValue("@Hash", HashRefreshToken(refreshToken));
+        var value = await command.ExecuteScalarAsync(ct);
+        if (value is null or DBNull) return null;
+        var user = await GetCurrentUserAsync(connection, Convert.ToInt32(value), ct, transaction);
+        if (user is null) return null;
+
+        command.CommandText = "UPDATE RefreshTokens SET RevokedAt = UTC_TIMESTAMP(3) WHERE Token = @Hash AND RevokedAt IS NULL;";
+        if (await command.ExecuteNonQueryAsync(ct) != 1) return null;
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(_jwtOptions.ExpirationMinutes);
+        var response = new TokenResponse
+        {
+            AccessToken = BuildToken(user, expiresAt),
+            RefreshToken = await StoreRefreshTokenAsync(connection, transaction, user.IdAlumno, ct),
+            ExpiresAt = expiresAt,
+            User = user
+        };
+        await transaction.CommitAsync(ct);
+        return response;
     }
 
     public async Task<AuthenticatedUserDto?> GetCurrentUserAsync(int idAlumno, CancellationToken cancellationToken)
@@ -215,7 +267,8 @@ public sealed class AuthService
     private async Task<AuthenticatedUserDto?> GetCurrentUserAsync(
         MySqlConnection connection,
         int idAlumno,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        MySqlTransaction? transaction = null)
     {
         using var command = new MySqlCommand(
             """
@@ -237,7 +290,7 @@ public sealed class AuthService
             WHERE A.IdAlumno = @IdAlumno
               AND A.Activo = 1
             """,
-            connection);
+            connection, transaction);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
 
         AuthenticatedUserDto? baseUser = null;
@@ -264,8 +317,8 @@ public sealed class AuthService
             };
         }
 
-        var trabajos = await GetTrabajosAsync(connection, baseUser.IdAlumno, cancellationToken);
-        var permisos = await GetPermisosAsync(connection, baseUser.IdCargo, trabajos, cancellationToken);
+        var trabajos = await GetTrabajosAsync(connection, baseUser.IdAlumno, cancellationToken, transaction);
+        var permisos = await GetPermisosAsync(connection, baseUser.IdCargo, trabajos, cancellationToken, transaction);
 
         return new AuthenticatedUserDto
         {
@@ -288,12 +341,13 @@ public sealed class AuthService
     private async Task<IReadOnlyList<int>> GetTrabajosAsync(
         MySqlConnection connection,
         int idAlumno,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        MySqlTransaction? transaction = null)
     {
         var trabajos = new List<int>();
         using var command = new MySqlCommand(
             "SELECT IdTrabajo FROM AlumnosTrabajos WHERE IdAlumno = @IdAlumno",
-            connection);
+            connection, transaction);
         command.Parameters.AddWithValue("@IdAlumno", idAlumno);
 
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -309,7 +363,8 @@ public sealed class AuthService
         MySqlConnection connection,
         int? idCargo,
         IReadOnlyCollection<int> trabajos,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        MySqlTransaction? transaction = null)
     {
         var permisos = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -326,7 +381,7 @@ public sealed class AuthService
                 FROM Permisos
                 WHERE IdCargo = @IdCargo AND TienePermiso = 1
                 """,
-                connection);
+                connection, transaction);
             cargoCommand.Parameters.AddWithValue("@IdCargo", idCargo.Value);
 
             using var cargoReader = await cargoCommand.ExecuteReaderAsync(cancellationToken);
@@ -350,7 +405,7 @@ public sealed class AuthService
                   AND IdTrabajo IN ({string.Join(", ", parameterNames)})
                 """;
 
-            using var trabajosCommand = new MySqlCommand(sql, connection);
+            using var trabajosCommand = new MySqlCommand(sql, connection, transaction);
             for (var index = 0; index < trabajos.Count; index++)
             {
                 trabajosCommand.Parameters.AddWithValue(parameterNames[index], trabajos.ElementAt(index));
@@ -441,6 +496,7 @@ public sealed class AuthService
     {
         var claims = new List<Claim>
         {
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(JwtRegisteredClaimNames.Sub, user.IdAlumno.ToString(CultureInfo.InvariantCulture)),
             new(JwtRegisteredClaimNames.UniqueName, user.Codigo),
             new(ClaimTypes.NameIdentifier, user.IdAlumno.ToString(CultureInfo.InvariantCulture)),

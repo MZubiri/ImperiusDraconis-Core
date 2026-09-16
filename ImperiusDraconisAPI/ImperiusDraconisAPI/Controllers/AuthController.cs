@@ -74,6 +74,18 @@ public sealed class AuthController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
+    [EnableRateLimiting("LoginPolicy")]
+    [HttpPost("refresh")]
+    [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<TokenResponse>> Refresh(
+        [FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
+    {
+        var response = await _authService.RefreshAsync(request.RefreshToken, cancellationToken);
+        return response is null ? Unauthorized() : Ok(response);
+    }
+
     [Authorize]
     [HttpGet("me")]
     [ProducesResponseType(typeof(AuthenticatedUserDto), StatusCodes.Status200OK)]

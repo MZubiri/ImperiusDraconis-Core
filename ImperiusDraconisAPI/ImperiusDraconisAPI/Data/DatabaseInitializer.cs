@@ -46,6 +46,11 @@ public static class DatabaseInitializer
                 return;
             }
 
+            var refreshTokensScript = Path.Combine(rootPath, "017_create_refresh_tokens.sql");
+            if (!File.Exists(refreshTokensScript))
+                throw new FileNotFoundException("Falta la migracion de refresh tokens.", refreshTokensScript);
+            await ExecuteSqlScriptAsync(connection, await File.ReadAllTextAsync(refreshTokensScript));
+
             // Nota: El esquema e información ya contienen emojis y estructuras de landing publica.
 
             if (!tableExists)
