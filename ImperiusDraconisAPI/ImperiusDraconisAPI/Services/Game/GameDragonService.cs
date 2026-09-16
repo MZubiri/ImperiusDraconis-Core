@@ -228,6 +228,9 @@ public sealed class GameDragonService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
+        await using var transaction = (MySqlTransaction)await connection.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken);
         await using var command = new MySqlCommand(
             """
             SELECT
@@ -235,7 +238,7 @@ public sealed class GameDragonService
                 D.Name,
                 D.Rarity,
                 D.Temperament,
-                COALESCE(E.EggDefinitionCode, '') AS SpeciesCode,
+                D.SpeciesCode,
                 D.Level,
                 D.Stage,
                 D.HatchedAt,
@@ -247,17 +250,23 @@ public sealed class GameDragonService
                 D.Selected,
                 D.LastNeedsUpdateAt
             FROM GameDragons D
-            LEFT JOIN GameEggs E ON E.HatchedDragonId = D.Id
             WHERE D.IdAlumno = @IdAlumno
-            ORDER BY D.HatchedAt, D.Id;
+            ORDER BY D.HatchedAt, D.Id FOR UPDATE;
             """,
-            connection);
+            connection,
+            transaction);
         command.Parameters.Add("@IdAlumno", MySqlDbType.Int32).Value = idAlumno;
 
         var dragons = new List<GameBootstrapDragonDto>();
+        var now = DateTime.UtcNow;
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
+            var hatchedAt = AsUtc(reader.GetDateTime(7));
+            var experience = reader.GetInt32(11);
+            var needs = GameDragonNeedsRules.ApplyDecay(
+                reader.GetInt32(8), reader.GetInt32(9), reader.GetInt32(10), AsUtc(reader.GetDateTime(14)), now);
+            var progress = GameDragonNeedsRules.CalculateProgress(experience, hatchedAt, now);
             dragons.Add(new GameBootstrapDragonDto
             {
                 Id = reader.GetInt64(0),
@@ -265,18 +274,45 @@ public sealed class GameDragonService
                 Rarity = reader.GetString(2),
                 Temperament = reader.GetString(3),
                 SpeciesCode = reader.GetString(4),
-                Level = reader.GetInt32(5),
-                Stage = reader.GetString(6),
-                HatchedAt = AsUtc(reader.GetDateTime(7)),
-                Life = reader.GetInt32(8),
-                Happiness = reader.GetInt32(9),
-                Hunger = reader.GetInt32(10),
-                Experience = reader.GetInt32(11),
-                Status = reader.GetString(12),
-                Selected = reader.GetBoolean(13),
-                LastNeedsUpdateAt = AsUtc(reader.GetDateTime(14))
+                Level = progress.Level,
+                Stage = progress.Stage,
+                HatchedAt = hatchedAt,
+                Life = needs.Life,
+                Happiness = needs.Happiness,
+                Hunger = needs.Hunger,
+                Experience = experience,
+                Status = needs.Status,
+                Selected = needs.Status != "FLED" && reader.GetBoolean(13),
+                LastNeedsUpdateAt = now
             });
         }
+
+        await reader.CloseAsync();
+        foreach (var dragon in dragons)
+        {
+            await using var update = new MySqlCommand(
+                """
+                UPDATE GameDragons
+                SET Life=@Life, Happiness=@Happiness, Hunger=@Hunger, Experience=@Experience,
+                    Level=@Level, Stage=@Stage, Status=@Status, Selected=@Selected, LastNeedsUpdateAt=@Now
+                WHERE Id=@Id;
+                """,
+                connection,
+                transaction);
+            update.Parameters.AddWithValue("@Life", dragon.Life);
+            update.Parameters.AddWithValue("@Happiness", dragon.Happiness);
+            update.Parameters.AddWithValue("@Hunger", dragon.Hunger);
+            update.Parameters.AddWithValue("@Experience", dragon.Experience);
+            update.Parameters.AddWithValue("@Level", dragon.Level);
+            update.Parameters.AddWithValue("@Stage", dragon.Stage);
+            update.Parameters.AddWithValue("@Status", dragon.Status);
+            update.Parameters.AddWithValue("@Selected", dragon.Selected);
+            update.Parameters.AddWithValue("@Now", now);
+            update.Parameters.AddWithValue("@Id", dragon.Id);
+            await update.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
 
         return dragons;
     }
@@ -284,4 +320,3 @@ public sealed class GameDragonService
     private static DateTime AsUtc(DateTime dateTime) =>
         DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
 }
-

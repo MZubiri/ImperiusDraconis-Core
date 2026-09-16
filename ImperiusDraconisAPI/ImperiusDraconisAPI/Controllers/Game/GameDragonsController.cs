@@ -14,10 +14,49 @@ namespace ImperiusDraconisAPI.Controllers.Game;
 public sealed class GameDragonsController : ControllerBase
 {
     private readonly GameDragonService _gameDragonService;
+    private readonly GameDragonCareService _gameDragonCareService;
 
-    public GameDragonsController(GameDragonService gameDragonService)
+    public GameDragonsController(GameDragonService gameDragonService, GameDragonCareService gameDragonCareService)
     {
         _gameDragonService = gameDragonService;
+        _gameDragonCareService = gameDragonCareService;
+    }
+
+    [HttpGet("food-catalog")]
+    public async Task<ActionResult<IReadOnlyCollection<GameFoodDefinition>>> GetFoodCatalog(CancellationToken cancellationToken) =>
+        Ok(await _gameDragonCareService.GetFoodCatalogAsync(cancellationToken));
+
+    [HttpPost("{dragonId:long}/feed/{foodCode}")]
+    public async Task<ActionResult<DragonCareResponse>> Feed(
+        long dragonId,
+        string foodCode,
+        [FromBody] DragonPlayerRequest request,
+        [FromHeader(Name = "X-Idempotency-Key")] string? idempotencyKey,
+        CancellationToken cancellationToken) =>
+        await ExecuteCare(() => _gameDragonCareService.FeedAsync(dragonId, foodCode, request, RequireKey(idempotencyKey), cancellationToken));
+
+    [HttpPost("{dragonId:long}/pet")]
+    public async Task<ActionResult<DragonCareResponse>> Pet(
+        long dragonId,
+        [FromBody] DragonPlayerRequest request,
+        [FromHeader(Name = "X-Idempotency-Key")] string? idempotencyKey,
+        CancellationToken cancellationToken) =>
+        await ExecuteCare(() => _gameDragonCareService.PetAsync(dragonId, request, RequireKey(idempotencyKey), cancellationToken));
+
+    private async Task<ActionResult<DragonCareResponse>> ExecuteCare(Func<Task<DragonCareResponse>> action)
+    {
+        try { return Ok(await action()); }
+        catch (GameBusinessRuleException exception)
+        {
+            return StatusCode(exception.StatusCode, new GameErrorResponse { Code = exception.Code, Message = exception.Message });
+        }
+    }
+
+    private static string RequireKey(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            throw new GameBusinessRuleException("IDEMPOTENCY_KEY_REQUIRED", "El header X-Idempotency-Key es obligatorio.", 400);
+        return key;
     }
 
     /// <summary>

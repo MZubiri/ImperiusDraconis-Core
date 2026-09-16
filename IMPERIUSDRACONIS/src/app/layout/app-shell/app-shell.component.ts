@@ -86,6 +86,7 @@ export class AppShellComponent {
   readonly menu = [
     { label: 'Dashboard', icon: 'layout-dashboard', route: '/dashboard', permission: null },
     { label: 'Mi perfil', icon: 'user-round', route: '/perfil', permission: null },
+    { label: 'Imperius Dragons', icon: 'sparkles', route: '/imperius-dragons', permission: null },
     {
       label: 'Portada pública',
       icon: 'panels-top-left',

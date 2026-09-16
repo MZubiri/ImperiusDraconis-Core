@@ -107,11 +107,22 @@ public sealed class GameEggsController : ControllerBase
     [ProducesResponseType(typeof(GameErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<GameEgg>> Incubate(
         long eggId,
+        [FromBody] IncubateGameEggRequest request,
+        [FromHeader(Name = "X-Idempotency-Key")] string? idempotencyKey,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            return BadRequest(new GameErrorResponse
+            {
+                Code = "IDEMPOTENCY_KEY_REQUIRED",
+                Message = "El header X-Idempotency-Key es obligatorio."
+            });
+        }
+
         try
         {
-            var result = await _gameEggService.IncubateAsync(eggId, cancellationToken);
+            var result = await _gameEggService.IncubateAsync(eggId, request, idempotencyKey, cancellationToken);
             return Ok(result);
         }
         catch (GameBusinessRuleException exception)
@@ -154,11 +165,21 @@ public sealed class GameEggsController : ControllerBase
     public async Task<ActionResult<HatchGameEggResponse>> Hatch(
         long eggId,
         [FromBody] HatchGameEggRequest request,
+        [FromHeader(Name = "X-Idempotency-Key")] string? idempotencyKey,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            return BadRequest(new GameErrorResponse
+            {
+                Code = "IDEMPOTENCY_KEY_REQUIRED",
+                Message = "El header X-Idempotency-Key es obligatorio."
+            });
+        }
+
         try
         {
-            var result = await _gameEggService.HatchAsync(eggId, request, cancellationToken);
+            var result = await _gameEggService.HatchAsync(eggId, request, idempotencyKey, cancellationToken);
             return Ok(result);
         }
         catch (GameBusinessRuleException exception)

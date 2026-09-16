@@ -301,6 +301,11 @@ public sealed class GameEggService
                     FROM GameEggs E
                     WHERE E.IdAlumno = A.IdAlumno
                       AND E.Status <> 'HATCHED' FOR UPDATE
+                ) + (
+                    SELECT COUNT(*)
+                    FROM GameDragons D
+                    WHERE D.IdAlumno = A.IdAlumno
+                      AND D.Status <> 'FLED' FOR UPDATE
                 ) AS OccupiedSlots
             FROM Alumnos A
             LEFT JOIN GameDragonCapacity DC
@@ -347,6 +352,52 @@ public sealed class GameEggService
             StatusCodes.Status400BadRequest);
     }
 
+    private static string NormalizeIdempotencyKey(string idempotencyKey)
+    {
+        var normalized = idempotencyKey.Trim();
+        if (normalized.Length == 0 || normalized.Length > 100)
+        {
+            throw new GameBusinessRuleException(
+                "BUSINESS_RULE_ERROR",
+                "X-Idempotency-Key debe contener entre 1 y 100 caracteres.",
+                StatusCodes.Status400BadRequest);
+        }
+
+        return normalized;
+    }
+
+    private static async Task<int> GetActivePlayerIdAsync(
+        MySqlConnection connection,
+        MySqlTransaction transaction,
+        long robloxUserId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new MySqlCommand(
+            "SELECT L.IdAlumno, CAST(COALESCE(A.Activo, 0) AS UNSIGNED) FROM GameRobloxLinks L INNER JOIN Alumnos A ON A.IdAlumno = L.IdAlumno WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;",
+            connection,
+            transaction);
+        command.Parameters.Add("@RobloxUserId", MySqlDbType.Int64).Value = robloxUserId;
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            throw new GameBusinessRuleException(
+                "NOT_LINKED",
+                "La cuenta Roblox no se encuentra vinculada.",
+                StatusCodes.Status404NotFound);
+        }
+
+        if (!reader.GetBoolean(1))
+        {
+            throw new GameBusinessRuleException(
+                "PLAYER_INACTIVE",
+                "El jugador vinculado no se encuentra activo.",
+                StatusCodes.Status403Forbidden);
+        }
+
+        return reader.GetInt32(0);
+    }
+
     public async Task<IReadOnlyCollection<GameEggDefinition>> GetActiveDefinitionsAsync(CancellationToken cancellationToken)
     {
         await using var connection = _connectionFactory.CreateConnection();
@@ -390,12 +441,24 @@ public sealed class GameEggService
         return definitions;
     }
 
-    public async Task<GameEgg> IncubateAsync(long eggId, CancellationToken cancellationToken)
+    public async Task<GameEgg> IncubateAsync(
+        long eggId,
+        IncubateGameEggRequest request,
+        string idempotencyKey,
+        CancellationToken cancellationToken)
     {
         if (eggId <= 0)
         {
             throw Invalid("El identificador del huevo debe ser mayor a cero.");
         }
+
+        if (request.RobloxUserId <= 0)
+        {
+            throw Invalid("RobloxUserId debe ser mayor a cero.");
+        }
+
+        var normalizedIdempotencyKey = NormalizeIdempotencyKey(idempotencyKey);
+        var requestHash = SHA256.HashData(Encoding.UTF8.GetBytes($"{eggId}:{request.RobloxUserId}"));
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
@@ -405,6 +468,30 @@ public sealed class GameEggService
 
         try
         {
+            var reservation = await _idempotencyService.ReserveAsync(
+                connection,
+                transaction,
+                "GAME_EGG_INCUBATE",
+                normalizedIdempotencyKey,
+                requestHash,
+                cancellationToken);
+
+            if (reservation.CompletedResponseJson is not null)
+            {
+                var previousResponse = JsonSerializer.Deserialize<GameEgg>(
+                    reservation.CompletedResponseJson,
+                    new JsonSerializerOptions(JsonSerializerDefaults.Web))
+                    ?? throw new InvalidOperationException("La respuesta idempotente almacenada no es valida.");
+                await transaction.CommitAsync(cancellationToken);
+                return previousResponse;
+            }
+
+            var callerIdAlumno = await GetActivePlayerIdAsync(
+                connection,
+                transaction,
+                request.RobloxUserId,
+                cancellationToken);
+
             // 1. Obtener huevo y comprobar estado
             await using var eggCommand = new MySqlCommand(
                 """
@@ -435,6 +522,14 @@ public sealed class GameEggService
                 eggDefinitionCode = reader.IsDBNull(1) ? null : reader.GetString(1);
                 status = reader.GetString(2);
                 acquiredAt = reader.GetDateTime(3);
+            }
+
+            if (idAlumno != callerIdAlumno)
+            {
+                throw new GameBusinessRuleException(
+                    "EGG_NOT_OWNED",
+                    "El huevo especificado no te pertenece.",
+                    StatusCodes.Status403Forbidden);
             }
 
             var effectiveStatus = GameEggRules.GetEffectiveStatus(status, null, DateTime.UtcNow);
@@ -492,6 +587,13 @@ public sealed class GameEggService
 
             var updatedEgg = ReadEgg(readerUpdate, DateTime.UtcNow);
             await readerUpdate.CloseAsync();
+
+            await _idempotencyService.CompleteAsync(
+                connection,
+                transaction,
+                reservation.Id,
+                JsonSerializer.Serialize(updatedEgg, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+                cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
             return updatedEgg;
@@ -686,6 +788,7 @@ public sealed class GameEggService
     public async Task<HatchGameEggResponse> HatchAsync(
         long eggId,
         HatchGameEggRequest request,
+        string idempotencyKey,
         CancellationToken cancellationToken)
     {
         if (eggId <= 0)
@@ -718,6 +821,10 @@ public sealed class GameEggService
                 StatusCodes.Status400BadRequest);
         }
 
+
+        var normalizedIdempotencyKey = NormalizeIdempotencyKey(idempotencyKey);
+        var requestHash = SHA256.HashData(Encoding.UTF8.GetBytes($"{eggId}:{request.RobloxUserId}:{trimmedName}"));
+
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
         await using var transaction = (MySqlTransaction)await connection.BeginTransactionAsync(
@@ -726,6 +833,24 @@ public sealed class GameEggService
 
         try
         {
+            var reservation = await _idempotencyService.ReserveAsync(
+                connection,
+                transaction,
+                "GAME_EGG_HATCH",
+                normalizedIdempotencyKey,
+                requestHash,
+                cancellationToken);
+
+            if (reservation.CompletedResponseJson is not null)
+            {
+                var previousResponse = JsonSerializer.Deserialize<HatchGameEggResponse>(
+                    reservation.CompletedResponseJson,
+                    new JsonSerializerOptions(JsonSerializerDefaults.Web))
+                    ?? throw new InvalidOperationException("La respuesta idempotente almacenada no es valida.");
+                await transaction.CommitAsync(cancellationToken);
+                return previousResponse;
+            }
+
             // 0. Validar vinculación del usuario que eclosiona
             await using var linkCommand = new MySqlCommand(
                 "SELECT L.IdAlumno, CAST(COALESCE(A.Activo, 0) AS UNSIGNED) FROM GameRobloxLinks L INNER JOIN Alumnos A ON A.IdAlumno = L.IdAlumno WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1;",
@@ -758,7 +883,7 @@ public sealed class GameEggService
             // 1. Obtener y bloquear el huevo durante la transaccion
             await using var eggCommand = new MySqlCommand(
                 """
-                SELECT E.IdAlumno, E.Rarity, E.Status, E.IncubationEndsAt
+                SELECT E.IdAlumno, E.Rarity, E.Status, E.IncubationEndsAt, E.EggDefinitionCode
                 FROM GameEggs E
                 WHERE E.Id = @Id FOR UPDATE;
                 """,
@@ -770,6 +895,7 @@ public sealed class GameEggService
             string rarity;
             string status;
             DateTime? incubationEndsAt;
+            string? eggDefinitionCode;
 
             await using (var reader = await eggCommand.ExecuteReaderAsync(cancellationToken))
             {
@@ -785,6 +911,7 @@ public sealed class GameEggService
                 rarity = reader.GetString(1);
                 status = reader.GetString(2);
                 incubationEndsAt = reader.IsDBNull(3) ? null : (DateTime?)reader.GetDateTime(3);
+                eggDefinitionCode = reader.IsDBNull(4) ? null : reader.GetString(4);
             }
 
             if (callerIdAlumno != idAlumno)
@@ -806,12 +933,13 @@ public sealed class GameEggService
 
             // 2. Elegir temperamento aleatorio
             var temperament = Temperaments[Random.Shared.Next(Temperaments.Length)];
+            var speciesCode = ChooseSpeciesCode(eggDefinitionCode);
 
             // 3. Crear dragon
             await using var dragonCommand = new MySqlCommand(
                 """
-                INSERT INTO GameDragons (IdAlumno, Name, Rarity, Temperament, Level, Stage, HatchedAt)
-                VALUES (@IdAlumno, @Name, @Rarity, @Temperament, 1, 'BABY', UTC_TIMESTAMP(3)); SELECT Id, HatchedAt FROM GameDragons WHERE Id = LAST_INSERT_ID();
+                INSERT INTO GameDragons (IdAlumno, Name, Rarity, Temperament, SpeciesCode, Level, Stage, HatchedAt)
+                VALUES (@IdAlumno, @Name, @Rarity, @Temperament, @SpeciesCode, 1, 'BABY', UTC_TIMESTAMP(3)); SELECT Id, HatchedAt FROM GameDragons WHERE Id = LAST_INSERT_ID();
                 """,
                 connection,
                 transaction);
@@ -819,6 +947,7 @@ public sealed class GameEggService
             dragonCommand.Parameters.Add("@Name", MySqlDbType.VarChar, 100).Value = trimmedName;
             dragonCommand.Parameters.Add("@Rarity", MySqlDbType.VarChar, 20).Value = rarity;
             dragonCommand.Parameters.Add("@Temperament", MySqlDbType.VarChar, 50).Value = temperament;
+            dragonCommand.Parameters.Add("@SpeciesCode", MySqlDbType.VarChar, 50).Value = speciesCode;
 
             long dragonId;
             DateTime hatchedAt;
@@ -844,9 +973,7 @@ public sealed class GameEggService
             updateEggCommand.Parameters.Add("@HatchedDragonId", MySqlDbType.Int64).Value = dragonId;
             await updateEggCommand.ExecuteNonQueryAsync(cancellationToken);
 
-            await transaction.CommitAsync(cancellationToken);
-
-            return new HatchGameEggResponse
+            var response = new HatchGameEggResponse
             {
                 EggId = eggId,
                 EggStatus = "HATCHED",
@@ -857,17 +984,39 @@ public sealed class GameEggService
                     Name = trimmedName,
                     Rarity = rarity,
                     Temperament = temperament,
+                    SpeciesCode = speciesCode,
                     Level = 1,
                     Stage = "BABY",
                     HatchedAt = hatchedAt
                 }
             };
+
+            await _idempotencyService.CompleteAsync(
+                connection,
+                transaction,
+                reservation.Id,
+                JsonSerializer.Serialize(response, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+                cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return response;
         }
         catch
         {
             await transaction.RollbackAsync(cancellationToken);
             throw;
         }
+    }
+
+    private static string ChooseSpeciesCode(string? eggDefinitionCode)
+    {
+        string[] choices = eggDefinitionCode?.ToUpperInvariant() switch
+        {
+            "ELEMENTAL" => ["BRASALOMA", "ROCAMUSGO", "MAREALUNA", "CIERZOAZUL", "ESCARCHALETA"],
+            "EMBLEM" => ["LEONIS_RUBRA", "MELIDOR_AUREO", "VIPERUMBRA", "ORACULO_ZAFIRO"],
+            "ARCANE" or "CONSTELLATION" => ["ORACULO_ZAFIRO", "ECLIPSE_PRIMORDIAL"],
+            _ => ["BRASALOMA", "ROCAMUSGO", "MAREALUNA", "CIERZOAZUL"]
+        };
+        return choices[Random.Shared.Next(choices.Length)];
     }
 
     public async Task<GiftGameEggResponse> GiftEggAsync(
@@ -1082,6 +1231,75 @@ public sealed class GameEggService
             await transaction.RollbackAsync(cancellationToken);
             throw;
         }
+    }
+
+    public async Task<IReadOnlyCollection<PendingGameEggGift>> ListPendingGiftsAsync(
+        long receiverRobloxUserId,
+        CancellationToken cancellationToken)
+    {
+        if (receiverRobloxUserId <= 0)
+        {
+            throw new GameBusinessRuleException(
+                "BUSINESS_RULE_ERROR",
+                "RobloxUserId debe ser mayor a cero.",
+                StatusCodes.Status400BadRequest);
+        }
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using (var playerCommand = new MySqlCommand(
+            "SELECT 1 FROM GameRobloxLinks L INNER JOIN Alumnos A ON A.IdAlumno = L.IdAlumno WHERE L.RobloxUserId = @RobloxUserId AND L.Active = 1 AND A.Activo = 1;",
+            connection))
+        {
+            playerCommand.Parameters.Add("@RobloxUserId", MySqlDbType.Int64).Value = receiverRobloxUserId;
+            if (await playerCommand.ExecuteScalarAsync(cancellationToken) is null)
+            {
+                throw new GameBusinessRuleException(
+                    "NOT_LINKED",
+                    "La cuenta Roblox no se encuentra vinculada.",
+                    StatusCodes.Status404NotFound);
+            }
+        }
+
+        await using var command = new MySqlCommand(
+            """
+            SELECT
+                T.Id,
+                T.EggId,
+                COALESCE(SL.RobloxUserId, 0),
+                A.Nombre,
+                E.EggDefinitionCode,
+                E.Rarity,
+                T.CreatedAt
+            FROM GameEggTransfers T
+            INNER JOIN GameEggs E ON E.Id = T.EggId
+            INNER JOIN Alumnos A ON A.IdAlumno = T.SenderIdAlumno
+            LEFT JOIN GameRobloxLinks SL ON SL.IdAlumno = T.SenderIdAlumno AND SL.Active = 1
+            WHERE T.ReceiverRobloxUserId = @RobloxUserId
+              AND T.Status = 'PENDING'
+            ORDER BY T.CreatedAt, T.Id;
+            """,
+            connection);
+        command.Parameters.Add("@RobloxUserId", MySqlDbType.Int64).Value = receiverRobloxUserId;
+
+        var gifts = new List<PendingGameEggGift>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            gifts.Add(new PendingGameEggGift
+            {
+                TransferId = reader.GetInt64(0),
+                EggId = reader.GetInt64(1),
+                SenderRobloxUserId = reader.GetInt64(2),
+                SenderDisplayName = reader.GetString(3),
+                EggDefinitionCode = reader.IsDBNull(4) ? null : reader.GetString(4),
+                Rarity = reader.GetString(5),
+                RequestedAt = AsUtc(reader.GetDateTime(6))
+            });
+        }
+
+        return gifts;
     }
 
     public async Task<GiftGameEggResponse> AcceptGiftAsync(

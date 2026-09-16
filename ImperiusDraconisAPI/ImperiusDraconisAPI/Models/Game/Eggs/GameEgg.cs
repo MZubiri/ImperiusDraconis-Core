@@ -56,3 +56,8 @@ public sealed class PurchaseGameEggResponse
 
     public decimal BalanceAfter { get; init; }
 }
+
+public sealed class IncubateGameEggRequest
+{
+    public long RobloxUserId { get; init; }
+}

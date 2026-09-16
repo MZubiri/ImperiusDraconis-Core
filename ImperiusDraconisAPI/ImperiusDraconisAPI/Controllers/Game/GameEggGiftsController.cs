@@ -21,6 +21,32 @@ public sealed class GameEggGiftsController : ControllerBase
     }
 
     /// <summary>
+    /// Lista los regalos pendientes del jugador vinculado.
+    /// </summary>
+    [HttpGet("pending/by-roblox/{robloxUserId:long}")]
+    [ProducesResponseType(typeof(IReadOnlyCollection<PendingGameEggGift>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(GameErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(GameErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyCollection<PendingGameEggGift>>> GetPending(
+        long robloxUserId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await _gameEggService.ListPendingGiftsAsync(robloxUserId, cancellationToken));
+        }
+        catch (GameBusinessRuleException exception)
+        {
+            return StatusCode(exception.StatusCode, new GameErrorResponse
+            {
+                Code = exception.Code,
+                Message = exception.Message
+            });
+        }
+    }
+
+    /// <summary>
     /// Acepta una transferencia de huevo regalado.
     /// </summary>
     /// <remarks>

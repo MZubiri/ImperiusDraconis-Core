@@ -24,3 +24,20 @@ public sealed class ProcessGiftTransferRequest
 {
     public long ReceiverRobloxUserId { get; init; }
 }
+
+public sealed class PendingGameEggGift
+{
+    public long TransferId { get; init; }
+
+    public long EggId { get; init; }
+
+    public long SenderRobloxUserId { get; init; }
+
+    public string SenderDisplayName { get; init; } = string.Empty;
+
+    public string? EggDefinitionCode { get; init; }
+
+    public string Rarity { get; init; } = string.Empty;
+
+    public DateTime RequestedAt { get; init; }
+}

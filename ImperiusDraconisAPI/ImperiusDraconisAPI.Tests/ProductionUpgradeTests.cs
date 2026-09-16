@@ -78,7 +78,11 @@ public sealed class ProductionUpgradeTests
             RobloxUserId = robloxId, EggDefinitionCode = "HOME"
         }, Guid.NewGuid().ToString(), default);
         Assert.True(purchased.Id > 0);
-        var egg = await eggs.IncubateAsync(purchased.Id, default);
+        var egg = await eggs.IncubateAsync(
+            purchased.Id,
+            new IncubateGameEggRequest { RobloxUserId = robloxId },
+            Guid.NewGuid().ToString(),
+            default);
         Assert.Equal("INCUBATING", egg.Status);
         command.Parameters.AddWithValue("@Egg", egg.Id);
         command.CommandText = """
@@ -88,7 +92,11 @@ public sealed class ProductionUpgradeTests
                 UpdatedAt = UTC_TIMESTAMP(3) WHERE Id = @Egg;
             """;
         await command.ExecuteNonQueryAsync();
-        var dragon = await eggs.HatchAsync(egg.Id, new HatchGameEggRequest { RobloxUserId = robloxId, Name = "Upgrade test" }, default);
+        var dragon = await eggs.HatchAsync(
+            egg.Id,
+            new HatchGameEggRequest { RobloxUserId = robloxId, Name = "Upgrade test" },
+            Guid.NewGuid().ToString(),
+            default);
         Assert.NotNull(dragon);
         Assert.Equal("HATCHED", (await eggs.GetByIdAsync(egg.Id, default))!.Status);
 

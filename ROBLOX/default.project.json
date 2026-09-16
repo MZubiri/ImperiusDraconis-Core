@@ -1,0 +1,23 @@
+{
+  "name": "ImperiusDragons",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "ImperiusDragons": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "ImperiusDragons": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "ImperiusDragons": {
+          "$path": "src/client"
+        }
+      }
+    }
+  }
+}

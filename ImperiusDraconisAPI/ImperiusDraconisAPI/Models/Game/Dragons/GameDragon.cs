@@ -12,6 +12,8 @@ public sealed class GameDragon
 
     public string Temperament { get; init; } = string.Empty;
 
+    public string SpeciesCode { get; init; } = string.Empty;
+
     public int Level { get; init; }
 
     public string Stage { get; init; } = string.Empty;
@@ -46,4 +48,3 @@ public sealed class SelectDragonResponse
 
     public bool Selected { get; init; }
 }
-

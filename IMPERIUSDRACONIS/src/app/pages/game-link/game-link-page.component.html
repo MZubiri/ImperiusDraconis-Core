@@ -1,0 +1,33 @@
+<main class="game-link-page">
+  <section class="link-card" aria-labelledby="game-link-title">
+    <p class="eyebrow">Imperius Dragons</p>
+    <h1 id="game-link-title">Vincula tu cuenta de Roblox</h1>
+    <p class="intro">Genera un codigo temporal e introdúcelo dentro del juego. No compartas tu contraseña de Imperius.</p>
+
+    @if (linkCode(); as current) {
+      <div class="code-panel" aria-live="polite">
+        <span>Tu codigo</span>
+        <strong>{{ current.code }}</strong>
+        @if (secondsRemaining() > 0) {
+          <p>Expira en {{ formattedRemaining() }}</p>
+        } @else {
+          <p class="expired">El codigo ha expirado. Genera uno nuevo.</p>
+        }
+      </div>
+    }
+
+    @if (errorMessage()) {
+      <p class="error" role="alert">{{ errorMessage() }}</p>
+    }
+
+    <button type="button" (click)="generateCode()" [disabled]="loading()">
+      {{ loading() ? 'Generando…' : (linkCode() ? 'Generar un codigo nuevo' : 'Generar codigo') }}
+    </button>
+
+    <ol>
+      <li>Abre Imperius Dragons en Roblox.</li>
+      <li>Selecciona “Vincular con Imperius”.</li>
+      <li>Escribe el codigo antes de que expire.</li>
+    </ol>
+  </section>
+</main>
