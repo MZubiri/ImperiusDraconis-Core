@@ -708,126 +708,103 @@ public sealed class BibliotecaService
 
     public async Task<int> ImportarLibrosExcelAsync(Stream excelStream, CancellationToken cancellationToken)
     {
-        var rows = excelStream.Query<BookExcelRow>().ToList();
+        var rows = excelStream.Query<BookExcelRow>()
+            .Where(row => !string.IsNullOrWhiteSpace(row.Titulo) && !string.IsNullOrWhiteSpace(row.Autor))
+            .ToList();
         if (rows.Count == 0) return 0;
 
-        using var connection = _connectionFactory.CreateConnection();
+        await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-
-        // 1. Obtener todas las categorias existentes para mapeo rapido, o crearlas si no existen
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         var categoriasMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        using (var catCmd = new MySqlCommand("SELECT Id, Nombre FROM BibliotecaCategorias", connection))
-        using (var catReader = await catCmd.ExecuteReaderAsync(cancellationToken))
+
+        async Task LoadCategoriesAsync()
         {
-            while (await catReader.ReadAsync(cancellationToken))
+            categoriasMap.Clear();
+            await using var command = new MySqlCommand("SELECT Id, Nombre FROM BibliotecaCategorias ORDER BY Id", connection, transaction);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
             {
-                var id = Convert.ToInt32(catReader["Id"], CultureInfo.InvariantCulture);
-                var nombre = catReader["Nombre"]?.ToString()?.Trim() ?? string.Empty;
-                if (!string.IsNullOrEmpty(nombre) && !categoriasMap.ContainsKey(nombre))
-                {
-                    categoriasMap.Add(nombre, id);
-                }
+                var nombre = reader.GetString(1).Trim();
+                if (nombre.Length > 0) categoriasMap.TryAdd(nombre, reader.GetInt32(0));
             }
         }
 
-        int importados = 0;
-        foreach (var row in rows)
+        await LoadCategoriesAsync();
+        var missingCategories = rows.Select(row => row.Categoria?.Trim())
+            .Where(name => !string.IsNullOrEmpty(name) && !categoriasMap.ContainsKey(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (missingCategories.Length > 0)
         {
-            if (string.IsNullOrWhiteSpace(row.Titulo) || string.IsNullOrWhiteSpace(row.Autor))
+            await using var command = new MySqlCommand { Connection = connection, Transaction = transaction };
+            var values = new List<string>();
+            for (var i = 0; i < missingCategories.Length; i++)
             {
-                continue; // Saltar filas sin datos criticos
+                values.Add($"(@Name{i}, 'Categoria creada en importacion', 1)");
+                command.Parameters.AddWithValue($"@Name{i}", missingCategories[i]);
             }
+            command.CommandText = "INSERT INTO BibliotecaCategorias (Nombre, Descripcion, Activo) VALUES " + string.Join(",", values);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await LoadCategoriesAsync();
+        }
 
-            // Mapear o crear la categoria si viene especificada
-            int? idCategoria = null;
-            if (!string.IsNullOrWhiteSpace(row.Categoria))
+        var requestedIds = rows.Where(row => row.Id is > 0).Select(row => row.Id!.Value).Distinct().ToArray();
+        var existingIds = new HashSet<int>();
+        if (requestedIds.Length > 0)
+        {
+            await using var command = new MySqlCommand { Connection = connection, Transaction = transaction };
+            var names = requestedIds.Select((id, i) =>
             {
-                var catNombre = row.Categoria.Trim();
-                if (categoriasMap.TryGetValue(catNombre, out var catId))
+                var name = $"@Id{i}";
+                command.Parameters.AddWithValue(name, id);
+                return name;
+            });
+            command.CommandText = $"SELECT Id FROM BibliotecaLibros WHERE Id IN ({string.Join(",", names)}) FOR UPDATE";
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken)) existingIds.Add(reader.GetInt32(0));
+        }
+
+        var rowsToUpdate = rows.Where(row => row.Id.HasValue && existingIds.Contains(row.Id.Value)).ToList();
+        var rowsToInsert = rows.Where(row => !row.Id.HasValue || !existingIds.Contains(row.Id.Value)).ToList();
+        var columns = new[] { "Titulo", "Autor", "Sinopsis", "IdCategoria", "RutaArchivo", "Formato", "PrecioDracoins", "Activo" };
+
+        async Task WriteBatchesAsync(List<BookExcelRow> batchRows, bool update)
+        {
+            foreach (var batch in batchRows.Chunk(100))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await using var command = new MySqlCommand { Connection = connection, Transaction = transaction };
+                var statements = new List<string>();
+                for (var i = 0; i < batch.Length; i++)
                 {
-                    idCategoria = catId;
-                }
-                else
-                {
-                    // Crear categoria nueva en caliente
-                    using var insertCatCmd = new MySqlCommand(
-                        "INSERT INTO BibliotecaCategorias (Nombre, Descripcion, Activo) VALUES (@Nombre, @Descripcion, 1); SELECT LAST_INSERT_ID();",
-                        connection);
-                    insertCatCmd.Parameters.AddWithValue("@Nombre", catNombre);
-                    insertCatCmd.Parameters.AddWithValue("@Descripcion", $"Categoria creada en importacion");
-                    var newId = (int?)await insertCatCmd.ExecuteScalarAsync(cancellationToken);
-                    if (newId.HasValue)
+                    var row = batch[i];
+                    object categoryId = row.Categoria is { } category && categoriasMap.TryGetValue(category.Trim(), out var id)
+                        ? id : DBNull.Value;
+                    object[] values = {
+                        row.Titulo.Trim(), row.Autor.Trim(), (object?)row.Sinopsis?.Trim() ?? DBNull.Value,
+                        categoryId, string.IsNullOrWhiteSpace(row.RutaArchivo) ? "Libros/PDF/" : row.RutaArchivo.Trim(),
+                        string.IsNullOrWhiteSpace(row.Formato) ? ".pdf" : row.Formato.Trim(), row.PrecioDracoins, row.Activo ? 1 : 0
+                    };
+                    var parameters = columns.Select(column => $"@{column}{i}").ToArray();
+                    for (var j = 0; j < columns.Length; j++) command.Parameters.AddWithValue(parameters[j], values[j]);
+                    if (update)
                     {
-                        categoriasMap.Add(catNombre, newId.Value);
-                        idCategoria = newId.Value;
+                        command.Parameters.AddWithValue($"@Id{i}", row.Id!.Value);
+                        var assignments = columns.Select((column, j) => $"{column} = {parameters[j]}");
+                        statements.Add($"UPDATE BibliotecaLibros SET {string.Join(",", assignments)} WHERE Id = @Id{i};");
                     }
+                    else statements.Add($"({string.Join(",", parameters)}, NOW())");
                 }
+                command.CommandText = update ? string.Join("\n", statements)
+                    : $"INSERT INTO BibliotecaLibros ({string.Join(",", columns)}, FechaRegistro) VALUES {string.Join(",", statements)};";
+                await command.ExecuteNonQueryAsync(cancellationToken);
             }
-
-            // Si viene un ID y existe en la BD, actualizamos. De lo contrario, insertamos.
-            bool existe = false;
-            if (row.Id.HasValue && row.Id.Value > 0)
-            {
-                using var checkCmd = new MySqlCommand("SELECT COUNT(*) FROM BibliotecaLibros WHERE Id = @Id", connection);
-                checkCmd.Parameters.AddWithValue("@Id", row.Id.Value);
-                var count = Convert.ToInt32(await checkCmd.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
-                existe = count > 0;
-            }
-
-            if (existe)
-            {
-                // Actualizar
-                using var updateCmd = new MySqlCommand(
-                    """
-                    UPDATE BibliotecaLibros 
-                    SET Titulo = @Titulo, 
-                        Autor = @Autor, 
-                        Sinopsis = @Sinopsis, 
-                        IdCategoria = @IdCategoria, 
-                        RutaArchivo = @RutaArchivo, 
-                        Formato = @Formato, 
-                        PrecioDracoins = @PrecioDracoins, 
-                        Activo = @Activo
-                    WHERE Id = @Id
-                    """, connection);
-
-                updateCmd.Parameters.AddWithValue("@Id", row.Id!.Value);
-                updateCmd.Parameters.AddWithValue("@Titulo", row.Titulo.Trim());
-                updateCmd.Parameters.AddWithValue("@Autor", row.Autor.Trim());
-                updateCmd.Parameters.AddWithValue("@Sinopsis", (object?)row.Sinopsis?.Trim() ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@IdCategoria", (object?)idCategoria ?? DBNull.Value);
-                updateCmd.Parameters.AddWithValue("@RutaArchivo", string.IsNullOrWhiteSpace(row.RutaArchivo) ? "Libros/PDF/" : row.RutaArchivo.Trim());
-                updateCmd.Parameters.AddWithValue("@Formato", string.IsNullOrWhiteSpace(row.Formato) ? ".pdf" : row.Formato.Trim());
-                updateCmd.Parameters.AddWithValue("@PrecioDracoins", row.PrecioDracoins);
-                updateCmd.Parameters.AddWithValue("@Activo", row.Activo ? 1 : 0);
-
-                await updateCmd.ExecuteNonQueryAsync(cancellationToken);
-            }
-            else
-            {
-                // Insertar
-                using var insertCmd = new MySqlCommand(
-                    """
-                    INSERT INTO BibliotecaLibros (Titulo, Autor, Sinopsis, IdCategoria, RutaArchivo, Formato, PrecioDracoins, Activo, FechaRegistro)
-                    VALUES (@Titulo, @Autor, @Sinopsis, @IdCategoria, @RutaArchivo, @Formato, @PrecioDracoins, @Activo, NOW())
-                    """, connection);
-
-                insertCmd.Parameters.AddWithValue("@Titulo", row.Titulo.Trim());
-                insertCmd.Parameters.AddWithValue("@Autor", row.Autor.Trim());
-                insertCmd.Parameters.AddWithValue("@Sinopsis", (object?)row.Sinopsis?.Trim() ?? DBNull.Value);
-                insertCmd.Parameters.AddWithValue("@IdCategoria", (object?)idCategoria ?? DBNull.Value);
-                insertCmd.Parameters.AddWithValue("@RutaArchivo", string.IsNullOrWhiteSpace(row.RutaArchivo) ? "Libros/PDF/" : row.RutaArchivo.Trim());
-                insertCmd.Parameters.AddWithValue("@Formato", string.IsNullOrWhiteSpace(row.Formato) ? ".pdf" : row.Formato.Trim());
-                insertCmd.Parameters.AddWithValue("@PrecioDracoins", row.PrecioDracoins);
-                insertCmd.Parameters.AddWithValue("@Activo", row.Activo ? 1 : 0);
-
-                await insertCmd.ExecuteNonQueryAsync(cancellationToken);
-            }
-
-            importados++;
         }
 
-        return importados;
+        await WriteBatchesAsync(rowsToUpdate, update: true);
+        await WriteBatchesAsync(rowsToInsert, update: false);
+        await transaction.CommitAsync(cancellationToken);
+        return rows.Count;
     }
 
     public async Task<bool> ValidarAccesoLecturaAsync(int idAlumno, int idLibro, CancellationToken cancellationToken)
