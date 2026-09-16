@@ -80,7 +80,10 @@ public sealed class DebugController : ControllerBase
             using var response = await _httpClientFactory.CreateClient().SendAsync(httpRequest, cancellationToken);
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
             _logger.LogInformation("Gemini status code: {StatusCode}.", (int)response.StatusCode);
-            _logger.LogInformation("Gemini body bruto: {Body}", Truncate(content, 1000));
+            _logger.LogInformation(
+                "Gemini body bruto (longitud={Length}): {Body}",
+                content.Length,
+                SanitizeForLog(Truncate(content, 500)));
             if (!response.IsSuccessStatusCode)
             {
                 var error = ReadGeminiErrorSummary(content);
@@ -186,6 +189,10 @@ public sealed class DebugController : ControllerBase
 
         return Truncate(string.IsNullOrWhiteSpace(content) ? "Gemini devolvio un error." : content, 300);
     }
+
+    private static string SanitizeForLog(string value) =>
+        new(value.Select(character => char.IsControl(character) || character is '\u2028' or '\u2029'
+            ? ' ' : character).ToArray());
 
     private static string Truncate(string value, int maxLength)
     {
