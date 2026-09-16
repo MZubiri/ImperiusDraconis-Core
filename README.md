@@ -64,3 +64,16 @@ Game__MaxDragonCapacity=10
     ```
 
 La API estará lista para escuchar peticiones locales (generalmente en `http://localhost:5000` o `http://localhost:5024`).
+
+### Desarrollo local de la API
+
+Las credenciales se guardan fuera del repositorio mediante .NET User Secrets.
+Desde `ImperiusDraconisAPI/ImperiusDraconisAPI`, configurar:
+
+```bash
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost;Port=3306;Database=ID;User=root;Password=<contraseña-local>;SslMode=Preferred;"
+dotnet user-secrets set "Jwt:SecretKey" "<clave-aleatoria-de-al-menos-32-caracteres>"
+```
+
+Ejecutar con `ASPNETCORE_ENVIRONMENT=Development` para cargar estos valores.
+No copiar credenciales a archivos versionados ni compartir la salida de `dotnet user-secrets list`.
