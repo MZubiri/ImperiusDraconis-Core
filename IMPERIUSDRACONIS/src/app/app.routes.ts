@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { permissionGuard } from './core/guards/permission.guard';
 import { authGuard } from './core/guards/auth.guard';
 import { loginGuard } from './core/guards/login.guard';
 import { AppShellComponent } from './layout/app-shell/app-shell.component';
@@ -94,6 +95,8 @@ export const routes: Routes = [
       },
       {
         path: 'alumnos',
+        canActivate: [permissionGuard],
+        data: { permission: 'Alumnos:Index' },
         loadComponent: loadAlumnosPage
       },
       {
@@ -116,6 +119,8 @@ export const routes: Routes = [
       },
       {
         path: 'dracoins',
+        canActivate: [permissionGuard],
+        data: { permission: 'Dracoins:Index' },
         loadComponent: loadDracoinsPage
       },
       {
@@ -154,6 +159,15 @@ export const routes: Routes = [
       },
       {
         path: 'dinamicas',
+        canActivate: [permissionGuard],
+        data: { permission: [
+        'Dinamicas:Index',
+        'Dinamicas:DetallePuntos',
+        'Dinamicas:DetalleDracoins',
+        'Dinamicas:RegistrarDinámicaPorDracoins',
+        'Dinamicas:AgendaIndex',
+        'Dinamicas:Eliminar'
+      ] },
         loadComponent: loadDinamicasPage
       },
       {
@@ -176,6 +190,14 @@ export const routes: Routes = [
       },
       {
         path: 'marcadores',
+        canActivate: [permissionGuard],
+        data: { permission: [
+        'Marcadores:Index',
+        'Marcadores:ActualizarMarcador',
+        'Marcadores:AjustesPuntos',
+        'Marcadores:Historial',
+        'Marcadores:MarcadorActual'
+      ] },
         loadComponent: loadMarcadoresPage
       },
       {
@@ -206,6 +228,19 @@ export const routes: Routes = [
       },
       {
         path: 'mascotas',
+        canActivate: [permissionGuard],
+        data: { permission: [
+        'Mascotas:Index',
+        'Mascotas:EstadoPorAlumno',
+        'Mascotas:MascotasPorAlumno',
+        'Mascotas:AgregarMascotaPorAlumno',
+        'Mascotas:EditarMascotaPorAlumno',
+        'Mascotas:EliminarMascotaPorAlumno',
+        'Mascotas:CambiarEstado',
+        'Mascotas:Catalogo',
+        'Mascotas:CobroSemanal',
+        'Mascotas:ProcesarCobro'
+      ] },
         loadComponent: loadMascotasPage
       },
       {
@@ -224,6 +259,8 @@ export const routes: Routes = [
       },
       {
         path: 'permisos',
+        canActivate: [permissionGuard],
+        data: { permission: ['Permisos:Index', 'Permisos:Guardar'] },
         loadComponent: loadPermisosPage
       },
       {
@@ -232,6 +269,8 @@ export const routes: Routes = [
       },
       {
         path: 'auditoria',
+        canActivate: [permissionGuard],
+        data: { permission: ['Auditoria:VerResumen'] },
         loadComponent: loadAuditoriaPage
       },
       {
@@ -240,6 +279,8 @@ export const routes: Routes = [
       },
       {
         path: 'productos',
+        canActivate: [permissionGuard],
+        data: { permission: 'Productos:Index' },
         loadComponent: loadProductosPage
       },
       {
@@ -248,6 +289,16 @@ export const routes: Routes = [
       },
       {
         path: 'trabajos',
+        canActivate: [permissionGuard],
+        data: { permission: [
+        'Trabajos:Index',
+        'Trabajos:Crear',
+        'Trabajos:Editar',
+        'Trabajos:Eliminar',
+        'Trabajos:AsignarAlumnos',
+        'Trabajos:AsignarPermisos',
+        'Permisos:Guardar'
+      ] },
         loadComponent: () =>
           import('./pages/trabajos/trabajos-page.component').then(
             (module) => module.TrabajosPageComponent
@@ -273,6 +324,15 @@ export const routes: Routes = [
       },
       {
         path: 'rincon',
+        canActivate: [permissionGuard],
+        data: { permission: [
+        'Rincon:Catalogo',
+        'Rincon:Comprar',
+        'Rincon:Historial',
+        'Rincon:PanelAdmin',
+        'Rincon:GestionarProductos',
+        'Rincon:GestionarPedidos'
+      ] },
         loadComponent: loadRinconPage
       },
       {
@@ -281,6 +341,8 @@ export const routes: Routes = [
       },
       {
         path: 'biblioteca',
+        canActivate: [permissionGuard],
+        data: { permission: 'Biblioteca:Index' },
         loadComponent: () =>
           import('./pages/biblioteca/biblioteca-page.component').then(
             (module) => module.BibliotecaPageComponent
@@ -295,6 +357,8 @@ export const routes: Routes = [
       },
       {
         path: 'cumpleanos',
+        canActivate: [permissionGuard],
+        data: { permission: 'Alumnos:Cumpleanos' },
         loadComponent: loadCumpleanosPage
       },
       {
@@ -303,6 +367,8 @@ export const routes: Routes = [
       },
       {
         path: 'landing-admin',
+        canActivate: [permissionGuard],
+        data: { permission: 'Landing:Administrar' },
         loadComponent: loadLandingAdminPage
       }
     ]
