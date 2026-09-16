@@ -1,92 +1,100 @@
-IF COL_LENGTH(N'dbo.Alumnos', N'Emojis') IS NULL
-BEGIN
-    ALTER TABLE dbo.Alumnos
-        ADD Emojis NVARCHAR(20) NULL;
+-- MySQL 8.0.16+. GO separates connector batches; DDL commits implicitly.
+DROP PROCEDURE IF EXISTS migrate_014_add_alumno_emojis;
+GO
+CREATE PROCEDURE migrate_014_add_alumno_emojis()
+migration: BEGIN
+
+IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'Alumnos' AND column_name = 'Emojis') THEN
+    ALTER TABLE Alumnos
+        ADD Emojis VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL;
+END IF;
+DROP TEMPORARY TABLE IF EXISTS tmp_AlumnoEmojis;
+CREATE TEMPORARY TABLE tmp_AlumnoEmojis
+(
+    Codigo VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+    Emojis VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO tmp_AlumnoEmojis (Codigo, Emojis)
+VALUES
+    ('A1001', '🐽'),
+    ('A1018', '🐝'),
+    ('A1004', '🐶'),
+    ('A1003', '🐭'),
+    ('G1002', '🎈'),
+    ('G1003', '🤦🏻‍♀'),
+    ('G1004', '🦒'),
+    ('G1009', '😉'),
+    ('G1084', '🪼'),
+    ('G1086', '🦍'),
+    ('G1119', '🍒'),
+    ('G1146', '🐹'),
+    ('G1159', '🤷🏻‍♀'),
+    ('G1174', '😩'),
+    ('G1194', '🌮'),
+    ('G1200', '📿'),
+    ('G1241', '✨'),
+    ('G1249', '💅🏻'),
+    ('H1146', '🌷'),
+    ('H1066', '🐿️🦭'),
+    ('H1161', '🏃🏻‍♀️'),
+    ('H1165', '🦝'),
+    ('H1157', '🦢'),
+    ('H1187', '🌱'),
+    ('H1183', '💧'),
+    ('H1144', '🌸'),
+    ('H1143', '❤️‍🔥'),
+    ('H1196', '🦤💨'),
+    ('H1022', '🐣'),
+    ('H1177', '🧸🍧'),
+    ('H1171', '🐁'),
+    ('H', '🌺'),
+    ('H1148', '🩻'),
+    ('R1063', '💫'),
+    ('R1079', '🐺'),
+    ('R1218', '🐞'),
+    ('R1133', '🍭'),
+    ('R1033', '⭐'),
+    ('R1167', '🧜🏾‍♂️'),
+    ('R1066', '🦘'),
+    ('R1020', '🪾'),
+    ('R1093', '🎶'),
+    ('R1215', '🍿'),
+    ('R1213', '🪎'),
+    ('R1222', '🛼'),
+    ('R1062', '👨🏽‍🚀'),
+    ('R1197', '🧉'),
+    ('R1198', '🫰🏻'),
+    ('R1220', '🍣'),
+    ('R1195', '🫥'),
+    ('S1002', '🕷'),
+    ('S1137', '👑'),
+    ('S1180', '🗺'),
+    ('S1243', '💎'),
+    ('S1248', '🌻'),
+    ('S1246', '💪🏻'),
+    ('S1245', '®️'),
+    ('S1221', '🐨'),
+    ('S1107', '☄️'),
+    ('S1181', '🦄'),
+    ('S1108', '🦦🔱'),
+    ('S1247', '⚔️'),
+    ('S1189', '🧣'),
+    ('S1027', '🙈'),
+    ('S1012', '🐈‍⬛'),
+    ('S1238', '🧚🏻'),
+    ('S1193', '🧜‍♀️'),
+    ('S1201', '🐼'),
+    ('S1235', '🧟‍♂️'),
+    ('S1140', '🧸');
+
+UPDATE Alumnos A
+INNER JOIN tmp_AlumnoEmojis E ON E.Codigo = A.Codigo
+SET A.Emojis = E.Emojis
+WHERE NULLIF(LTRIM(RTRIM(A.Emojis)), '') IS NULL;
 END;
 GO
-
-DECLARE @AlumnoEmojis TABLE
-(
-    Codigo NVARCHAR(10) NOT NULL,
-    Emojis NVARCHAR(20) NOT NULL
-);
-
-INSERT INTO @AlumnoEmojis (Codigo, Emojis)
-VALUES
-    (N'A1001', N'🐽'),
-    (N'A1018', N'🐝'),
-    (N'A1004', N'🐶'),
-    (N'A1003', N'🐭'),
-    (N'G1002', N'🎈'),
-    (N'G1003', N'🤦🏻‍♀'),
-    (N'G1004', N'🦒'),
-    (N'G1009', N'😉'),
-    (N'G1084', N'🪼'),
-    (N'G1086', N'🦍'),
-    (N'G1119', N'🍒'),
-    (N'G1146', N'🐹'),
-    (N'G1159', N'🤷🏻‍♀'),
-    (N'G1174', N'😩'),
-    (N'G1194', N'🌮'),
-    (N'G1200', N'📿'),
-    (N'G1241', N'✨'),
-    (N'G1249', N'💅🏻'),
-    (N'H1146', N'🌷'),
-    (N'H1066', N'🐿️🦭'),
-    (N'H1161', N'🏃🏻‍♀️'),
-    (N'H1165', N'🦝'),
-    (N'H1157', N'🦢'),
-    (N'H1187', N'🌱'),
-    (N'H1183', N'💧'),
-    (N'H1144', N'🌸'),
-    (N'H1143', N'❤️‍🔥'),
-    (N'H1196', N'🦤💨'),
-    (N'H1022', N'🐣'),
-    (N'H1177', N'🧸🍧'),
-    (N'H1171', N'🐁'),
-    (N'H', N'🌺'),
-    (N'H1148', N'🩻'),
-    (N'R1063', N'💫'),
-    (N'R1079', N'🐺'),
-    (N'R1218', N'🐞'),
-    (N'R1133', N'🍭'),
-    (N'R1033', N'⭐'),
-    (N'R1167', N'🧜🏾‍♂️'),
-    (N'R1066', N'🦘'),
-    (N'R1020', N'🪾'),
-    (N'R1093', N'🎶'),
-    (N'R1215', N'🍿'),
-    (N'R1213', N'🪎'),
-    (N'R1222', N'🛼'),
-    (N'R1062', N'👨🏽‍🚀'),
-    (N'R1197', N'🧉'),
-    (N'R1198', N'🫰🏻'),
-    (N'R1220', N'🍣'),
-    (N'R1195', N'🫥'),
-    (N'S1002', N'🕷'),
-    (N'S1137', N'👑'),
-    (N'S1180', N'🗺'),
-    (N'S1243', N'💎'),
-    (N'S1248', N'🌻'),
-    (N'S1246', N'💪🏻'),
-    (N'S1245', N'®️'),
-    (N'S1221', N'🐨'),
-    (N'S1107', N'☄️'),
-    (N'S1181', N'🦄'),
-    (N'S1108', N'🦦🔱'),
-    (N'S1247', N'⚔️'),
-    (N'S1189', N'🧣'),
-    (N'S1027', N'🙈'),
-    (N'S1012', N'🐈‍⬛'),
-    (N'S1238', N'🧚🏻'),
-    (N'S1193', N'🧜‍♀️'),
-    (N'S1201', N'🐼'),
-    (N'S1235', N'🧟‍♂️'),
-    (N'S1140', N'🧸');
-
-UPDATE A
-SET A.Emojis = E.Emojis
-FROM dbo.Alumnos A
-INNER JOIN @AlumnoEmojis E ON E.Codigo = A.Codigo
-WHERE NULLIF(LTRIM(RTRIM(A.Emojis)), N'') IS NULL;
+CALL migrate_014_add_alumno_emojis();
+GO
+DROP PROCEDURE migrate_014_add_alumno_emojis;
 GO

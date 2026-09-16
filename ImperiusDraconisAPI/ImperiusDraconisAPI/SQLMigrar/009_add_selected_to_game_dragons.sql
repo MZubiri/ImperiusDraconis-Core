@@ -1,67 +1,39 @@
-/*
-    Migracion: 009_add_selected_to_game_dragons
-    Proposito: Agregar columnas de seleccion, estado y necesidades a dbo.GameDragons para el Dragon Acompañante.
-    Fecha: 2026-06-10
-
-    Requisitos:
-    - SQL Server 2016 o superior.
-    - La tabla dbo.GameDragons debe existir.
-*/
-
-SET NOCOUNT ON;
-SET XACT_ABORT ON;
-SET ANSI_NULLS ON;
-SET QUOTED_IDENTIFIER ON;
+-- MySQL 8.0.16+. GO separates connector batches; DDL commits implicitly.
+DROP PROCEDURE IF EXISTS migrate_009_add_selected_to_game_dragons;
 GO
+CREATE PROCEDURE migrate_009_add_selected_to_game_dragons()
+migration: BEGIN
 
-IF OBJECT_ID(N'dbo.GameDragons', N'U') IS NULL
-    THROW 50050, 'No existe la tabla dbo.GameDragons. Ejecute primero las migraciones anteriores.', 1;
-GO
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'GameDragons') THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No existe la tabla GameDragons. Ejecute primero las migraciones anteriores.';
+END IF;
 
--- Validar si la columna Selected ya existe para evitar errores si se ejecuta multiples veces
-IF COL_LENGTH(N'dbo.GameDragons', N'Selected') IS NOT NULL
-BEGIN
-    PRINT 'Migracion 009_add_selected_to_game_dragons ya aplicada o columnas ya existen.';
-    RETURN;
+IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'GameDragons' AND column_name = 'Selected') THEN
+
+    LEAVE migration;
+
+END IF;
+    ALTER TABLE GameDragons ADD
+        Selected TINYINT(1) NOT NULL DEFAULT (0),
+        ADD Status VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ('ACTIVE'),
+        ADD Life INT NOT NULL DEFAULT (100),
+        ADD Happiness INT NOT NULL DEFAULT (100),
+        ADD Hunger INT NOT NULL DEFAULT (100),
+        ADD Experience INT NOT NULL DEFAULT (0),
+        ADD LastNeedsUpdateAt DATETIME(3) NOT NULL DEFAULT (UTC_TIMESTAMP(3));
+
+    ALTER TABLE GameDragons ADD
+        CONSTRAINT CK_GameDragons_Status CHECK (Status IN ('ACTIVE', 'FLED')),
+        ADD CONSTRAINT CK_GameDragons_Life CHECK (Life >= 0 AND Life <= 100),
+        ADD CONSTRAINT CK_GameDragons_Happiness CHECK (Happiness >= 0 AND Happiness <= 100),
+        ADD CONSTRAINT CK_GameDragons_Hunger CHECK (Hunger >= 0 AND Hunger <= 100),
+        ADD CONSTRAINT CK_GameDragons_Experience CHECK (Experience >= 0);
+
+    ALTER TABLE GameDragons ADD COLUMN Filter_UX_GameDragons_IdAlumno_Selected BIGINT GENERATED ALWAYS AS (CASE WHEN Selected = 1 THEN IdAlumno ELSE NULL END) STORED;
+CREATE UNIQUE INDEX UX_GameDragons_IdAlumno_Selected ON GameDragons (Filter_UX_GameDragons_IdAlumno_Selected);
 END;
-
-BEGIN TRY
-    BEGIN TRANSACTION;
-
-    -- 1. Agregar columnas a GameDragons
-    ALTER TABLE dbo.GameDragons ADD
-        Selected BIT NOT NULL CONSTRAINT DF_GameDragons_Selected DEFAULT (0),
-        Status NVARCHAR(20) NOT NULL CONSTRAINT DF_GameDragons_Status DEFAULT (N'ACTIVE'),
-        Life INT NOT NULL CONSTRAINT DF_GameDragons_Life DEFAULT (100),
-        Happiness INT NOT NULL CONSTRAINT DF_GameDragons_Happiness DEFAULT (100),
-        Hunger INT NOT NULL CONSTRAINT DF_GameDragons_Hunger DEFAULT (100),
-        Experience INT NOT NULL CONSTRAINT DF_GameDragons_Experience DEFAULT (0),
-        LastNeedsUpdateAt DATETIME2(3) NOT NULL CONSTRAINT DF_GameDragons_LastNeedsUpdateAt DEFAULT SYSUTCDATETIME();
-
-    -- 2. Agregar restricciones CHECK usando SQL Dinamico para evitar errores de compilacion de columnas nuevas
-    EXEC sp_executesql N'
-    ALTER TABLE dbo.GameDragons WITH CHECK ADD
-        CONSTRAINT CK_GameDragons_Status CHECK (Status IN (N''ACTIVE'', N''FLED'')),
-        CONSTRAINT CK_GameDragons_Life CHECK (Life >= 0 AND Life <= 100),
-        CONSTRAINT CK_GameDragons_Happiness CHECK (Happiness >= 0 AND Happiness <= 100),
-        CONSTRAINT CK_GameDragons_Hunger CHECK (Hunger >= 0 AND Hunger <= 100),
-        CONSTRAINT CK_GameDragons_Experience CHECK (Experience >= 0);
-    ';
-
-    -- 3. Crear indice unico filtrado usando SQL Dinamico
-    EXEC sp_executesql N'
-    CREATE UNIQUE NONCLUSTERED INDEX UX_GameDragons_IdAlumno_Selected
-    ON dbo.GameDragons (IdAlumno)
-    WHERE Selected = 1;
-    ';
-
-    COMMIT TRANSACTION;
-    PRINT 'Migracion 009_add_selected_to_game_dragons aplicada correctamente.';
-END TRY
-BEGIN CATCH
-    IF XACT_STATE() <> 0
-        ROLLBACK TRANSACTION;
-
-    THROW;
-END CATCH;
+GO
+CALL migrate_009_add_selected_to_game_dragons();
+GO
+DROP PROCEDURE migrate_009_add_selected_to_game_dragons;
 GO

@@ -1,103 +1,78 @@
-/*
-    Migracion: 008_create_game_egg_transfers
-    Proposito: Crear persistencia y restricciones para la transferencia de huevos (Regalo).
-    Fecha: 2026-06-10
-
-    Requisitos:
-    - SQL Server 2016 o superior.
-    - La tabla dbo.GameEggs debe existir.
-    - La tabla dbo.Alumnos debe existir.
-*/
-
-SET NOCOUNT ON;
-SET XACT_ABORT ON;
-SET ANSI_NULLS ON;
-SET QUOTED_IDENTIFIER ON;
+-- MySQL 8.0.16+. GO separates connector batches; DDL commits implicitly.
+DROP PROCEDURE IF EXISTS migrate_008_create_game_egg_transfers;
 GO
+CREATE PROCEDURE migrate_008_create_game_egg_transfers()
+migration: BEGIN
 
-IF OBJECT_ID(N'dbo.Alumnos', N'U') IS NULL
-    THROW 50040, 'No existe la tabla dbo.Alumnos. Ejecute primero las migraciones base.', 1;
-GO
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'Alumnos') THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No existe la tabla Alumnos. Ejecute primero las migraciones base.';
+END IF;
 
-IF OBJECT_ID(N'dbo.GameEggs', N'U') IS NULL
-    THROW 50041, 'No existe dbo.GameEggs. Ejecute primero las migraciones anteriores.', 1;
-GO
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'GameEggs') THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No existe GameEggs. Ejecute primero las migraciones anteriores.';
+END IF;
 
-IF OBJECT_ID(N'dbo.GameEggTransfers', N'U') IS NOT NULL
-BEGIN
-    PRINT 'Migracion 008_create_game_egg_transfers ya aplicada.';
-    RETURN;
-END;
+IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'GameEggTransfers') THEN
 
-BEGIN TRY
-    BEGIN TRANSACTION;
+    LEAVE migration;
 
-    -- 1. Modificar restricciones de GameEggs para admitir IN_TRANSFER
-    -- Primero eliminamos las restricciones check antiguas si existen
-    IF EXISTS (SELECT * FROM sys.check_constraints WHERE name = N'CK_GameEggs_Status' AND parent_object_id = OBJECT_ID(N'dbo.GameEggs'))
-        ALTER TABLE dbo.GameEggs DROP CONSTRAINT CK_GameEggs_Status;
+END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = DATABASE() AND constraint_name = 'CK_GameEggs_Status' AND table_name = 'GameEggs') THEN
+        ALTER TABLE GameEggs DROP CHECK CK_GameEggs_Status;
+END IF;
 
-    IF EXISTS (SELECT * FROM sys.check_constraints WHERE name = N'CK_GameEggs_StatusDates' AND parent_object_id = OBJECT_ID(N'dbo.GameEggs'))
-        ALTER TABLE dbo.GameEggs DROP CONSTRAINT CK_GameEggs_StatusDates;
+    IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = DATABASE() AND constraint_name = 'CK_GameEggs_StatusDates' AND table_name = 'GameEggs') THEN
+        ALTER TABLE GameEggs DROP CHECK CK_GameEggs_StatusDates;
+END IF;
 
-    -- Agregamos las nuevas restricciones check actualizadas
-    ALTER TABLE dbo.GameEggs WITH CHECK
-        ADD CONSTRAINT CK_GameEggs_Status CHECK (Status IN (N'OWNED', N'INCUBATING', N'READY_TO_HATCH', N'HATCHED', N'IN_TRANSFER'));
+    ALTER TABLE GameEggs
+        ADD CONSTRAINT CK_GameEggs_Status CHECK (Status IN ('OWNED', 'INCUBATING', 'READY_TO_HATCH', 'HATCHED', 'IN_TRANSFER'));
 
-    ALTER TABLE dbo.GameEggs WITH CHECK
+    ALTER TABLE GameEggs
         ADD CONSTRAINT CK_GameEggs_StatusDates CHECK
         (
             (
-                Status IN (N'OWNED', N'IN_TRANSFER')
+                Status IN ('OWNED', 'IN_TRANSFER')
                 AND IncubationStartedAt IS NULL
                 AND IncubationEndsAt IS NULL
             )
             OR
             (
-                Status IN (N'INCUBATING', N'READY_TO_HATCH', N'HATCHED')
+                Status IN ('INCUBATING', 'READY_TO_HATCH', 'HATCHED')
                 AND IncubationStartedAt IS NOT NULL
                 AND IncubationEndsAt IS NOT NULL
             )
         );
 
-    -- 2. Crear tabla GameEggTransfers
-    CREATE TABLE dbo.GameEggTransfers
+    CREATE TABLE GameEggTransfers
     (
-        Id BIGINT IDENTITY(1, 1) NOT NULL,
+        Id BIGINT AUTO_INCREMENT NOT NULL,
         EggId BIGINT NOT NULL,
         SenderIdAlumno INT NOT NULL,
         ReceiverRobloxUserId BIGINT NOT NULL,
-        ReceiverIdAlumno INT NULL, -- Se llena al ser aceptado para auditoria
-        Status NVARCHAR(20) NOT NULL CONSTRAINT DF_GameEggTransfers_Status DEFAULT (N'PENDING'),
-        CreatedAt DATETIME2(3) NOT NULL CONSTRAINT DF_GameEggTransfers_CreatedAt DEFAULT SYSUTCDATETIME(),
-        UpdatedAt DATETIME2(3) NOT NULL CONSTRAINT DF_GameEggTransfers_UpdatedAt DEFAULT SYSUTCDATETIME(),
+        ReceiverIdAlumno INT NULL,
+        Status VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ('PENDING'),
+        CreatedAt DATETIME(3) NOT NULL DEFAULT (UTC_TIMESTAMP(3)),
+        UpdatedAt DATETIME(3) NOT NULL DEFAULT (UTC_TIMESTAMP(3)),
 
-        CONSTRAINT PK_GameEggTransfers PRIMARY KEY CLUSTERED (Id),
-        CONSTRAINT FK_GameEggTransfers_GameEggs FOREIGN KEY (EggId) REFERENCES dbo.GameEggs (Id),
-        CONSTRAINT FK_GameEggTransfers_Sender FOREIGN KEY (SenderIdAlumno) REFERENCES dbo.Alumnos (IdAlumno),
-        CONSTRAINT FK_GameEggTransfers_Receiver FOREIGN KEY (ReceiverIdAlumno) REFERENCES dbo.Alumnos (IdAlumno),
-        CONSTRAINT CK_GameEggTransfers_Status CHECK (Status IN (N'PENDING', N'ACCEPTED', N'REJECTED')),
+        PRIMARY KEY (Id),
+        CONSTRAINT FK_GameEggTransfers_GameEggs FOREIGN KEY (EggId) REFERENCES GameEggs (Id),
+        CONSTRAINT FK_GameEggTransfers_Sender FOREIGN KEY (SenderIdAlumno) REFERENCES Alumnos (IdAlumno),
+        CONSTRAINT FK_GameEggTransfers_Receiver FOREIGN KEY (ReceiverIdAlumno) REFERENCES Alumnos (IdAlumno),
+        CONSTRAINT CK_GameEggTransfers_Status CHECK (Status IN ('PENDING', 'ACCEPTED', 'REJECTED')),
         CONSTRAINT CK_GameEggTransfers_UpdatedAt CHECK (UpdatedAt >= CreatedAt)
-    );
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-    -- 3. Crear indices e indice unico filtrado para evitar multiples transferencias pendientes por huevo
-    CREATE NONCLUSTERED INDEX IX_GameEggTransfers_EggId ON dbo.GameEggTransfers (EggId);
-    CREATE NONCLUSTERED INDEX IX_GameEggTransfers_Status ON dbo.GameEggTransfers (Status);
-    CREATE NONCLUSTERED INDEX IX_GameEggTransfers_ReceiverRobloxUserId ON dbo.GameEggTransfers (ReceiverRobloxUserId);
-    CREATE NONCLUSTERED INDEX IX_GameEggTransfers_ReceiverIdAlumno ON dbo.GameEggTransfers (ReceiverIdAlumno);
+    CREATE INDEX IX_GameEggTransfers_EggId ON GameEggTransfers (EggId);
+    CREATE INDEX IX_GameEggTransfers_Status ON GameEggTransfers (Status);
+    CREATE INDEX IX_GameEggTransfers_ReceiverRobloxUserId ON GameEggTransfers (ReceiverRobloxUserId);
+    CREATE INDEX IX_GameEggTransfers_ReceiverIdAlumno ON GameEggTransfers (ReceiverIdAlumno);
 
-    -- Evita que el mismo huevo tenga mas de una transferencia PENDING al mismo tiempo
-    CREATE UNIQUE NONCLUSTERED INDEX UX_GameEggTransfers_EggId_Pending
-        ON dbo.GameEggTransfers (EggId)
-        WHERE Status = N'PENDING';
-
-    COMMIT TRANSACTION;
-    PRINT 'Migracion 008_create_game_egg_transfers aplicada correctamente.';
-END TRY
-BEGIN CATCH
-    IF XACT_STATE() <> 0
-        ROLLBACK TRANSACTION;
-
-    THROW;
-END CATCH;
+    ALTER TABLE GameEggTransfers ADD COLUMN Filter_UX_GameEggTransfers_EggId_Pending BIGINT GENERATED ALWAYS AS (CASE WHEN Status = 'PENDING' THEN EggId ELSE NULL END) STORED;
+CREATE UNIQUE INDEX UX_GameEggTransfers_EggId_Pending ON GameEggTransfers (Filter_UX_GameEggTransfers_EggId_Pending);
+END;
+GO
+CALL migrate_008_create_game_egg_transfers();
+GO
+DROP PROCEDURE migrate_008_create_game_egg_transfers;
 GO

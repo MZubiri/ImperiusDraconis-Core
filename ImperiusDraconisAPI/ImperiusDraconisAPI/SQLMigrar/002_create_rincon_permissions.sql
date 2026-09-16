@@ -1,52 +1,58 @@
-/*
-    Migracion: 002_create_rincon_permissions
-    Proposito: Registrar permisos de Rincon para cargos y trabajos.
-    Fecha: 2026-06-05
-*/
+-- MySQL 8.0.16+. GO separates connector batches; DDL commits implicitly.
+DROP PROCEDURE IF EXISTS migrate_002_create_rincon_permissions;
+GO
+CREATE PROCEDURE migrate_002_create_rincon_permissions()
+migration: BEGIN
 
-DECLARE @PermisosRincon TABLE
+DROP TEMPORARY TABLE IF EXISTS tmp_PermisosRincon;
+CREATE TEMPORARY TABLE tmp_PermisosRincon
 (
-    Controlador NVARCHAR(100) NOT NULL,
-    Accion NVARCHAR(100) NOT NULL,
-    HabilitadoPorDefecto BIT NOT NULL
-);
+    Controlador VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+    Accion VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+    HabilitadoPorDefecto TINYINT(1) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO @PermisosRincon (Controlador, Accion, HabilitadoPorDefecto)
+INSERT INTO tmp_PermisosRincon (Controlador, Accion, HabilitadoPorDefecto)
 VALUES
-    (N'Rincon', N'Catalogo', 1),
-    (N'Rincon', N'Comprar', 1),
-    (N'Rincon', N'Historial', 1),
-    (N'Rincon', N'CancelarPedido', 1),
-    (N'Rincon', N'PanelAdmin', 0),
-    (N'Rincon', N'GestionarProductos', 0),
-    (N'Rincon', N'GestionarPedidos', 0);
+    ('Rincon', 'Catalogo', 1),
+    ('Rincon', 'Comprar', 1),
+    ('Rincon', 'Historial', 1),
+    ('Rincon', 'CancelarPedido', 1),
+    ('Rincon', 'PanelAdmin', 0),
+    ('Rincon', 'GestionarProductos', 0),
+    ('Rincon', 'GestionarPedidos', 0);
 
-INSERT INTO dbo.Permisos (IdCargo, Controlador, Accion, TienePermiso)
+INSERT INTO Permisos (IdCargo, Controlador, Accion, TienePermiso)
 SELECT C.IdCargo, P.Controlador, P.Accion, P.HabilitadoPorDefecto
-FROM dbo.Cargos C
-CROSS JOIN @PermisosRincon P
+FROM Cargos C
+CROSS JOIN tmp_PermisosRincon P
 WHERE NOT EXISTS
 (
     SELECT 1
-    FROM dbo.Permisos E
+    FROM Permisos E
     WHERE E.IdCargo = C.IdCargo
       AND E.Controlador = P.Controlador
       AND E.Accion = P.Accion
 );
 
-IF OBJECT_ID(N'dbo.PermisosTrabajos', N'U') IS NOT NULL
-BEGIN
-    INSERT INTO dbo.PermisosTrabajos (IdTrabajo, Controlador, Accion, TienePermiso)
+IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'PermisosTrabajos') THEN
+    INSERT INTO PermisosTrabajos (IdTrabajo, Controlador, Accion, TienePermiso)
     SELECT T.IdTrabajo, P.Controlador, P.Accion, 0
-    FROM dbo.Trabajos T
-    CROSS JOIN @PermisosRincon P
+    FROM Trabajos T
+    CROSS JOIN tmp_PermisosRincon P
     WHERE NOT EXISTS
     (
         SELECT 1
-        FROM dbo.PermisosTrabajos E
+        FROM PermisosTrabajos E
         WHERE E.IdTrabajo = T.IdTrabajo
           AND E.Controlador = P.Controlador
           AND E.Accion = P.Accion
     );
+
+END IF;
 END;
+GO
+CALL migrate_002_create_rincon_permissions();
+GO
+DROP PROCEDURE migrate_002_create_rincon_permissions;
 GO

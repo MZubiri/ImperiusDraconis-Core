@@ -1,67 +1,48 @@
-/*
-    Migracion: 004_create_game_eggs
-    Proposito: Crear persistencia minima de huevos de Imperius Dragons.
-    Fecha: 2026-06-09
-
-    Requisitos:
-    - SQL Server 2016 o superior.
-    - Las tablas dbo.Alumnos y dbo.GameDragonCapacity deben existir.
-*/
-
-SET NOCOUNT ON;
-SET XACT_ABORT ON;
-SET ANSI_NULLS ON;
-SET QUOTED_IDENTIFIER ON;
-SET ANSI_PADDING ON;
-SET ANSI_WARNINGS ON;
-SET ARITHABORT ON;
-SET CONCAT_NULL_YIELDS_NULL ON;
-SET NUMERIC_ROUNDABORT OFF;
+-- MySQL 8.0.16+. GO separates connector batches; DDL commits implicitly.
+DROP PROCEDURE IF EXISTS migrate_004_create_game_eggs;
 GO
+CREATE PROCEDURE migrate_004_create_game_eggs()
+migration: BEGIN
 
-IF OBJECT_ID(N'dbo.Alumnos', N'U') IS NULL
-    THROW 50011, 'No existe dbo.Alumnos. No se puede crear GameEggs.', 1;
-GO
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'Alumnos') THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No existe Alumnos. No se puede crear GameEggs.';
+END IF;
 
-IF OBJECT_ID(N'dbo.GameDragonCapacity', N'U') IS NULL
-    THROW 50012, 'No existe dbo.GameDragonCapacity. Ejecute primero la migracion 003.', 1;
-GO
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'GameDragonCapacity') THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No existe GameDragonCapacity. Ejecute primero la migracion 003.';
+END IF;
 
-IF OBJECT_ID(N'dbo.GameEggs', N'U') IS NOT NULL
-BEGIN
-    PRINT 'Migracion 004_create_game_eggs ya aplicada.';
-    RETURN;
-END;
+IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'GameEggs') THEN
 
-BEGIN TRY
-    BEGIN TRANSACTION;
+    LEAVE migration;
 
-    CREATE TABLE dbo.GameEggs
+END IF;
+    CREATE TABLE GameEggs
     (
-        Id BIGINT IDENTITY(1, 1) NOT NULL,
+        Id BIGINT AUTO_INCREMENT NOT NULL,
         IdAlumno INT NOT NULL,
-        Rarity NVARCHAR(20) NOT NULL,
-        AcquiredAt DATETIME2(3) NOT NULL
-            CONSTRAINT DF_GameEggs_AcquiredAt DEFAULT SYSUTCDATETIME(),
-        IncubationStartedAt DATETIME2(3) NULL,
-        IncubationEndsAt DATETIME2(3) NULL,
-        Status NVARCHAR(20) NOT NULL
-            CONSTRAINT DF_GameEggs_Status DEFAULT N'OWNED',
-        UpdatedAt DATETIME2(3) NOT NULL
-            CONSTRAINT DF_GameEggs_UpdatedAt DEFAULT SYSUTCDATETIME(),
-        RowVersion ROWVERSION,
+        Rarity VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+        AcquiredAt DATETIME(3) NOT NULL
+            DEFAULT (UTC_TIMESTAMP(3)),
+        IncubationStartedAt DATETIME(3) NULL,
+        IncubationEndsAt DATETIME(3) NULL,
+        Status VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
+            DEFAULT 'OWNED',
+        UpdatedAt DATETIME(3) NOT NULL
+            DEFAULT (UTC_TIMESTAMP(3)),
+        RowVersion TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
         CONSTRAINT PK_GameEggs
-            PRIMARY KEY CLUSTERED (Id),
+            PRIMARY KEY (Id),
 
         CONSTRAINT FK_GameEggs_Alumnos
-            FOREIGN KEY (IdAlumno) REFERENCES dbo.Alumnos (IdAlumno),
+            FOREIGN KEY (IdAlumno) REFERENCES Alumnos (IdAlumno),
 
         CONSTRAINT CK_GameEggs_Rarity
-            CHECK (Rarity IN (N'COMMON', N'RARE', N'EPIC', N'LEGENDARY', N'MYTHIC')),
+            CHECK (Rarity IN ('COMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC')),
 
         CONSTRAINT CK_GameEggs_Status
-            CHECK (Status IN (N'OWNED', N'INCUBATING', N'READY_TO_HATCH', N'HATCHED')),
+            CHECK (Status IN ('OWNED', 'INCUBATING', 'READY_TO_HATCH', 'HATCHED')),
 
         CONSTRAINT CK_GameEggs_IncubationPair
             CHECK
@@ -86,13 +67,13 @@ BEGIN TRY
             CHECK
             (
                 (
-                    Status = N'OWNED'
+                    Status = 'OWNED'
                     AND IncubationStartedAt IS NULL
                     AND IncubationEndsAt IS NULL
                 )
                 OR
                 (
-                    Status IN (N'INCUBATING', N'READY_TO_HATCH', N'HATCHED')
+                    Status IN ('INCUBATING', 'READY_TO_HATCH', 'HATCHED')
                     AND IncubationStartedAt IS NOT NULL
                     AND IncubationEndsAt IS NOT NULL
                 )
@@ -100,24 +81,15 @@ BEGIN TRY
 
         CONSTRAINT CK_GameEggs_UpdatedAfterAcquired
             CHECK (UpdatedAt >= AcquiredAt)
-    );
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-    CREATE NONCLUSTERED INDEX IX_GameEggs_IdAlumno_Status
-        ON dbo.GameEggs (IdAlumno, Status)
-        INCLUDE (Rarity, AcquiredAt, IncubationStartedAt, IncubationEndsAt, UpdatedAt);
+    CREATE INDEX IX_GameEggs_IdAlumno_Status
+        ON GameEggs (IdAlumno, Status);
 
-    CREATE NONCLUSTERED INDEX IX_GameEggs_Incubating_EndsAt
-        ON dbo.GameEggs (IncubationEndsAt)
-        INCLUDE (IdAlumno, Rarity)
-        WHERE Status = N'INCUBATING';
-
-    COMMIT TRANSACTION;
-    PRINT 'Migracion 004_create_game_eggs aplicada correctamente.';
-END TRY
-BEGIN CATCH
-    IF XACT_STATE() <> 0
-        ROLLBACK TRANSACTION;
-
-    THROW;
-END CATCH;
+    CREATE INDEX IX_GameEggs_Incubating_EndsAt ON GameEggs (IncubationEndsAt);
+END;
+GO
+CALL migrate_004_create_game_eggs();
+GO
+DROP PROCEDURE migrate_004_create_game_eggs;
 GO

@@ -1,72 +1,44 @@
-/*
-    Migracion: 005_add_egg_definition_to_game_eggs
-    Proposito: Identificar el tipo o definicion de cada huevo sin crear catalogo.
-    Fecha: 2026-06-09
-
-    Compatibilidad:
-    - Preserva registros existentes usando NULL para huevos legacy sin definicion.
-    - No modifica la migracion 004 ni crea claves foraneas a catalogos futuros.
-*/
-
-SET NOCOUNT ON;
-SET XACT_ABORT ON;
-SET ANSI_NULLS ON;
-SET QUOTED_IDENTIFIER ON;
+-- MySQL 8.0.16+. GO separates connector batches; DDL commits implicitly.
+DROP PROCEDURE IF EXISTS migrate_005_add_egg_definition_to_game_eggs;
 GO
+CREATE PROCEDURE migrate_005_add_egg_definition_to_game_eggs()
+migration: BEGIN
+DECLARE v_0 INT;
+DECLARE v_1 INT;
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'GameEggs') THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No existe GameEggs. Ejecute primero la migracion 004.';
+END IF;
 
-IF OBJECT_ID(N'dbo.GameEggs', N'U') IS NULL
-    THROW 50021, 'No existe dbo.GameEggs. Ejecute primero la migracion 004.', 1;
-GO
+SET v_0 = CASE WHEN NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'GameEggs' AND column_name = 'EggDefinitionCode') THEN 0 ELSE 1 END;
+SET v_1 = CASE WHEN NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = DATABASE() AND constraint_name = 'CK_GameEggs_EggDefinitionCode_Valid') THEN 0 ELSE 1 END;
 
-DECLARE @ColumnExists BIT =
-    CASE WHEN COL_LENGTH(N'dbo.GameEggs', N'EggDefinitionCode') IS NULL THEN 0 ELSE 1 END;
-DECLARE @ConstraintExists BIT =
-    CASE WHEN OBJECT_ID(N'dbo.CK_GameEggs_EggDefinitionCode_Valid', N'C') IS NULL THEN 0 ELSE 1 END;
+IF v_0 = 1 AND v_1 = 1 THEN
 
-IF @ColumnExists = 1 AND @ConstraintExists = 1
-BEGIN
-    PRINT 'Migracion 005_add_egg_definition_to_game_eggs ya aplicada.';
-    RETURN;
-END;
+    LEAVE migration;
 
-IF @ColumnExists <> @ConstraintExists
-    THROW 50022, 'Migracion 005 parcialmente aplicada. Revise GameEggs antes de continuar.', 1;
+END IF;
+IF v_0 <> v_1 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Migracion 005 parcialmente aplicada. Revise GameEggs antes de continuar.';
+END IF;
 
-BEGIN TRY
-    BEGIN TRANSACTION;
+        ALTER TABLE GameEggs
+            ADD EggDefinitionCode VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL;
 
-    /*
-        Cada ALTER se compila por separado. Esto evita que SQL Server intente
-        resolver EggDefinitionCode en el CHECK antes de crear la columna.
-    */
-    EXEC sys.sp_executesql N'
-        ALTER TABLE dbo.GameEggs
-            ADD EggDefinitionCode NVARCHAR(50) NULL;
-    ';
-
-    EXEC sys.sp_executesql N'
-        ALTER TABLE dbo.GameEggs WITH CHECK
+        ALTER TABLE GameEggs
             ADD CONSTRAINT CK_GameEggs_EggDefinitionCode_Valid
             CHECK
             (
                 EggDefinitionCode IS NULL
                 OR
                 (
-                    LEN(EggDefinitionCode) > 0
+                    CHAR_LENGTH(EggDefinitionCode) > 0
                     AND EggDefinitionCode = LTRIM(RTRIM(EggDefinitionCode))
-                    AND EggDefinitionCode COLLATE Latin1_General_100_BIN2
-                        NOT LIKE N''%[^A-Z0-9_]%'' COLLATE Latin1_General_100_BIN2
+                    AND NOT REGEXP_LIKE(EggDefinitionCode, '[^A-Z0-9_]', 'c')
                 )
             );
-    ';
-
-    COMMIT TRANSACTION;
-    PRINT 'Migracion 005_add_egg_definition_to_game_eggs aplicada correctamente.';
-END TRY
-BEGIN CATCH
-    IF XACT_STATE() <> 0
-        ROLLBACK TRANSACTION;
-
-    THROW;
-END CATCH;
+END;
+GO
+CALL migrate_005_add_egg_definition_to_game_eggs();
+GO
+DROP PROCEDURE migrate_005_add_egg_definition_to_game_eggs;
 GO

@@ -1,117 +1,107 @@
-IF OBJECT_ID(N'dbo.LandingConfiguracion', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.LandingConfiguracion
-    (
-        IdConfiguracion INT NOT NULL CONSTRAINT PK_LandingConfiguracion PRIMARY KEY,
-        TituloPortada NVARCHAR(160) NOT NULL,
-        SubtituloPortada NVARCHAR(500) NULL,
-        IdCasaGanadora INT NULL,
-        TituloCopa NVARCHAR(160) NULL,
-        DescripcionCopa NVARCHAR(500) NULL,
-        FechaActualizacion DATETIME2 NOT NULL CONSTRAINT DF_LandingConfiguracion_Fecha DEFAULT SYSUTCDATETIME(),
-        CONSTRAINT FK_LandingConfiguracion_Casas FOREIGN KEY (IdCasaGanadora) REFERENCES dbo.Casas(IdCasa)
-    );
-END
+-- MySQL 8.0.16+. GO separates connector batches; DDL commits implicitly.
+DROP PROCEDURE IF EXISTS migrate_016_create_public_landing;
 GO
+CREATE PROCEDURE migrate_016_create_public_landing()
+migration: BEGIN
 
-IF NOT EXISTS (SELECT 1 FROM dbo.LandingConfiguracion WHERE IdConfiguracion = 1)
-BEGIN
-    INSERT INTO dbo.LandingConfiguracion
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'LandingConfiguracion') THEN
+    CREATE TABLE LandingConfiguracion
+    (
+        IdConfiguracion INT NOT NULL PRIMARY KEY,
+        TituloPortada VARCHAR(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+        SubtituloPortada VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        IdCasaGanadora INT NULL,
+        TituloCopa VARCHAR(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        DescripcionCopa VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        FechaActualizacion DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP(3)),
+        CONSTRAINT FK_LandingConfiguracion_Casas FOREIGN KEY (IdCasaGanadora) REFERENCES Casas(IdCasa)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+END IF;
+IF NOT EXISTS (SELECT 1 FROM LandingConfiguracion WHERE IdConfiguracion = 1) THEN
+    INSERT INTO LandingConfiguracion
         (IdConfiguracion, TituloPortada, SubtituloPortada, TituloCopa)
     VALUES
-        (1, N'Imperius Draconis', N'La magia en tus manos', N'Casa ganadora de la copa');
-END
-GO
+        (1, 'Imperius Draconis', 'La magia en tus manos', 'Casa ganadora de la copa');
 
-IF OBJECT_ID(N'dbo.LandingContenido', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.LandingContenido
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'LandingContenido') THEN
+    CREATE TABLE LandingContenido
     (
-        IdContenido INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_LandingContenido PRIMARY KEY,
-        Tipo NVARCHAR(30) NOT NULL,
+        IdContenido INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        Tipo VARCHAR(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
         Posicion INT NOT NULL,
         IdAlumno INT NULL,
-        Titulo NVARCHAR(160) NULL,
-        Descripcion NVARCHAR(600) NULL,
-        Meta NVARCHAR(160) NULL,
-        ImagenUrl NVARCHAR(500) NULL,
-        EnlaceUrl NVARCHAR(1200) NULL,
-        Activo BIT NOT NULL CONSTRAINT DF_LandingContenido_Activo DEFAULT 0,
-        FechaActualizacion DATETIME2 NOT NULL CONSTRAINT DF_LandingContenido_Fecha DEFAULT SYSUTCDATETIME(),
+        Titulo VARCHAR(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        Descripcion VARCHAR(600) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        Meta VARCHAR(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        ImagenUrl VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        EnlaceUrl VARCHAR(1200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        Activo TINYINT(1) NOT NULL DEFAULT 0,
+        FechaActualizacion DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP(3)),
         CONSTRAINT UQ_LandingContenido_TipoPosicion UNIQUE (Tipo, Posicion),
-        CONSTRAINT FK_LandingContenido_Alumnos FOREIGN KEY (IdAlumno) REFERENCES dbo.Alumnos(IdAlumno)
-    );
-END
-GO
+        CONSTRAINT FK_LandingContenido_Alumnos FOREIGN KEY (IdAlumno) REFERENCES Alumnos(IdAlumno)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-IF COL_LENGTH(N'dbo.LandingContenido', N'IdAlumno') IS NULL
-BEGIN
-    ALTER TABLE dbo.LandingContenido ADD IdAlumno INT NULL;
-END
-GO
-
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'LandingContenido' AND column_name = 'IdAlumno') THEN
+    ALTER TABLE LandingContenido ADD IdAlumno INT NULL;
+END IF;
 IF NOT EXISTS
 (
     SELECT 1
-    FROM sys.foreign_keys
-    WHERE name = N'FK_LandingContenido_Alumnos'
-      AND parent_object_id = OBJECT_ID(N'dbo.LandingContenido')
-)
-BEGIN
-    ALTER TABLE dbo.LandingContenido
+    FROM information_schema.table_constraints WHERE constraint_schema = DATABASE() AND constraint_name = 'FK_LandingContenido_Alumnos' AND table_name = 'LandingContenido'
+) THEN
+    ALTER TABLE LandingContenido
     ADD CONSTRAINT FK_LandingContenido_Alumnos
-        FOREIGN KEY (IdAlumno) REFERENCES dbo.Alumnos(IdAlumno);
-END
-GO
+        FOREIGN KEY (IdAlumno) REFERENCES Alumnos(IdAlumno);
 
-;WITH Slots AS
-(
-    SELECT N'PLATA' AS Tipo, Posicion FROM (VALUES (1), (2), (3), (4)) V(Posicion)
-    UNION ALL SELECT N'ORO', 1
-    UNION ALL SELECT N'INSTAGRAM', Posicion FROM (VALUES (1), (2)) V(Posicion)
-    UNION ALL SELECT N'TIKTOK', Posicion FROM (VALUES (1), (2)) V(Posicion)
-    UNION ALL SELECT N'ESCAPE', Posicion FROM (VALUES (1), (2), (3)) V(Posicion)
-)
-INSERT INTO dbo.LandingContenido (Tipo, Posicion, Activo)
-SELECT S.Tipo, S.Posicion, 0
-FROM Slots S
-WHERE NOT EXISTS
-(
-    SELECT 1
-    FROM dbo.LandingContenido C
-    WHERE C.Tipo = S.Tipo AND C.Posicion = S.Posicion
-);
-GO
-
-INSERT INTO dbo.Permisos (IdCargo, Controlador, Accion, TienePermiso)
+END IF;
+INSERT INTO LandingContenido (Tipo, Posicion, Activo) SELECT 'PLATA', 1, 0 WHERE NOT EXISTS (SELECT 1 FROM LandingContenido WHERE Tipo = 'PLATA' AND Posicion = 1);
+INSERT INTO LandingContenido (Tipo, Posicion, Activo) SELECT 'PLATA', 2, 0 WHERE NOT EXISTS (SELECT 1 FROM LandingContenido WHERE Tipo = 'PLATA' AND Posicion = 2);
+INSERT INTO LandingContenido (Tipo, Posicion, Activo) SELECT 'PLATA', 3, 0 WHERE NOT EXISTS (SELECT 1 FROM LandingContenido WHERE Tipo = 'PLATA' AND Posicion = 3);
+INSERT INTO LandingContenido (Tipo, Posicion, Activo) SELECT 'PLATA', 4, 0 WHERE NOT EXISTS (SELECT 1 FROM LandingContenido WHERE Tipo = 'PLATA' AND Posicion = 4);
+INSERT INTO LandingContenido (Tipo, Posicion, Activo) SELECT 'ORO', 1, 0 WHERE NOT EXISTS (SELECT 1 FROM LandingContenido WHERE Tipo = 'ORO' AND Posicion = 1);
+INSERT INTO LandingContenido (Tipo, Posicion, Activo) SELECT 'INSTAGRAM', 1, 0 WHERE NOT EXISTS (SELECT 1 FROM LandingContenido WHERE Tipo = 'INSTAGRAM' AND Posicion = 1);
+INSERT INTO LandingContenido (Tipo, Posicion, Activo) SELECT 'INSTAGRAM', 2, 0 WHERE NOT EXISTS (SELECT 1 FROM LandingContenido WHERE Tipo = 'INSTAGRAM' AND Posicion = 2);
+INSERT INTO LandingContenido (Tipo, Posicion, Activo) SELECT 'TIKTOK', 1, 0 WHERE NOT EXISTS (SELECT 1 FROM LandingContenido WHERE Tipo = 'TIKTOK' AND Posicion = 1);
+INSERT INTO LandingContenido (Tipo, Posicion, Activo) SELECT 'TIKTOK', 2, 0 WHERE NOT EXISTS (SELECT 1 FROM LandingContenido WHERE Tipo = 'TIKTOK' AND Posicion = 2);
+INSERT INTO LandingContenido (Tipo, Posicion, Activo) SELECT 'ESCAPE', 1, 0 WHERE NOT EXISTS (SELECT 1 FROM LandingContenido WHERE Tipo = 'ESCAPE' AND Posicion = 1);
+INSERT INTO LandingContenido (Tipo, Posicion, Activo) SELECT 'ESCAPE', 2, 0 WHERE NOT EXISTS (SELECT 1 FROM LandingContenido WHERE Tipo = 'ESCAPE' AND Posicion = 2);
+INSERT INTO LandingContenido (Tipo, Posicion, Activo) SELECT 'ESCAPE', 3, 0 WHERE NOT EXISTS (SELECT 1 FROM LandingContenido WHERE Tipo = 'ESCAPE' AND Posicion = 3);
+INSERT INTO Permisos (IdCargo, Controlador, Accion, TienePermiso)
 SELECT
     C.IdCargo,
-    N'Landing',
-    N'Administrar',
-    CASE WHEN C.Nombre IN (N'Maestre', N'Director', N'Administrador') THEN 1 ELSE 0 END
-FROM dbo.Cargos C
+    'Landing',
+    'Administrar',
+    CASE WHEN C.Nombre IN ('Maestre', 'Director', 'Administrador') THEN 1 ELSE 0 END
+FROM Cargos C
 WHERE NOT EXISTS
 (
     SELECT 1
-    FROM dbo.Permisos P
+    FROM Permisos P
     WHERE P.IdCargo = C.IdCargo
-      AND P.Controlador = N'Landing'
-      AND P.Accion = N'Administrar'
+      AND P.Controlador = 'Landing'
+      AND P.Accion = 'Administrar'
 );
-GO
 
-IF OBJECT_ID(N'dbo.PermisosTrabajos', N'U') IS NOT NULL
-BEGIN
-    INSERT INTO dbo.PermisosTrabajos (IdTrabajo, Controlador, Accion, TienePermiso)
-    SELECT T.IdTrabajo, N'Landing', N'Administrar', 0
-    FROM dbo.Trabajos T
+IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'PermisosTrabajos') THEN
+    INSERT INTO PermisosTrabajos (IdTrabajo, Controlador, Accion, TienePermiso)
+    SELECT T.IdTrabajo, 'Landing', 'Administrar', 0
+    FROM Trabajos T
     WHERE NOT EXISTS
     (
         SELECT 1
-        FROM dbo.PermisosTrabajos P
+        FROM PermisosTrabajos P
         WHERE P.IdTrabajo = T.IdTrabajo
-          AND P.Controlador = N'Landing'
-          AND P.Accion = N'Administrar'
+          AND P.Controlador = 'Landing'
+          AND P.Accion = 'Administrar'
     );
-END
+
+END IF;
+END;
+GO
+CALL migrate_016_create_public_landing();
+GO
+DROP PROCEDURE migrate_016_create_public_landing;
 GO

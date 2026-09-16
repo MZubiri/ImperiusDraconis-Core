@@ -1,91 +1,83 @@
-/*
-    Migracion: 012_create_biblioteca_tables
-    Proposito: Crear las tablas para el módulo de Biblioteca de libros (compras y suscripción semanal).
-    Fecha: 2026-06-12
-*/
-
--- 1. Tabla BibliotecaCategorias
-IF OBJECT_ID(N'dbo.BibliotecaCategorias', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.BibliotecaCategorias
-    (
-        Id INT IDENTITY(1,1) NOT NULL,
-        Nombre NVARCHAR(255) NOT NULL,
-        Descripcion NVARCHAR(MAX) NULL,
-        Activo BIT NOT NULL CONSTRAINT DF_BibliotecaCategorias_Activo DEFAULT 1,
-        CONSTRAINT PK_BibliotecaCategorias PRIMARY KEY (Id)
-    );
-END;
+-- MySQL 8.0.16+. GO separates connector batches; DDL commits implicitly.
+DROP PROCEDURE IF EXISTS migrate_012_create_biblioteca_tables;
 GO
+CREATE PROCEDURE migrate_012_create_biblioteca_tables()
+migration: BEGIN
 
--- 2. Tabla BibliotecaLibros
-IF OBJECT_ID(N'dbo.BibliotecaLibros', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.BibliotecaLibros
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'BibliotecaCategorias') THEN
+    CREATE TABLE BibliotecaCategorias
     (
-        Id INT IDENTITY(1,1) NOT NULL,
-        Titulo NVARCHAR(255) NOT NULL,
-        Autor NVARCHAR(255) NOT NULL,
-        Sinopsis NVARCHAR(MAX) NULL,
+        Id INT AUTO_INCREMENT NOT NULL,
+        Nombre VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+        Descripcion LONGTEXT NULL,
+        Activo TINYINT(1) NOT NULL DEFAULT 1,
+        PRIMARY KEY (Id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'BibliotecaLibros') THEN
+    CREATE TABLE BibliotecaLibros
+    (
+        Id INT AUTO_INCREMENT NOT NULL,
+        Titulo VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+        Autor VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+        Sinopsis LONGTEXT NULL,
         IdCategoria INT NULL,
         RutaArchivo VARCHAR(2048) NOT NULL,
-        Formato VARCHAR(50) NOT NULL, -- Ej: .pdf, .epub, .mobi
-        PrecioDracoins DECIMAL(18, 2) NOT NULL CONSTRAINT DF_BibliotecaLibros_PrecioDracoins DEFAULT 0,
-        FechaRegistro DATETIME NOT NULL CONSTRAINT DF_BibliotecaLibros_FechaRegistro DEFAULT GETDATE(),
-        Activo BIT NOT NULL CONSTRAINT DF_BibliotecaLibros_Activo DEFAULT 1,
-        CONSTRAINT PK_BibliotecaLibros PRIMARY KEY (Id),
-        CONSTRAINT FK_BibliotecaLibros_BibliotecaCategorias FOREIGN KEY (IdCategoria) REFERENCES dbo.BibliotecaCategorias(Id) ON DELETE SET NULL
-    );
-END;
-GO
+        Formato VARCHAR(50) NOT NULL,
+        PrecioDracoins DECIMAL(18, 2) NOT NULL DEFAULT 0,
+        FechaRegistro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        Activo TINYINT(1) NOT NULL DEFAULT 1,
+        PRIMARY KEY (Id),
+        CONSTRAINT FK_BibliotecaLibros_BibliotecaCategorias FOREIGN KEY (IdCategoria) REFERENCES BibliotecaCategorias(Id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 3. Tabla AlumnosSuscripciones (Suscripción semanal de biblioteca)
-IF OBJECT_ID(N'dbo.AlumnosSuscripciones', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.AlumnosSuscripciones
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'AlumnosSuscripciones') THEN
+    CREATE TABLE AlumnosSuscripciones
     (
-        Id INT IDENTITY(1,1) NOT NULL,
+        Id INT AUTO_INCREMENT NOT NULL,
         IdAlumno INT NOT NULL,
-        FechaInicio DATETIME NOT NULL CONSTRAINT DF_AlumnosSuscripciones_FechaInicio DEFAULT GETDATE(),
+        FechaInicio DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FechaVencimiento DATETIME NOT NULL,
-        Activa BIT NOT NULL CONSTRAINT DF_AlumnosSuscripciones_Activa DEFAULT 1,
-        CONSTRAINT PK_AlumnosSuscripciones PRIMARY KEY (Id),
-        CONSTRAINT FK_AlumnosSuscripciones_Alumnos FOREIGN KEY (IdAlumno) REFERENCES dbo.Alumnos(IdAlumno) ON DELETE CASCADE
-    );
-END;
-GO
+        Activa TINYINT(1) NOT NULL DEFAULT 1,
+        PRIMARY KEY (Id),
+        CONSTRAINT FK_AlumnosSuscripciones_Alumnos FOREIGN KEY (IdAlumno) REFERENCES Alumnos(IdAlumno) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 4. Tabla AlumnosLibrosComprados (Compras de libros individuales)
-IF OBJECT_ID(N'dbo.AlumnosLibrosComprados', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.AlumnosLibrosComprados
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'AlumnosLibrosComprados') THEN
+    CREATE TABLE AlumnosLibrosComprados
     (
-        Id INT IDENTITY(1,1) NOT NULL,
+        Id INT AUTO_INCREMENT NOT NULL,
         IdAlumno INT NOT NULL,
         IdLibro INT NOT NULL,
-        FechaCompra DATETIME NOT NULL CONSTRAINT DF_AlumnosLibrosComprados_FechaCompra DEFAULT GETDATE(),
+        FechaCompra DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         MontoPagado DECIMAL(18, 2) NOT NULL,
-        CONSTRAINT PK_AlumnosLibrosComprados PRIMARY KEY (Id),
-        CONSTRAINT FK_AlumnosLibrosComprados_Alumnos FOREIGN KEY (IdAlumno) REFERENCES dbo.Alumnos(IdAlumno) ON DELETE CASCADE,
-        CONSTRAINT FK_AlumnosLibrosComprados_BibliotecaLibros FOREIGN KEY (IdLibro) REFERENCES dbo.BibliotecaLibros(Id) ON DELETE CASCADE
-    );
-END;
-GO
+        PRIMARY KEY (Id),
+        CONSTRAINT FK_AlumnosLibrosComprados_Alumnos FOREIGN KEY (IdAlumno) REFERENCES Alumnos(IdAlumno) ON DELETE CASCADE,
+        CONSTRAINT FK_AlumnosLibrosComprados_BibliotecaLibros FOREIGN KEY (IdLibro) REFERENCES BibliotecaLibros(Id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 5. Tabla BibliotecaHistorialLectura (Marcadores y progreso de lectura)
-IF OBJECT_ID(N'dbo.BibliotecaHistorialLectura', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.BibliotecaHistorialLectura
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'BibliotecaHistorialLectura') THEN
+    CREATE TABLE BibliotecaHistorialLectura
     (
-        Id INT IDENTITY(1,1) NOT NULL,
+        Id INT AUTO_INCREMENT NOT NULL,
         IdAlumno INT NOT NULL,
         IdLibro INT NOT NULL,
-        UltimaPaginaLeida INT NOT NULL CONSTRAINT DF_BibliotecaHistorialLectura_UltimaPaginaLeida DEFAULT 1,
-        UltimoAcceso DATETIME NOT NULL CONSTRAINT DF_BibliotecaHistorialLectura_UltimoAcceso DEFAULT GETDATE(),
-        CONSTRAINT PK_BibliotecaHistorialLectura PRIMARY KEY (Id),
-        CONSTRAINT FK_BibliotecaHistorialLectura_Alumnos FOREIGN KEY (IdAlumno) REFERENCES dbo.Alumnos(IdAlumno) ON DELETE CASCADE,
-        CONSTRAINT FK_BibliotecaHistorialLectura_BibliotecaLibros FOREIGN KEY (IdLibro) REFERENCES dbo.BibliotecaLibros(Id) ON DELETE CASCADE,
+        UltimaPaginaLeida INT NOT NULL DEFAULT 1,
+        UltimoAcceso DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (Id),
+        CONSTRAINT FK_BibliotecaHistorialLectura_Alumnos FOREIGN KEY (IdAlumno) REFERENCES Alumnos(IdAlumno) ON DELETE CASCADE,
+        CONSTRAINT FK_BibliotecaHistorialLectura_BibliotecaLibros FOREIGN KEY (IdLibro) REFERENCES BibliotecaLibros(Id) ON DELETE CASCADE,
         CONSTRAINT UQ_BibliotecaHistorialLectura_AlumnoLibro UNIQUE (IdAlumno, IdLibro)
-    );
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+END IF;
 END;
+GO
+CALL migrate_012_create_biblioteca_tables();
+GO
+DROP PROCEDURE migrate_012_create_biblioteca_tables;
 GO

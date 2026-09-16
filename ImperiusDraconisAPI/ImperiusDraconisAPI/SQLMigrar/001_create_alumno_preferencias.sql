@@ -1,20 +1,24 @@
-/*
-    Migracion: 001_create_alumno_preferencias
-    Proposito: Guardar preferencias por alumno, inicialmente accesos rapidos del dashboard.
-    Fecha: 2026-05-14
-*/
+-- MySQL 8.0.16+. GO separates connector batches; DDL commits implicitly.
+DROP PROCEDURE IF EXISTS migrate_001_create_alumno_preferencias;
+GO
+CREATE PROCEDURE migrate_001_create_alumno_preferencias()
+migration: BEGIN
 
-IF OBJECT_ID(N'dbo.AlumnoPreferencias', N'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.AlumnoPreferencias
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'AlumnoPreferencias') THEN
+    CREATE TABLE AlumnoPreferencias
     (
         IdAlumno INT NOT NULL,
-        Clave NVARCHAR(100) NOT NULL,
-        Valor NVARCHAR(MAX) NOT NULL,
-        FechaActualizacion DATETIME2 NOT NULL
-            CONSTRAINT DF_AlumnoPreferencias_FechaActualizacion DEFAULT SYSUTCDATETIME(),
-        CONSTRAINT PK_AlumnoPreferencias PRIMARY KEY (IdAlumno, Clave)
-    );
+        Clave VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+        Valor LONGTEXT NOT NULL,
+        FechaActualizacion DATETIME NOT NULL
+            DEFAULT (UTC_TIMESTAMP(3)),
+        PRIMARY KEY (IdAlumno, Clave)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+END IF;
 END;
 GO
-
+CALL migrate_001_create_alumno_preferencias();
+GO
+DROP PROCEDURE migrate_001_create_alumno_preferencias;
+GO

@@ -1,163 +1,147 @@
--- =========================================================================
--- MIGRACIÓN 011: Tablas de Inteligencia y Auditoría de Accesos
--- Objetivo: Almacenar accesos, dispositivos de alumnos y logs de auditoría
--- =========================================================================
+-- MySQL 8.0.16+. GO separates connector batches; DDL commits implicitly.
+DROP PROCEDURE IF EXISTS migrate_011_create_audit_intelligence_tables;
+GO
+CREATE PROCEDURE migrate_011_create_audit_intelligence_tables()
+migration: BEGIN
 
--- 1. Tabla de Historial de Accesos
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[HistorialAccesos]') AND type in (N'U'))
-BEGIN
-    CREATE TABLE dbo.HistorialAccesos (
-        Id INT IDENTITY(1,1) PRIMARY KEY,
-        IdAlumno INT NOT NULL FOREIGN KEY REFERENCES dbo.Alumnos(IdAlumno),
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'HistorialAccesos') THEN
+    CREATE TABLE HistorialAccesos (
+        Id INT AUTO_INCREMENT PRIMARY KEY,
+        IdAlumno INT NOT NULL, FOREIGN KEY (IdAlumno) REFERENCES Alumnos(IdAlumno),
         DireccionIP VARCHAR(45) NOT NULL,
-        UserAgent NVARCHAR(500) NULL,
+        UserAgent VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
         FingerprintHash VARCHAR(64) NOT NULL,
         TipoDispositivo VARCHAR(50) NOT NULL,
         PaisCodigo VARCHAR(10) NULL,
-        Ciudad NVARCHAR(100) NULL,
-        ProveedorInternet NVARCHAR(150) NULL,
-        Exito BIT NOT NULL,
-        FechaAcceso DATETIME DEFAULT GETDATE()
-    );
-END;
+        Ciudad VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        ProveedorInternet VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        Exito TINYINT(1) NOT NULL,
+        FechaAcceso DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_HistorialAccesos_IP' AND object_id = OBJECT_ID(N'[dbo].[HistorialAccesos]'))
-BEGIN
-    CREATE NONCLUSTERED INDEX IX_HistorialAccesos_IP ON dbo.HistorialAccesos(DireccionIP) INCLUDE (IdAlumno);
-END;
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() AND index_name = 'IX_HistorialAccesos_IP' AND table_name = 'HistorialAccesos') THEN
+    CREATE INDEX IX_HistorialAccesos_IP ON HistorialAccesos(DireccionIP);
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_HistorialAccesos_Fingerprint' AND object_id = OBJECT_ID(N'[dbo].[HistorialAccesos]'))
-BEGIN
-    CREATE NONCLUSTERED INDEX IX_HistorialAccesos_Fingerprint ON dbo.HistorialAccesos(FingerprintHash) INCLUDE (IdAlumno);
-END;
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() AND index_name = 'IX_HistorialAccesos_Fingerprint' AND table_name = 'HistorialAccesos') THEN
+    CREATE INDEX IX_HistorialAccesos_Fingerprint ON HistorialAccesos(FingerprintHash);
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_HistorialAccesos_Alumno_Fecha' AND object_id = OBJECT_ID(N'[dbo].[HistorialAccesos]'))
-BEGIN
-    CREATE NONCLUSTERED INDEX IX_HistorialAccesos_Alumno_Fecha ON dbo.HistorialAccesos(IdAlumno, FechaAcceso DESC);
-END;
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() AND index_name = 'IX_HistorialAccesos_Alumno_Fecha' AND table_name = 'HistorialAccesos') THEN
+    CREATE INDEX IX_HistorialAccesos_Alumno_Fecha ON HistorialAccesos(IdAlumno, FechaAcceso DESC);
 
--- 2. Historial de Dispositivos por Alumno
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DispositivosAlumno]') AND type in (N'U'))
-BEGIN
-    CREATE TABLE dbo.DispositivosAlumno (
-        IdAlumno INT NOT NULL FOREIGN KEY REFERENCES dbo.Alumnos(IdAlumno),
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'DispositivosAlumno') THEN
+    CREATE TABLE DispositivosAlumno (
+        IdAlumno INT NOT NULL, FOREIGN KEY (IdAlumno) REFERENCES Alumnos(IdAlumno),
         FingerprintHash VARCHAR(64) NOT NULL,
-        UltimoUserAgent NVARCHAR(500) NULL,
-        NombreDispositivoManual NVARCHAR(100) NULL,
-        FechaPrimerAcceso DATETIME DEFAULT GETDATE(),
-        FechaUltimoAcceso DATETIME DEFAULT GETDATE(),
-        CONSTRAINT PK_DispositivosAlumno PRIMARY KEY (IdAlumno, FingerprintHash)
-    );
-END;
+        UltimoUserAgent VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        NombreDispositivoManual VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        FechaPrimerAcceso DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FechaUltimoAcceso DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (IdAlumno, FingerprintHash)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 3. Cuentas Especiales (Multiplicador de Relevancia)
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CuentasEspeciales]') AND type in (N'U'))
-BEGIN
-    CREATE TABLE dbo.CuentasEspeciales (
-        IdAlumno INT PRIMARY KEY FOREIGN KEY REFERENCES dbo.Alumnos(IdAlumno),
-        TipoCuenta VARCHAR(50) NOT NULL,              -- CASA, COMPARTIDA_AUTORIZADA, ASISTENTE, INSTITUCIONAL, ADMINISTRATIVA
-        Descripcion NVARCHAR(250) NULL,
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'CuentasEspeciales') THEN
+    CREATE TABLE CuentasEspeciales (
+        IdAlumno INT PRIMARY KEY, FOREIGN KEY (IdAlumno) REFERENCES Alumnos(IdAlumno),
+        TipoCuenta VARCHAR(50) NOT NULL,
+        Descripcion VARCHAR(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
         MultiplicadorAuditoria DECIMAL(3,2) NOT NULL DEFAULT 1.00,
-        FechaRegistro DATETIME DEFAULT GETDATE()
-    );
-END;
+        FechaRegistro DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 4. Excepciones Permanentes
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ExcepcionesAuditoria]') AND type in (N'U'))
-BEGIN
-    CREATE TABLE dbo.ExcepcionesAuditoria (
-        Id INT IDENTITY(1,1) PRIMARY KEY,
-        TipoExcepcion VARCHAR(50) NOT NULL,           -- RELACION_AUTORIZADA, IP_CONFIABLE, DISPOSITIVO_AUTORIZADO
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'ExcepcionesAuditoria') THEN
+    CREATE TABLE ExcepcionesAuditoria (
+        Id INT AUTO_INCREMENT PRIMARY KEY,
+        TipoExcepcion VARCHAR(50) NOT NULL,
         ValorA VARCHAR(100) NOT NULL,
         ValorB VARCHAR(100) NULL,
-        Motivo NVARCHAR(500) NULL,
-        FechaCreado DATETIME DEFAULT GETDATE(),
+        Motivo VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        FechaCreado DATETIME DEFAULT CURRENT_TIMESTAMP,
         IdAdministrador INT NOT NULL,
-        Activa BIT NOT NULL DEFAULT 1
-    );
-END;
+        Activa TINYINT(1) NOT NULL DEFAULT 1
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 5. Vinculaciones Implícitas
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CuentasVinculadas]') AND type in (N'U'))
-BEGIN
-    CREATE TABLE dbo.CuentasVinculadas (
-        Id INT IDENTITY(1,1) PRIMARY KEY,
-        IdAlumnoA INT NOT NULL FOREIGN KEY REFERENCES dbo.Alumnos(IdAlumno),
-        IdAlumnoB INT NOT NULL FOREIGN KEY REFERENCES dbo.Alumnos(IdAlumno),
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'CuentasVinculadas') THEN
+    CREATE TABLE CuentasVinculadas (
+        Id INT AUTO_INCREMENT PRIMARY KEY,
+        IdAlumnoA INT NOT NULL, FOREIGN KEY (IdAlumnoA) REFERENCES Alumnos(IdAlumno),
+        IdAlumnoB INT NOT NULL, FOREIGN KEY (IdAlumnoB) REFERENCES Alumnos(IdAlumno),
         TipoEvidencia VARCHAR(30) NOT NULL,
         FuerzaVinculo INT NOT NULL DEFAULT 1,
-        CreadoEn DATETIME DEFAULT GETDATE(),
-        ActualizadoEn DATETIME DEFAULT GETDATE(),
+        CreadoEn DATETIME DEFAULT CURRENT_TIMESTAMP,
+        ActualizadoEn DATETIME DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT CK_CuentasVinculadas_NoAutoreferencial CHECK (IdAlumnoA < IdAlumnoB),
         CONSTRAINT UQ_CuentasVinculadas_Alumnos_Evidencia UNIQUE (IdAlumnoA, IdAlumnoB, TipoEvidencia)
-    );
-END;
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_CuentasVinculadas_AlumnoA' AND object_id = OBJECT_ID(N'[dbo].[CuentasVinculadas]'))
-BEGIN
-    CREATE NONCLUSTERED INDEX IX_CuentasVinculadas_AlumnoA ON dbo.CuentasVinculadas(IdAlumnoA);
-END;
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() AND index_name = 'IX_CuentasVinculadas_AlumnoA' AND table_name = 'CuentasVinculadas') THEN
+    CREATE INDEX IX_CuentasVinculadas_AlumnoA ON CuentasVinculadas(IdAlumnoA);
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_CuentasVinculadas_AlumnoB' AND object_id = OBJECT_ID(N'[dbo].[CuentasVinculadas]'))
-BEGIN
-    CREATE NONCLUSTERED INDEX IX_CuentasVinculadas_AlumnoB ON dbo.CuentasVinculadas(IdAlumnoB);
-END;
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() AND index_name = 'IX_CuentasVinculadas_AlumnoB' AND table_name = 'CuentasVinculadas') THEN
+    CREATE INDEX IX_CuentasVinculadas_AlumnoB ON CuentasVinculadas(IdAlumnoB);
 
--- 6. Resumen de Inteligencia y Auditoría
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ResumenAuditoriaAccesos]') AND type in (N'U'))
-BEGIN
-    CREATE TABLE dbo.ResumenAuditoriaAccesos (
-        IdAlumno INT PRIMARY KEY FOREIGN KEY REFERENCES dbo.Alumnos(IdAlumno),
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'ResumenAuditoriaAccesos') THEN
+    CREATE TABLE ResumenAuditoriaAccesos (
+        IdAlumno INT PRIMARY KEY, FOREIGN KEY (IdAlumno) REFERENCES Alumnos(IdAlumno),
         RelevanciaAuditoria INT NOT NULL DEFAULT 0,
-        MotivosDetalle NVARCHAR(MAX) NOT NULL,
-        EvidenciasJson NVARCHAR(MAX) NOT NULL,
-        UltimaEvaluacion DATETIME NOT NULL DEFAULT GETDATE()
-    );
-END;
+        MotivosDetalle LONGTEXT NOT NULL,
+        EvidenciasJson LONGTEXT NOT NULL,
+        UltimaEvaluacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 7. Historial de Decisiones Administrativas
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DecisionesAdministrativas]') AND type in (N'U'))
-BEGIN
-    CREATE TABLE dbo.DecisionesAdministrativas (
-        Id INT IDENTITY(1,1) PRIMARY KEY,
-        IdAlumno INT NOT NULL FOREIGN KEY REFERENCES dbo.Alumnos(IdAlumno),
-        IdAlumnoRelacionado INT NULL FOREIGN KEY REFERENCES dbo.Alumnos(IdAlumno),
-        Decision VARCHAR(50) NOT NULL,                -- EN_OBSERVACION, PERMITIDA_FAMILIAR, SOSPECHOSA_CONFIRMADA, ACCION_MANUAL
-        Motivo NVARCHAR(500) NULL,
-        NotasInternas NVARCHAR(MAX) NULL,
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'DecisionesAdministrativas') THEN
+    CREATE TABLE DecisionesAdministrativas (
+        Id INT AUTO_INCREMENT PRIMARY KEY,
+        IdAlumno INT NOT NULL, FOREIGN KEY (IdAlumno) REFERENCES Alumnos(IdAlumno),
+        IdAlumnoRelacionado INT NULL, FOREIGN KEY (IdAlumnoRelacionado) REFERENCES Alumnos(IdAlumno),
+        Decision VARCHAR(50) NOT NULL,
+        Motivo VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+        NotasInternas LONGTEXT NULL,
         IdAdministrador INT NOT NULL,
-        FechaDecision DATETIME DEFAULT GETDATE()
-    );
-END;
+        FechaDecision DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 8. Historial Cronológico de Eventos de Auditoría
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[AuditoriaEventos]') AND type in (N'U'))
-BEGIN
-    CREATE TABLE dbo.AuditoriaEventos (
-        Id INT IDENTITY(1,1) PRIMARY KEY,
-        TipoEvento VARCHAR(50) NOT NULL,              -- DISPOSITIVO_NUEVO, VINCULO_NUEVO, CAMBIO_RELEVANCIA, EXCEPCION_CREADA, CUENTA_ESPECIAL_REGISTRADA
-        OrigenEvento VARCHAR(50) NOT NULL,            -- SISTEMA, LOGIN, TRANSFERENCIA, AUDITORIA, ADMINISTRADOR, EXCEPCION, CUENTA_ESPECIAL
-        Severidad VARCHAR(20) NOT NULL,               -- INFO, LOW, MEDIUM, HIGH, CRITICAL
-        IdAlumno INT NOT NULL FOREIGN KEY REFERENCES dbo.Alumnos(IdAlumno),
-        IdAlumnoRelacionado INT NULL FOREIGN KEY REFERENCES dbo.Alumnos(IdAlumno),
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'AuditoriaEventos') THEN
+    CREATE TABLE AuditoriaEventos (
+        Id INT AUTO_INCREMENT PRIMARY KEY,
+        TipoEvento VARCHAR(50) NOT NULL,
+        OrigenEvento VARCHAR(50) NOT NULL,
+        Severidad VARCHAR(20) NOT NULL,
+        IdAlumno INT NOT NULL, FOREIGN KEY (IdAlumno) REFERENCES Alumnos(IdAlumno),
+        IdAlumnoRelacionado INT NULL, FOREIGN KEY (IdAlumnoRelacionado) REFERENCES Alumnos(IdAlumno),
         ValorAnterior VARCHAR(100) NULL,
         ValorNuevo VARCHAR(100) NULL,
-        DetallesJson NVARCHAR(MAX) NULL,
-        FechaEvento DATETIME DEFAULT GETDATE()
-    );
-END;
+        DetallesJson LONGTEXT NULL,
+        FechaEvento DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_AuditoriaEventos_Alumno_Fecha' AND object_id = OBJECT_ID(N'[dbo].[AuditoriaEventos]'))
-BEGIN
-    CREATE NONCLUSTERED INDEX IX_AuditoriaEventos_Alumno_Fecha ON dbo.AuditoriaEventos(IdAlumno, FechaEvento DESC);
-END;
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() AND index_name = 'IX_AuditoriaEventos_Alumno_Fecha' AND table_name = 'AuditoriaEventos') THEN
+    CREATE INDEX IX_AuditoriaEventos_Alumno_Fecha ON AuditoriaEventos(IdAlumno, FechaEvento DESC);
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_AuditoriaEventos_Tipo' AND object_id = OBJECT_ID(N'[dbo].[AuditoriaEventos]'))
-BEGIN
-    CREATE NONCLUSTERED INDEX IX_AuditoriaEventos_Tipo ON dbo.AuditoriaEventos(TipoEvento);
-END;
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() AND index_name = 'IX_AuditoriaEventos_Tipo' AND table_name = 'AuditoriaEventos') THEN
+    CREATE INDEX IX_AuditoriaEventos_Tipo ON AuditoriaEventos(TipoEvento);
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_AuditoriaEventos_Severidad' AND object_id = OBJECT_ID(N'[dbo].[AuditoriaEventos]'))
-BEGIN
-    CREATE NONCLUSTERED INDEX IX_AuditoriaEventos_Severidad ON dbo.AuditoriaEventos(Severidad);
+END IF;
+IF NOT EXISTS (SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() AND index_name = 'IX_AuditoriaEventos_Severidad' AND table_name = 'AuditoriaEventos') THEN
+    CREATE INDEX IX_AuditoriaEventos_Severidad ON AuditoriaEventos(Severidad);
+
+END IF;
 END;
+GO
+CALL migrate_011_create_audit_intelligence_tables();
+GO
+DROP PROCEDURE migrate_011_create_audit_intelligence_tables;
+GO

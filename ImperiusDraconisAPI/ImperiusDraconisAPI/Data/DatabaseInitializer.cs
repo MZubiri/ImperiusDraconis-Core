@@ -195,7 +195,8 @@ public static class DatabaseInitializer
 
     private static async Task ExecuteSqlScriptAsync(MySqlConnection connection, string script)
     {
-        // Dividir el script por la directiva 'GO' (insensible a mayusculas/minusculas)
+        // GO es nuestro separador de lotes, no sintaxis del servidor.
+        // No dividir por ';': los procedimientos MySQL contienen sentencias internas.
         var commands = Regex.Split(
             script,
             @"^\s*GO\s*$",
