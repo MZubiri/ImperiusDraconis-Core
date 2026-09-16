@@ -1,0 +1,18 @@
+<main class="admin-page">
+  <header><p>Imperius Dragons</p><h1>Soporte del juego</h1></header>
+  <section class="search-panel">
+    <select [(ngModel)]="searchType"><option value="student">ID alumno</option><option value="roblox">Roblox User ID</option></select>
+    <input [(ngModel)]="searchId" inputmode="numeric" placeholder="Identificador" />
+    <button type="button" (click)="search()" [disabled]="loading()">Buscar</button>
+  </section>
+  @if (message()) { <p class="message" role="status">{{ message() }}</p> }
+  @if (player(); as current) {
+    <section class="summary"><h2>{{ current.displayName }}</h2><span>Alumno #{{ current.idAlumno }}</span><strong>{{ current.dracoins }} DC</strong></section>
+    <section class="grid">
+      <article><h2>Dragones</h2>@for (dragon of current.dragons; track dragon.id) { <div class="row"><span>{{ dragon.name }} · {{ dragon.speciesCode }} · Nv. {{ dragon.level }}</span><b>{{ dragon.status }}</b>@if (dragon.status === 'FLED') { <button type="button" (click)="restore(dragon.id)">Restaurar</button> }</div> } @empty { <p>Sin dragones.</p> }</article>
+      <article><h2>Huevos</h2>@for (egg of current.eggs; track egg.id) { <div class="row"><span>#{{ egg.id }} · {{ egg.eggDefinitionCode || 'LEGACY' }}</span><b>{{ egg.status }}</b></div> } @empty { <p>Sin huevos.</p> }</article>
+    </section>
+    <section><h2>Ajuste manual</h2><div class="adjust"><input type="number" [(ngModel)]="amount" placeholder="Monto con signo" /><input [(ngModel)]="justification" maxlength="200" placeholder="Justificación obligatoria" /><button type="button" (click)="adjust()">Aplicar</button></div></section>
+    <section><h2>Últimos movimientos Game</h2><div class="ledger">@for (entry of current.ledger; track entry.id) { <div class="row"><span>{{ entry.createdAt }} · {{ entry.reason }}</span><strong>{{ entry.amount > 0 ? '+' : '' }}{{ entry.amount }} → {{ entry.balanceAfter }}</strong></div> } @empty { <p>Sin movimientos Game.</p> }</div></section>
+  }
+</main>

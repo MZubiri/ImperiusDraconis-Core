@@ -20,6 +20,8 @@ const loadPerfilPage = () =>
   import('./pages/perfil/perfil-page.component').then((module) => module.PerfilPageComponent);
 const loadGameLinkPage = () =>
   import('./pages/game-link/game-link-page.component').then((module) => module.GameLinkPageComponent);
+const loadGameAdminPage = () =>
+  import('./pages/game-admin/game-admin-page.component').then((module) => module.GameAdminPageComponent);
 const loadAlumnosPage = () =>
   import('./pages/alumnos/alumnos-page.component').then((module) => module.AlumnosPageComponent);
 const loadDinamicasPage = () =>
@@ -98,6 +100,12 @@ export const routes: Routes = [
       {
         path: 'imperius-dragons',
         loadComponent: loadGameLinkPage
+      },
+      {
+        path: 'game-admin',
+        canActivate: [permissionGuard],
+        data: { permission: 'Permisos:Guardar' },
+        loadComponent: loadGameAdminPage
       },
       {
         path: 'alumnos',
