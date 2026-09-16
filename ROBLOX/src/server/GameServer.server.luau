@@ -39,6 +39,14 @@ local function call(player: Player, action: string, payload: any): (boolean, any
 		return ApiClient.request("GET", "/dragons/food-catalog", nil, nil)
 	elseif action == "pendingGifts" then
 		return ApiClient.request("GET", `/egg-gifts/pending/by-roblox/{userId}`, nil, nil)
+	elseif action == "missions" then
+		return ApiClient.request("GET", `/missions/by-roblox/{userId}`, nil, nil)
+	elseif action == "claimMission" then
+		return ApiClient.request("POST", `/missions/{payload.missionId}/claim`, { robloxUserId = userId }, ApiClient.newIdempotencyKey(player, action))
+	elseif action == "battle" then
+		return ApiClient.request("POST", "/battles/automatic", { robloxUserId = userId }, ApiClient.newIdempotencyKey(player, action))
+	elseif action == "ranking" then
+		return ApiClient.request("GET", "/ranking?limit=50", nil, nil)
 	end
 	return false, { code = "UNKNOWN_ACTION", message = "Accion no permitida." }
 end

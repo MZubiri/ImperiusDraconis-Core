@@ -183,6 +183,13 @@ public sealed class GameDragonCareService
             }
 
             var progress = GameDragonNeedsRules.CalculateProgress(experience, dragon.HatchedAt, now);
+            await GameMissionService.AddProgressAsync(
+                connection,
+                transaction,
+                dragon.IdAlumno,
+                normalizedFoodCode is null ? "PET_DRAGON" : "FEED_DRAGON",
+                1,
+                cancellationToken);
             await using var update = new MySqlCommand(
                 """
                 UPDATE GameDragons SET Life=@Life, Happiness=@Happiness, Hunger=@Hunger, Experience=@Experience,

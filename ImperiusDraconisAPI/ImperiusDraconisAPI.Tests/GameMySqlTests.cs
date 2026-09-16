@@ -1,6 +1,8 @@
 using ImperiusDraconisAPI.Data;
 using ImperiusDraconisAPI.Models.Game.Eggs;
 using ImperiusDraconisAPI.Models.Game.Dragons;
+using ImperiusDraconisAPI.Models.Game.Battles;
+using ImperiusDraconisAPI.Models.Game.Missions;
 using ImperiusDraconisAPI.Services.Game;
 using Microsoft.Extensions.Configuration;
 using MySqlConnector;
@@ -60,13 +62,16 @@ public sealed class GameMySqlTests
 
         await using var createDragon = new MySqlCommand("""
             INSERT INTO GameDragons
-                (IdAlumno, Name, Rarity, Temperament, SpeciesCode, LastNeedsUpdateAt)
+                (IdAlumno, Name, Rarity, Temperament, SpeciesCode, Selected, LastNeedsUpdateAt)
             VALUES
-                (@IdAlumno, 'Care test', 'COMMON', 'JUGUETON', 'BRASALOMA', UTC_TIMESTAMP(3) - INTERVAL 12 HOUR);
+                (@IdAlumno, 'Care test', 'COMMON', 'JUGUETON', 'BRASALOMA', 1, UTC_TIMESTAMP(3) - INTERVAL 12 HOUR);
             SELECT LAST_INSERT_ID();
             """, connection);
         createDragon.Parameters.AddWithValue("@IdAlumno", idAlumno);
         var dragonId = Convert.ToInt64(await createDragon.ExecuteScalarAsync());
+        var missions = new GameMissionService(new MySqlConnectionFactory(config), idempotency, dracoins);
+        var dailyMissions = await missions.GetDailyAsync(robloxUserId, default);
+        Assert.Equal(3, dailyMissions.Count);
         var care = new GameDragonCareService(new MySqlConnectionFactory(config), idempotency, dracoins);
         var feedKey = Guid.NewGuid().ToString();
         var fed = await care.FeedAsync(
@@ -98,9 +103,32 @@ public sealed class GameMySqlTests
         var listedDragons = await new GameDragonService(new MySqlConnectionFactory(config), idempotency)
             .ListByPlayerAsync(idAlumno, default);
         Assert.Contains(listedDragons, item => item.Id == dragonId && item.SpeciesCode == "BRASALOMA");
+        var completedFeedMission = (await missions.GetDailyAsync(robloxUserId, default)).Single(item => item.MissionType == "FEED_DRAGON");
+        Assert.Equal("COMPLETED", completedFeedMission.Status);
+        var claimed = await missions.ClaimAsync(
+            completedFeedMission.Id,
+            new ClaimGameMissionRequest { RobloxUserId = robloxUserId },
+            Guid.NewGuid().ToString(),
+            default);
+        Assert.Equal("CLAIMED", claimed.Status);
+
+        var battles = new GameBattleService(new MySqlConnectionFactory(config), idempotency, dracoins);
+        var battleKey = Guid.NewGuid().ToString();
+        var battle = await battles.BattleAsync(
+            new AutomaticBattleRequest { RobloxUserId = robloxUserId },
+            battleKey,
+            default);
+        Assert.True(battle.BattleId > 0);
+        Assert.NotEmpty(battle.Rounds);
+        Assert.Equal(battle.BattleId, (await battles.BattleAsync(
+            new AutomaticBattleRequest { RobloxUserId = robloxUserId },
+            battleKey,
+            default)).BattleId);
+        Assert.Contains(await battles.GetRankingAsync(50, default), item => item.RobloxUserId == robloxUserId);
 
         await using var transaction = await connection.BeginTransactionAsync();
-        Assert.Equal(990m, await dracoins.UpdateBalanceAsync(connection, transaction, idAlumno, 20, "TEST", "TEST", null, default));
+        var expectedBalance = battle.BalanceAfter + 20;
+        Assert.Equal(expectedBalance, await dracoins.UpdateBalanceAsync(connection, transaction, idAlumno, 20, "TEST", "TEST", null, default));
         var reservation = await idempotency.ReserveAsync(connection, transaction, "TEST", Guid.NewGuid().ToString(), new byte[32], default);
         Assert.True(reservation.Id > 0);
         await idempotency.CompleteAsync(connection, transaction, reservation.Id, "{}", default);

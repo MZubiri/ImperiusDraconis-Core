@@ -44,6 +44,8 @@ builder.Services.AddScoped<GameEggService>();
 builder.Services.AddScoped<GamePlayerService>();
 builder.Services.AddScoped<GameDragonService>();
 builder.Services.AddScoped<GameDragonCareService>();
+builder.Services.AddScoped<GameMissionService>();
+builder.Services.AddScoped<GameBattleService>();
 builder.Services.AddSingleton<IGeoLocationService, GeoLocationService>();
 builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
 builder.Services.AddScoped<BibliotecaService>();

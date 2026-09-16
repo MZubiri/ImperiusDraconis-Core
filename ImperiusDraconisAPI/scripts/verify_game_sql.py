@@ -8,6 +8,7 @@ for p in Path('ImperiusDraconisAPI/ImperiusDraconisAPI/Services/Game').glob('*Se
  for m in re.finditer(r'"""([\s\S]*?)"""|"([^"\n]*)"',p.read_text()):
   sql=(m[1] or m[2] or '').strip()
   if not re.match('(?:SELECT|UPDATE|INSERT|DELETE)\\b',sql,re.I) or '{' in sql:continue
+  sql=re.sub(r'(LIMIT\s+)@\w+', r'\g<1>1', sql, flags=re.I)
   sql=re.sub(r'@\w+', 'NULL',sql)
   for statement in sql.split(';'):
    if not statement.strip():continue
