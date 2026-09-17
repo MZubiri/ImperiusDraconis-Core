@@ -1,4 +1,6 @@
-# Backlog Verificado
+# Backlog — fotografía histórica inicial
+
+> Las historias marcadas como no implementadas reflejan el análisis original. Para el estado ejecutable y validado consulta [ESTADO_MVP_IMPERIUS_DRAGONS.md](ESTADO_MVP_IMPERIUS_DRAGONS.md).
 
 Ultima auditoria: **9 de junio de 2026**
 

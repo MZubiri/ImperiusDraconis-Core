@@ -1,4 +1,6 @@
-# Game Design Document - Estado Real
+# Game Design Document - Estado histórico
+
+> Este documento conserva la auditoría previa a la implementación. El estado actual validado del MVP está en [ESTADO_MVP_IMPERIUS_DRAGONS.md](ESTADO_MVP_IMPERIUS_DRAGONS.md) y las reglas vigentes están en [DISENO_CONTENIDO_IMPERIUS_DRAGONS.md](DISENO_CONTENIDO_IMPERIUS_DRAGONS.md).
 
 Ultima auditoria: **9 de junio de 2026**
 

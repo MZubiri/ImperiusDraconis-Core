@@ -1,4 +1,6 @@
-# Arquitectura Actual
+# Arquitectura — auditoría histórica inicial
+
+> Las referencias de este documento a SQL Server y a módulos Game ausentes describen el estado anterior a la migración. La aplicación actual usa MySQL y el estado del MVP está resumido en [ESTADO_MVP_IMPERIUS_DRAGONS.md](ESTADO_MVP_IMPERIUS_DRAGONS.md).
 
 Ultima auditoria: **9 de junio de 2026**
 

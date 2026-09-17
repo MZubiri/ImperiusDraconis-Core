@@ -1,4 +1,6 @@
-# API Game Implementada
+# API Game — referencia histórica inicial
+
+> Este inventario corresponde al primer incremento de la API. El MVP actual también incluye huevos, cuidado, regalos, misiones, combate, ranking y administración bajo `/api/game/v1`. Consulta [ESTADO_MVP_IMPERIUS_DRAGONS.md](ESTADO_MVP_IMPERIUS_DRAGONS.md) para el estado validado.
 
 Ultima auditoria: **9 de junio de 2026**
 
