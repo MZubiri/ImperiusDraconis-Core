@@ -2,11 +2,6 @@
   "name": "ImperiusDragons",
   "tree": {
     "$className": "DataModel",
-    "ReplicatedStorage": {
-      "ImperiusDragons": {
-        "$path": "src/shared"
-      }
-    },
     "ServerScriptService": {
       "ImperiusDragons": {
         "$path": "src/server"
