@@ -2,6 +2,10 @@
 
 Fecha de validación: 17 de septiembre de 2026.
 
+## Producción
+
+Desplegado en `https://imperiusdraconis.online` y `https://api.imperiusdraconis.online` desde el commit `9414070`. Antes del cambio se generó y restauró localmente un respaldo completo. Las migraciones 019 y 020 se aplicaron en producción y ambas aplicaciones finalizaron correctamente en Coolify.
+
 ## Alcance implementado
 
 - Vinculación segura entre una cuenta de Imperius y Roblox.
@@ -27,4 +31,4 @@ Fecha de validación: 17 de septiembre de 2026.
 
 El repositorio no puede publicar una experiencia ni asignar secretos de Roblox. La prueba final debe hacerse en Studio con HTTP habilitado, los dos atributos privados configurados y una cuenta de prueba vinculada. Los modelos actuales son figuras provisionales generadas por código; los modelos, mapa, sonidos y animaciones definitivos son trabajo de contenido visual.
 
-Las migraciones 019 y 020 deben desplegarse junto con la versión de API que las consume. No se deben aplicar de forma aislada a producción.
+Las migraciones 019 y 020 fueron desplegadas junto con la versión de API que las consume.
