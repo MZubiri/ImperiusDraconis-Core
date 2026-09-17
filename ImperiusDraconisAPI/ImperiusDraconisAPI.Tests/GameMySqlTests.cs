@@ -3,6 +3,7 @@ using ImperiusDraconisAPI.Models.Game.Eggs;
 using ImperiusDraconisAPI.Models.Game.Dragons;
 using ImperiusDraconisAPI.Models.Game.Battles;
 using ImperiusDraconisAPI.Models.Game.Missions;
+using ImperiusDraconisAPI.Models.Game.Admin;
 using ImperiusDraconisAPI.Services.Game;
 using Microsoft.Extensions.Configuration;
 using MySqlConnector;
@@ -76,15 +77,15 @@ public sealed class GameMySqlTests
         var feedKey = Guid.NewGuid().ToString();
         var fed = await care.FeedAsync(
             dragonId,
-            "MOON_BERRY",
+            "SUN_FRUIT",
             new DragonPlayerRequest { RobloxUserId = robloxUserId },
             feedKey,
             default);
-        Assert.Equal(970m, fed.BalanceAfter);
+        Assert.Equal(985m, fed.BalanceAfter);
         Assert.Equal(100, fed.Dragon.Hunger);
         Assert.Equal(fed.Dragon.Hunger, (await care.FeedAsync(
             dragonId,
-            "MOON_BERRY",
+            "SUN_FRUIT",
             new DragonPlayerRequest { RobloxUserId = robloxUserId },
             feedKey,
             default)).Dragon.Hunger);
@@ -125,6 +126,19 @@ public sealed class GameMySqlTests
             battleKey,
             default)).BattleId);
         Assert.Contains(await battles.GetRankingAsync(50, default), item => item.RobloxUserId == robloxUserId);
+        Assert.True((await battles.GetPlayerRankingAsync(robloxUserId, default)).Battles >= 1);
+
+        var dragonService = new GameDragonService(new MySqlConnectionFactory(config), idempotency);
+        var admin = new GameAdminService(new MySqlConnectionFactory(config), eggs, dragonService, dracoins);
+        var catalogs = await admin.GetCatalogsAsync(default);
+        Assert.NotEmpty(catalogs.Eggs);
+        Assert.NotEmpty(catalogs.Foods);
+        Assert.Equal(3, catalogs.Missions.Count);
+        var food = catalogs.Foods.First();
+        await admin.UpdateFoodDefinitionAsync(food.Code, new GameAdminCatalogUpdateRequest { PriceDracoins = food.PriceDracoins, Active = food.Active }, default);
+        var mission = catalogs.Missions.First();
+        await admin.UpdateMissionDefinitionAsync(mission.Code, new GameAdminMissionUpdateRequest { TargetAmount = mission.TargetAmount, RewardDracoins = mission.RewardDracoins, RewardExperience = mission.RewardExperience, Active = mission.Active }, default);
+        await Assert.ThrowsAsync<ImperiusDraconisAPI.Common.GameBusinessRuleException>(() => admin.UpdateMissionDefinitionAsync(mission.Code, new GameAdminMissionUpdateRequest { TargetAmount = 0 }, default));
 
         await using var transaction = await connection.BeginTransactionAsync();
         var expectedBalance = battle.BalanceAfter + 20;

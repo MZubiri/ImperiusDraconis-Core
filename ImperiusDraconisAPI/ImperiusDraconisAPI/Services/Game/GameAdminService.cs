@@ -70,16 +70,50 @@ public sealed class GameAdminService
         command.Parameters.AddWithValue("@Id",dragonId);if(await command.ExecuteNonQueryAsync(ct)!=1)throw Rule("DRAGON_NOT_RESTORABLE","El dragon no existe o no esta huido.",409);
     }
 
+    public async Task<GameAdminCatalogs> GetCatalogsAsync(CancellationToken ct)
+    {
+        await using var connection=_factory.CreateConnection();await connection.OpenAsync(ct);
+        var eggs=await ReadPriceCatalogAsync(connection,"GameEggDefinitions",ct);
+        var foods=await ReadPriceCatalogAsync(connection,"GameFoodDefinitions",ct);
+        await using var command=new MySqlCommand("SELECT Code,DisplayName,TargetAmount,RewardDracoins,RewardExperience,Active FROM GameMissionDefinitions ORDER BY SortOrder,Code;",connection);
+        var missions=new List<GameAdminMissionCatalogItem>();await using var reader=await command.ExecuteReaderAsync(ct);
+        while(await reader.ReadAsync(ct))missions.Add(new GameAdminMissionCatalogItem{Code=reader.GetString(0),DisplayName=reader.GetString(1),TargetAmount=reader.GetInt32(2),RewardDracoins=reader.GetInt32(3),RewardExperience=reader.GetInt32(4),Active=reader.GetBoolean(5)});
+        return new GameAdminCatalogs{Eggs=eggs,Foods=foods,Missions=missions};
+    }
+
     public async Task UpdateEggDefinitionAsync(string code,GameAdminCatalogUpdateRequest request,CancellationToken ct)=>await UpdateCatalogAsync("GameEggDefinitions",code,request,ct);
     public async Task UpdateFoodDefinitionAsync(string code,GameAdminCatalogUpdateRequest request,CancellationToken ct)=>await UpdateCatalogAsync("GameFoodDefinitions",code,request,ct);
+    public async Task UpdateMissionDefinitionAsync(string code,GameAdminMissionUpdateRequest request,CancellationToken ct)
+    {
+        if(request.TargetAmount is <1 or >1000||request.RewardDracoins is <0 or >100000||request.RewardExperience is <0 or >100000)
+            throw Rule("BUSINESS_RULE_ERROR","Los valores de la mision no son validos.",400);
+        var normalized=NormalizeCode(code);await using var connection=_factory.CreateConnection();await connection.OpenAsync(ct);
+        await using var command=new MySqlCommand("UPDATE GameMissionDefinitions SET TargetAmount=@Target,RewardDracoins=@Dracoins,RewardExperience=@Experience,Active=@Active WHERE Code=@Code;",connection);
+        command.Parameters.AddWithValue("@Target",request.TargetAmount);command.Parameters.AddWithValue("@Dracoins",request.RewardDracoins);command.Parameters.AddWithValue("@Experience",request.RewardExperience);command.Parameters.AddWithValue("@Active",request.Active);command.Parameters.AddWithValue("@Code",normalized);
+        if(await command.ExecuteNonQueryAsync(ct)!=1)throw Rule("CATALOG_ITEM_NOT_FOUND","No se encontro la mision.",404);
+    }
     private async Task UpdateCatalogAsync(string table,string code,GameAdminCatalogUpdateRequest request,CancellationToken ct)
     {
         if(request.PriceDracoins<0||request.PriceDracoins>100000)throw Rule("BUSINESS_RULE_ERROR","El precio no es valido.",400);
-        var normalized=code.Trim().ToUpperInvariant();if(normalized.Length==0)throw Rule("BUSINESS_RULE_ERROR","El codigo es obligatorio.",400);
+        var normalized=NormalizeCode(code);
         await using var connection=_factory.CreateConnection();await connection.OpenAsync(ct);
         await using var command=new MySqlCommand($"UPDATE {table} SET PriceDracoins=@Price,Active=@Active WHERE Code=@Code;",connection);
         command.Parameters.AddWithValue("@Price",request.PriceDracoins);command.Parameters.AddWithValue("@Active",request.Active);command.Parameters.AddWithValue("@Code",normalized);
         if(await command.ExecuteNonQueryAsync(ct)!=1)throw Rule("CATALOG_ITEM_NOT_FOUND","No se encontro el elemento del catalogo.",404);
+    }
+    private static async Task<List<GameAdminPriceCatalogItem>> ReadPriceCatalogAsync(MySqlConnection connection,string table,CancellationToken ct)
+    {
+        await using var command=new MySqlCommand($"SELECT Code,DisplayName,PriceDracoins,Active FROM {table} ORDER BY SortOrder,Code;",connection);
+        var items=new List<GameAdminPriceCatalogItem>();await using var reader=await command.ExecuteReaderAsync(ct);
+        while(await reader.ReadAsync(ct))items.Add(new GameAdminPriceCatalogItem{Code=reader.GetString(0),DisplayName=reader.GetString(1),PriceDracoins=reader.GetInt32(2),Active=reader.GetBoolean(3)});
+        return items;
+    }
+    private static string NormalizeCode(string code)
+    {
+        var normalized=code.Trim().ToUpperInvariant();
+        if(normalized.Length is 0 or >50||normalized.Any(ch=>!(char.IsAsciiLetterOrDigit(ch)||ch=='_')))
+            throw Rule("BUSINESS_RULE_ERROR","El codigo no es valido.",400);
+        return normalized;
     }
     private static GameBusinessRuleException Rule(string code,string message,int status)=>new(code,message,status);
 }

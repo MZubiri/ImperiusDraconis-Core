@@ -37,3 +37,25 @@ export interface GameAdminPlayer {
   dragons: GameAdminDragon[];
   ledger: GameAdminLedgerEntry[];
 }
+
+export interface GameAdminPriceCatalogItem {
+  code: string;
+  displayName: string;
+  priceDracoins: number;
+  active: boolean;
+}
+
+export interface GameAdminMissionCatalogItem {
+  code: string;
+  displayName: string;
+  targetAmount: number;
+  rewardDracoins: number;
+  rewardExperience: number;
+  active: boolean;
+}
+
+export interface GameAdminCatalogs {
+  eggs: GameAdminPriceCatalogItem[];
+  foods: GameAdminPriceCatalogItem[];
+  missions: GameAdminMissionCatalogItem[];
+}

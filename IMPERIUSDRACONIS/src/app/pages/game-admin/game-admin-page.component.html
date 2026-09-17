@@ -15,4 +15,22 @@
     <section><h2>Ajuste manual</h2><div class="adjust"><input type="number" [(ngModel)]="amount" placeholder="Monto con signo" /><input [(ngModel)]="justification" maxlength="200" placeholder="Justificación obligatoria" /><button type="button" (click)="adjust()">Aplicar</button></div></section>
     <section><h2>Últimos movimientos Game</h2><div class="ledger">@for (entry of current.ledger; track entry.id) { <div class="row"><span>{{ entry.createdAt }} · {{ entry.reason }}</span><strong>{{ entry.amount > 0 ? '+' : '' }}{{ entry.amount }} → {{ entry.balanceAfter }}</strong></div> } @empty { <p>Sin movimientos Game.</p> }</div></section>
   }
+  @if (catalogs(); as gameCatalogs) {
+    <section class="catalogs">
+      <h2>Balance del juego</h2>
+      <p>Los cambios se aplican a nuevas compras y asignaciones.</p>
+      <h3>Huevos</h3>
+      @for (item of gameCatalogs.eggs; track item.code) {
+        <div class="catalog-row"><span>{{ item.displayName }} <small>{{ item.code }}</small></span><label>Precio <input type="number" min="0" max="100000" [(ngModel)]="item.priceDracoins" /></label><label><input type="checkbox" [(ngModel)]="item.active" /> Activo</label><button type="button" (click)="savePrice('egg', item)">Guardar</button></div>
+      }
+      <h3>Alimentos</h3>
+      @for (item of gameCatalogs.foods; track item.code) {
+        <div class="catalog-row"><span>{{ item.displayName }} <small>{{ item.code }}</small></span><label>Precio <input type="number" min="0" max="100000" [(ngModel)]="item.priceDracoins" /></label><label><input type="checkbox" [(ngModel)]="item.active" /> Activo</label><button type="button" (click)="savePrice('food', item)">Guardar</button></div>
+      }
+      <h3>Misiones</h3>
+      @for (item of gameCatalogs.missions; track item.code) {
+        <div class="catalog-row mission"><span>{{ item.displayName }} <small>{{ item.code }}</small></span><label>Meta <input type="number" min="1" max="1000" [(ngModel)]="item.targetAmount" /></label><label>DC <input type="number" min="0" max="100000" [(ngModel)]="item.rewardDracoins" /></label><label>XP <input type="number" min="0" max="100000" [(ngModel)]="item.rewardExperience" /></label><label><input type="checkbox" [(ngModel)]="item.active" /> Activa</label><button type="button" (click)="saveMission(item)">Guardar</button></div>
+      }
+    </section>
+  }
 </main>

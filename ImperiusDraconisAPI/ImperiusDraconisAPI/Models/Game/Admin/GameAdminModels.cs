@@ -44,3 +44,36 @@ public sealed class GameAdminCatalogUpdateRequest
     public int PriceDracoins { get; init; }
     public bool Active { get; init; }
 }
+
+public sealed class GameAdminCatalogs
+{
+    public IReadOnlyCollection<GameAdminPriceCatalogItem> Eggs { get; init; } = [];
+    public IReadOnlyCollection<GameAdminPriceCatalogItem> Foods { get; init; } = [];
+    public IReadOnlyCollection<GameAdminMissionCatalogItem> Missions { get; init; } = [];
+}
+
+public sealed class GameAdminPriceCatalogItem
+{
+    public string Code { get; init; } = string.Empty;
+    public string DisplayName { get; init; } = string.Empty;
+    public int PriceDracoins { get; init; }
+    public bool Active { get; init; }
+}
+
+public sealed class GameAdminMissionCatalogItem
+{
+    public string Code { get; init; } = string.Empty;
+    public string DisplayName { get; init; } = string.Empty;
+    public int TargetAmount { get; init; }
+    public int RewardDracoins { get; init; }
+    public int RewardExperience { get; init; }
+    public bool Active { get; init; }
+}
+
+public sealed class GameAdminMissionUpdateRequest
+{
+    public int TargetAmount { get; init; }
+    public int RewardDracoins { get; init; }
+    public int RewardExperience { get; init; }
+    public bool Active { get; init; }
+}
