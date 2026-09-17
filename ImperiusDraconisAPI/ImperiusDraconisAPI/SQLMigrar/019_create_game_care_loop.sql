@@ -79,19 +79,23 @@ BEGIN
 
     INSERT INTO GameTemperamentDefinitions
         (Code, DisplayName, AttackModifierPct, DefenseModifierPct, HungerDecayModifierPct, HappinessGainModifierPct, ExperienceModifierPct, BehaviorText) VALUES
-        ('NOBLE', 'Noble', 0, 5, 0, 0, 0, 'Tu dragon inclina la cabeza con dignidad.'),
-        ('AGRESIVO', 'Agresivo', 5, -5, 0, 0, 0, 'Tu dragon ruge con energia desafiante.'),
+        ('NOBLE', 'Noble', 0, 3, 0, 0, 0, 'Tu dragon inclina la cabeza con dignidad.'),
+        ('AGRESIVO', 'Agresivo', 5, -3, 0, 0, 0, 'Tu dragon ruge con energia desafiante.'),
         ('JUGUETON', 'Jugueton', 0, 0, 0, 5, 0, 'Tu dragon da un salto y pide seguir jugando.'),
-        ('CURIOSO', 'Curioso', 0, 0, 0, 0, 5, 'Tu dragon observa todo con mucha atencion.'),
-        ('PEREZOSO', 'Perezoso', -5, 5, -5, 0, 0, 'Tu dragon bosteza y se acomoda a tu lado.')
-    ON DUPLICATE KEY UPDATE DisplayName = VALUES(DisplayName), BehaviorText = VALUES(BehaviorText);
+        ('CURIOSO', 'Curioso', 0, 0, 0, 0, 3, 'Tu dragon observa todo con mucha atencion.'),
+        ('PEREZOSO', 'Perezoso', -2, 0, -5, 0, 0, 'Tu dragon bosteza y se acomoda a tu lado.')
+    ON DUPLICATE KEY UPDATE DisplayName = VALUES(DisplayName), AttackModifierPct=VALUES(AttackModifierPct), DefenseModifierPct=VALUES(DefenseModifierPct), HungerDecayModifierPct=VALUES(HungerDecayModifierPct), HappinessGainModifierPct=VALUES(HappinessGainModifierPct), ExperienceModifierPct=VALUES(ExperienceModifierPct), BehaviorText = VALUES(BehaviorText);
 
     INSERT INTO GameFoodDefinitions
         (Code, DisplayName, Description, PriceDracoins, HungerGain, LifeGain, HappinessGain, ExperienceGain, SortOrder) VALUES
-        ('BASIC_MEAT', 'Carne magica', 'Recupera bastante hambre.', 20, 25, 0, 0, 0, 10),
-        ('MOON_BERRY', 'Baya lunar', 'Mejora hambre y felicidad.', 30, 15, 0, 10, 0, 20),
-        ('HEALING_STEW', 'Estofado restaurador', 'Recupera hambre y vida.', 45, 20, 15, 0, 0, 30),
-        ('ARCANE_TREAT', 'Golosina arcana', 'Una recompensa que tambien concede experiencia.', 60, 10, 0, 15, 5, 40)
+        ('BARN_BITE', 'Bocado de Granero', 'Mezcla sencilla para cuidado diario.', 8, 20, 0, 0, 0, 10),
+        ('SILVER_FISH', 'Pez Plateado', 'Favorito de dragones de Agua y Hielo.', 12, 30, 0, 0, 0, 20),
+        ('SUN_FRUIT', 'Fruta Solar', 'Fruta tibia que mejora el animo.', 15, 20, 0, 5, 0, 30),
+        ('CRUNCHY_ROOT', 'Raiz Crujiente', 'Alimento abundante de los jardines magicos.', 18, 35, 0, 3, 0, 40),
+        ('DRACONIC_FEAST', 'Banquete Draconico', 'Recuperacion completa tras varios dias.', 35, 60, 5, 10, 0, 50),
+        ('HONEY_CRYSTAL', 'Cristal de Miel', 'Recupera especialmente la felicidad.', 45, 10, 0, 25, 0, 60),
+        ('VITAL_ELIXIR', 'Elixir Vital', 'Ayuda a un dragon debilitado.', 70, 5, 25, 5, 0, 70),
+        ('STAR_BERRY', 'Baya Estelar', 'Apoya el crecimiento y la experiencia.', 90, 20, 0, 10, 10, 80)
     ON DUPLICATE KEY UPDATE DisplayName = VALUES(DisplayName), Description = VALUES(Description), PriceDracoins = VALUES(PriceDracoins), HungerGain = VALUES(HungerGain), LifeGain = VALUES(LifeGain), HappinessGain = VALUES(HappinessGain), ExperienceGain = VALUES(ExperienceGain), SortOrder = VALUES(SortOrder);
 END;
 GO

@@ -732,7 +732,7 @@ public sealed class GameEggService
                 }
 
                 price = defReader.GetInt32(1);
-                rarity = defReader.GetString(2);
+                rarity = RollRarity(normalizedCode, defReader.GetString(2));
             }
 
             // 3. Validar capacidad
@@ -938,8 +938,8 @@ public sealed class GameEggService
             // 3. Crear dragon
             await using var dragonCommand = new MySqlCommand(
                 """
-                INSERT INTO GameDragons (IdAlumno, Name, Rarity, Temperament, SpeciesCode, Level, Stage, HatchedAt)
-                VALUES (@IdAlumno, @Name, @Rarity, @Temperament, @SpeciesCode, 1, 'BABY', UTC_TIMESTAMP(3)); SELECT Id, HatchedAt FROM GameDragons WHERE Id = LAST_INSERT_ID();
+                INSERT INTO GameDragons (IdAlumno, Name, Rarity, Temperament, SpeciesCode, Level, Stage, Life, Happiness, Hunger, HatchedAt)
+                VALUES (@IdAlumno, @Name, @Rarity, @Temperament, @SpeciesCode, 1, 'BABY', 100, 80, 80, UTC_TIMESTAMP(3)); SELECT Id, HatchedAt FROM GameDragons WHERE Id = LAST_INSERT_ID();
                 """,
                 connection,
                 transaction);
@@ -1009,14 +1009,47 @@ public sealed class GameEggService
 
     private static string ChooseSpeciesCode(string? eggDefinitionCode)
     {
-        string[] choices = eggDefinitionCode?.ToUpperInvariant() switch
+        var code = eggDefinitionCode?.ToUpperInvariant() ?? "HOME";
+        string[] choices = code switch
         {
-            "ELEMENTAL" => ["BRASALOMA", "ROCAMUSGO", "MAREALUNA", "CIERZOAZUL", "ESCARCHALETA"],
-            "EMBLEM" => ["LEONIS_RUBRA", "MELIDOR_AUREO", "VIPERUMBRA", "ORACULO_ZAFIRO"],
+            "EMBLEM_GRYFFINDOR" => ["LEONIS_RUBRA"],
+            "EMBLEM_HUFFLEPUFF" => ["MELIDOR_AUREO"],
+            "EMBLEM_SLYTHERIN" => ["VIPERUMBRA"],
+            "EMBLEM_RAVENCLAW" => ["ORACULO_ZAFIRO"],
             "ARCANE" or "CONSTELLATION" => ["ORACULO_ZAFIRO", "ECLIPSE_PRIMORDIAL"],
             _ => ["BRASALOMA", "ROCAMUSGO", "MAREALUNA", "CIERZOAZUL"]
         };
+        if (code.StartsWith("ELEMENTAL_", StringComparison.Ordinal))
+        {
+            choices = code switch
+            {
+                "ELEMENTAL_FIRE" => ["BRASALOMA"], "ELEMENTAL_WATER" => ["MAREALUNA"],
+                "ELEMENTAL_EARTH" => ["ROCAMUSGO"], "ELEMENTAL_AIR" => ["CIERZOAZUL"],
+                "ELEMENTAL_ICE" => ["ESCARCHALETA"], "ELEMENTAL_SHADOW" or "ELEMENTAL_POISON" => ["VIPERUMBRA"],
+                _ => ["ORACULO_ZAFIRO"]
+            };
+        }
         return choices[Random.Shared.Next(choices.Length)];
+    }
+
+    private static string RollRarity(string eggDefinitionCode, string fallback)
+    {
+        var roll = Random.Shared.Next(100_000);
+        int[] thresholds = eggDefinitionCode switch
+        {
+            "HOME" => [75_000, 95_000, 99_500, 100_000],
+            "ARCANE" => [2_000, 27_000, 72_000, 99_900],
+            "CONSTELLATION" => [0, 5_000, 35_000, 97_000],
+            _ when eggDefinitionCode.StartsWith("ELEMENTAL_", StringComparison.Ordinal) => [40_000, 80_000, 96_000, 99_999],
+            _ when eggDefinitionCode.StartsWith("EMBLEM_", StringComparison.Ordinal) => [15_000, 60_000, 92_000, 99_990],
+            _ => []
+        };
+        if (thresholds.Length == 0) return fallback;
+        if (roll < thresholds[0]) return "COMMON";
+        if (roll < thresholds[1]) return "RARE";
+        if (roll < thresholds[2]) return "EPIC";
+        if (roll < thresholds[3]) return "LEGENDARY";
+        return "MYTHIC";
     }
 
     public async Task<GiftGameEggResponse> GiftEggAsync(

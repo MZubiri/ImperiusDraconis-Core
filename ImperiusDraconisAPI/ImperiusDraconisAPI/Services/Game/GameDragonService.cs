@@ -265,8 +265,9 @@ public sealed class GameDragonService
             var hatchedAt = AsUtc(reader.GetDateTime(7));
             var experience = reader.GetInt32(11);
             var needs = GameDragonNeedsRules.ApplyDecay(
-                reader.GetInt32(8), reader.GetInt32(9), reader.GetInt32(10), AsUtc(reader.GetDateTime(14)), now);
-            var progress = GameDragonNeedsRules.CalculateProgress(experience, hatchedAt, now);
+                reader.GetInt32(8), reader.GetInt32(9), reader.GetInt32(10), AsUtc(reader.GetDateTime(14)), now,
+                reader.GetString(3) == "PEREZOSO" ? -5 : 0);
+            var progress = GameDragonNeedsRules.CalculateProgress(experience, hatchedAt, now, needs.Life, needs.Happiness);
             dragons.Add(new GameBootstrapDragonDto
             {
                 Id = reader.GetInt64(0),

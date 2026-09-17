@@ -16,7 +16,8 @@ internal static class GamePlayerBootstrapMapper
         int purchasedSlots,
         int maxCapacity,
         IReadOnlyCollection<GameEgg>? eggs = null,
-        IReadOnlyCollection<GameBootstrapDragonDto>? dragons = null)
+        IReadOnlyCollection<GameBootstrapDragonDto>? dragons = null,
+        GameBootstrapRankingDto? ranking = null)
     {
         eggs ??= [];
         dragons ??= [];
@@ -58,8 +59,7 @@ internal static class GamePlayerBootstrapMapper
             }).ToArray(),
             Dragons = dragons,
             SelectedDragon = dragons.FirstOrDefault(d => d.Selected),
-            Ranking = null
+            Ranking = ranking
         };
     }
 }
-

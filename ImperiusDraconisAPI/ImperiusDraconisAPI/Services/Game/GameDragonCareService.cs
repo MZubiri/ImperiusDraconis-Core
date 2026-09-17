@@ -127,7 +127,11 @@ public sealed class GameDragonCareService
             }
 
             var now = DateTime.UtcNow;
-            var needs = GameDragonNeedsRules.ApplyDecay(dragon.Life, dragon.Happiness, dragon.Hunger, dragon.LastNeedsUpdateAt, now);
+            if (normalizedFoodCode is null && !dragon.Selected)
+                throw Rule("SELECTED_DRAGON_REQUIRED", "Solo puedes acariciar al dragon acompañante seleccionado.", 409);
+            var needs = GameDragonNeedsRules.ApplyDecay(
+                dragon.Life, dragon.Happiness, dragon.Hunger, dragon.LastNeedsUpdateAt, now,
+                dragon.Temperament == "PEREZOSO" ? -5 : 0);
             if (needs.Status == "FLED")
                 throw Rule("DRAGON_FLED", "El dragon ha huido y debe ser restaurado antes de interactuar.", 400);
 
@@ -137,6 +141,16 @@ public sealed class GameDragonCareService
             var experience = dragon.Experience;
             var balance = dragon.Balance;
             DateTime? lastPettedAt = dragon.LastPettedAt;
+            if (normalizedFoodCode is null)
+            {
+                await using var petHistory = new MySqlCommand(
+                    "SELECT MAX(LastPettedAt) FROM GameDragons WHERE IdAlumno=@IdAlumno;",
+                    connection,
+                    transaction);
+                petHistory.Parameters.AddWithValue("@IdAlumno", dragon.IdAlumno);
+                var lastPetValue = await petHistory.ExecuteScalarAsync(cancellationToken);
+                lastPettedAt = lastPetValue is null or DBNull ? null : AsUtc(Convert.ToDateTime(lastPetValue));
+            }
             string message;
 
             if (normalizedFoodCode is not null)
@@ -182,7 +196,7 @@ public sealed class GameDragonCareService
                 };
             }
 
-            var progress = GameDragonNeedsRules.CalculateProgress(experience, dragon.HatchedAt, now);
+            var progress = GameDragonNeedsRules.CalculateProgress(experience, dragon.HatchedAt, now, life, happiness);
             await GameMissionService.AddProgressAsync(
                 connection,
                 transaction,

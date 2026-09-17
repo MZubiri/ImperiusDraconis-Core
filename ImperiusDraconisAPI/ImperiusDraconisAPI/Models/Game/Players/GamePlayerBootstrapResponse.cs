@@ -96,5 +96,10 @@ public sealed class GameBootstrapDragonDto
     public DateTime LastNeedsUpdateAt { get; init; }
 }
 
-public sealed class GameBootstrapRankingDto;
-
+public sealed class GameBootstrapRankingDto
+{
+    public int Position { get; init; }
+    public int Points { get; init; }
+    public int Wins { get; init; }
+    public int Battles { get; init; }
+}

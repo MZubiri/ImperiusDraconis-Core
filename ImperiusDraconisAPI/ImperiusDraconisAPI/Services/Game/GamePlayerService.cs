@@ -18,6 +18,7 @@ public sealed class GamePlayerService
     private readonly MySqlConnectionFactory _connectionFactory;
     private readonly GameEggService _gameEggService;
     private readonly GameDragonService _gameDragonService;
+    private readonly GameBattleService _gameBattleService;
     private readonly GameIdempotencyService _idempotencyService;
     private readonly DracoinGameService _dracoinGameService;
     private readonly GameOptions _options;
@@ -26,6 +27,7 @@ public sealed class GamePlayerService
         MySqlConnectionFactory connectionFactory,
         GameEggService gameEggService,
         GameDragonService gameDragonService,
+        GameBattleService gameBattleService,
         GameIdempotencyService idempotencyService,
         DracoinGameService dracoinGameService,
         IOptions<GameOptions> options)
@@ -33,6 +35,7 @@ public sealed class GamePlayerService
         _connectionFactory = connectionFactory;
         _gameEggService = gameEggService;
         _gameDragonService = gameDragonService;
+        _gameBattleService = gameBattleService;
         _idempotencyService = idempotencyService;
         _dracoinGameService = dracoinGameService;
         _options = options.Value;
@@ -120,6 +123,7 @@ public sealed class GamePlayerService
 
         var eggs = await _gameEggService.ListByPlayerAsync(idAlumno, cancellationToken);
         var dragons = await _gameDragonService.ListByPlayerAsync(idAlumno, cancellationToken);
+        var ranking = await _gameBattleService.GetPlayerRankingAsync(robloxUserId, cancellationToken);
 
         return GamePlayerBootstrapMapper.Map(
             _options.Version,
@@ -131,7 +135,8 @@ public sealed class GamePlayerService
             purchasedSlots,
             maxCapacity,
             eggs,
-            dragons);
+            dragons,
+            ranking);
     }
 
     public async Task<PurchaseDragonCapacityResponse> PurchaseCapacityAsync(
@@ -249,7 +254,8 @@ public sealed class GamePlayerService
             }
 
             // 3. Calcular costo
-            var price = _options.BaseSlotPrice * (purchasedSlots + 1);
+            int[] slotPrices = [250, 500, 800, 1_200, 1_700, 2_300, 3_000, 3_800, 4_700];
+            var price = slotPrices[purchasedSlots];
 
             // 4. Descontar saldo y registrar en ledger
             var balanceAfter = await _dracoinGameService.UpdateBalanceAsync(

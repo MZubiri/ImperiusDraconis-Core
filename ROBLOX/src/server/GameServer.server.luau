@@ -11,7 +11,6 @@ requestRemote.Name = "ImperiusGameRequest"
 requestRemote.Parent = folder
 
 local sessions: {[Player]: any} = {}
-local lastRequestAt: {[Player]: number} = {}
 
 local function call(player: Player, action: string, payload: any): (boolean, any)
 	local userId = player.UserId
@@ -61,11 +60,6 @@ requestRemote.OnServerInvoke = function(player: Player, action: any, payload: an
 	if typeof(action) ~= "string" or (payload ~= nil and typeof(payload) ~= "table") then
 		return { ok = false, error = { code = "INVALID_REQUEST", message = "Solicitud invalida." } }
 	end
-	local now = os.clock()
-	if now - (lastRequestAt[player] or 0) < 0.15 then
-		return { ok = false, error = { code = "RATE_LIMITED", message = "Espera un momento antes de intentarlo de nuevo." } }
-	end
-	lastRequestAt[player] = now
 	local ok, result = call(player, action, payload or {})
 	if ok and (action == "bootstrap" or action == "link") then sessions[player] = result end
 	return if ok then { ok = true, data = result } else { ok = false, error = result }
@@ -73,5 +67,4 @@ end
 
 Players.PlayerRemoving:Connect(function(player)
 	sessions[player] = nil
-	lastRequestAt[player] = nil
 end)

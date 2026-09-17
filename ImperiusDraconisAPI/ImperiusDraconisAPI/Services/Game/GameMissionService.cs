@@ -81,18 +81,22 @@ public sealed class GameMissionService
             var idAlumno=await GetPlayerIdAsync(connection,transaction,request.RobloxUserId,cancellationToken);
             await using var command=new MySqlCommand(
                 """
-                SELECT PM.Status,D.RewardDracoins,D.RewardExperience
+                SELECT PM.Status,D.RewardDracoins,D.RewardExperience,COALESCE(C.Nombre,'')
                 FROM GamePlayerMissions PM INNER JOIN GameMissionDefinitions D ON D.Id=PM.MissionDefinitionId
+                INNER JOIN Alumnos A ON A.IdAlumno=PM.IdAlumno
+                LEFT JOIN Casas C ON C.IdCasa=A.IdCasa
                 WHERE PM.Id=@Id AND PM.IdAlumno=@IdAlumno FOR UPDATE;
                 """,connection,transaction);
             command.Parameters.AddWithValue("@Id",missionId); command.Parameters.AddWithValue("@IdAlumno",idAlumno);
-            string status; int dracoins; int experience;
+            string status; int dracoins; int experience; string houseName;
             await using(var reader=await command.ExecuteReaderAsync(cancellationToken))
             {
                 if(!await reader.ReadAsync(cancellationToken)) throw Rule("MISSION_NOT_FOUND","La mision no existe.",404);
-                status=reader.GetString(0); dracoins=reader.GetInt32(1); experience=reader.GetInt32(2);
+                status=reader.GetString(0); dracoins=reader.GetInt32(1); experience=reader.GetInt32(2); houseName=reader.GetString(3);
             }
             if(status!="COMPLETED") throw Rule("MISSION_NOT_COMPLETED","La mision aun no se puede reclamar.",409);
+            if(houseName.Equals("Ravenclaw",StringComparison.OrdinalIgnoreCase) && experience>0)
+                experience=(int)Math.Ceiling(experience*1.05m);
             decimal balance;
             if(dracoins>0) balance=await _dracoinGameService.UpdateBalanceAsync(connection,transaction,idAlumno,dracoins,"MISSION_REWARD","GAME_MISSION",missionId.ToString(),cancellationToken);
             else

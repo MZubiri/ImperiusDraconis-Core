@@ -100,12 +100,12 @@ public sealed class GameDragonsController : ControllerBase
                 Message = exception.Message
             });
         }
-        catch (Exception exception)
+        catch (Exception)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, new GameErrorResponse
             {
                 Code = "INTERNAL_SERVER_ERROR",
-                Message = exception.Message
+                Message = "Ocurrio un error interno al procesar la solicitud."
             });
         }
     }

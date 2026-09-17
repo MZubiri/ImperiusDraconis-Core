@@ -7,7 +7,8 @@ internal static class GameDragonNeedsRules
         int happiness,
         int hunger,
         DateTime lastUpdateAt,
-        DateTime utcNow)
+        DateTime utcNow,
+        int hungerDecayModifierPct = 0)
     {
         var elapsed = utcNow - lastUpdateAt;
         if (elapsed <= TimeSpan.Zero)
@@ -15,7 +16,8 @@ internal static class GameDragonNeedsRules
             return new DragonNeedsState(life, happiness, hunger, life == 0 ? "FLED" : "ACTIVE");
         }
 
-        var hungerLoss = (int)Math.Floor(elapsed.TotalHours / 2d);
+        var baseHungerLoss = (int)Math.Floor(elapsed.TotalHours / 2d);
+        var hungerLoss = (int)Math.Floor(baseHungerLoss * (1 + hungerDecayModifierPct / 100d));
         var nextHunger = Math.Clamp(hunger - hungerLoss, 0, 100);
         var happinessLoss = nextHunger < 30 ? (int)Math.Floor(elapsed.TotalHours / 4d) : 0;
         var nextHappiness = Math.Clamp(happiness - happinessLoss, 0, 100);
@@ -24,13 +26,18 @@ internal static class GameDragonNeedsRules
         return new DragonNeedsState(nextLife, nextHappiness, nextHunger, nextLife == 0 ? "FLED" : "ACTIVE");
     }
 
-    public static (int Level, string Stage) CalculateProgress(int experience, DateTime hatchedAt, DateTime utcNow)
+    public static (int Level, string Stage) CalculateProgress(
+        int experience,
+        DateTime hatchedAt,
+        DateTime utcNow,
+        int life = 100,
+        int happiness = 100)
     {
         var level = Math.Clamp(1 + experience / 25, 1, 20);
         var age = utcNow - hatchedAt;
-        var stage = age >= TimeSpan.FromHours(96) && experience >= 250
+        var stage = age >= TimeSpan.FromHours(96) && experience >= 250 && life >= 60 && happiness >= 40
             ? "ADULT"
-            : age >= TimeSpan.FromHours(24) && experience >= 80
+            : age >= TimeSpan.FromHours(24) && experience >= 80 && life >= 50 && happiness >= 30
                 ? "YOUNG"
                 : "BABY";
         return (level, stage);
